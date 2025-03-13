@@ -1,0 +1,130 @@
+{
+  // Schema deno.jsonc: @https://github.com/denoland/deno/blob/main/cli/schemas/config-file.v1.json
+  "name": "@deno-kit/kit",
+  "version": "0.0.1",
+  "description": "The modern, unopinionated, and AI-native way to quickly scaffold and maintain Deno projects.",
+  "license": "MIT",
+  "author": "Zachary Iles <zack.iles@gmail.com>",
+  "homepage": "https://github.com/zackiles/deno-kit",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zackiles/deno-kit.git"
+  },
+  "tasks": {
+    "test": "deno test -A",
+    "kit": "deno run -A src/main.ts"
+  },
+  // Import maps. Prefer import "@scope/package" syntax in code.
+  "imports": {
+    // Most of these are needed for deno-kit, be careful removing them.
+    // <@deno-kit IMPORTS START>
+    "@opentelemetry/api": "npm:@opentelemetry/api@1",
+    "@opentelemetry/api-logs": "npm:@opentelemetry/api-logs@0",
+    "@opentelemetry/sdk-logs": "npm:@opentelemetry/sdk-logs@0",
+    "@opentelemetry/sdk-trace-base": "npm:@opentelemetry/sdk-trace-base@1",
+    "@opentelemetry/resources": "npm:@opentelemetry/resources@1",
+    "@opentelemetry/semantic-conventions": "npm:@opentelemetry/semantic-conventions@1",
+    "@std/fmt": "jsr:@std/fmt@1",
+    "@std/fs": "jsr:@std/fs@1",
+    "@std/dotenv": "jsr:@std/dotenv@0",
+    "@std/path": "jsr:@std/path@1",
+    "@std/assert": "jsr:@std/assert@1",
+    "@std/cli": "jsr:@std/cli@1",
+    "@std/jsonc": "jsr:@std/jsonc@1",
+    "@std/net": "jsr:@std/net@1",
+    "@std/testing": "jsr:@std/testing@1"
+    // <@deno-kit IMPORTS END>
+  },
+  "unstable": [
+    "kv",
+    "net",
+    "http",
+    "fs",
+    "ffi",
+    "otel"
+  ],
+  "lock": true,
+  "nodeModulesDir": "none",
+  "fmt": {
+    "lineWidth": 80,
+    "semiColons": false,
+    "useTabs": false,
+    "indentWidth": 2,
+    "singleQuote": true,
+    "proseWrap": "preserve",
+    "include": [
+      "src/**",
+      "test/**",
+      "README.md",
+      "CONTRIBUTING.md"
+    ],
+    "exclude": [
+      "src/templates/**",
+      "docs/**",
+      ".cursor/**",
+      "test/mocks/**",
+      "test/fixtures/**"
+    ]
+  },
+  // Schema for lint rules: @https://github.com/denoland/deno/blob/main/cli/schemas/lint-rules.v1.json
+  "lint": {
+    "rules": {
+      // Possible tags: "fresh", "jsr", "jsx", "react", "recommended"
+      "tags": [
+        "recommended"
+      ],
+      "exclude": [
+        // LLMs don't play well with require-await.
+        "require-await"
+      ]
+    },
+    "include": [
+      "src/**",
+      "test/**",
+      "README.md",
+      "CONTRIBUTING.md"
+    ],
+    "exclude": [
+      "src/templates/**",
+      "docs/**",
+      ".cursor/**",
+      "test/mocks/**",
+      "test/fixtures/**"
+    ],
+    "report": "pretty"
+  },
+  "test": {
+    "include": [
+      "test/**/*.test.ts"
+    ]
+  },
+  // See Configuring Typescript in Deno: @https://docs.deno.com/runtime/fundamentals/configuration/
+  "compilerOptions": {
+    "strict": true,
+    "exactOptionalPropertyTypes": true,
+    "lib": [
+      "esnext",
+      "deno.window",
+      "deno.unstable"
+    ]
+  },
+  // See jsr publishing: @https://docs.deno.com/runtime/reference/cli/publish/
+  "publish": {
+    "include": [
+      "bin/**",
+      "src/**/*.ts",
+      "README.md",
+      "LICENSE"
+    ],
+    "exclude": [
+      "docs/**",
+      ".cursor/**",
+      "test/mocks/**",
+      "test/fixtures/**"
+    ]
+  },
+  // The main entry point for the library to be published
+  "exports": {
+    ".": "./src/mod.ts"
+  }
+}

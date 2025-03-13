@@ -1,0 +1,5 @@
+- use dnt to build npm package easily
+- add a docker-compose
+- ficup usage of deno.jsons in .deno-kit/template/root
+- explore "deno docs" command
+- create publish command

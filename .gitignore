@@ -1,0 +1,13 @@
+.deno
+*.log
+.temp
+.cache
+.env
+.deno-kit/templates/*.backup
+
+.vscode-test
+.DS_Store
+pids
+*.pid
+*.seed
+*.pid.lock
