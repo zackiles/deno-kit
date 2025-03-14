@@ -14,8 +14,8 @@
     "dev": "deno run -A @deno-kit/kit --watch src/main.ts",
     "test": "deno test --allow-all",
     "pre-publish": "deno fmt && deno check -r src/ && deno lint",
-    "kit:help": "deno run -A @deno-kit/kit --help",
-    "kit": "deno run -A @deno-kit/kit"
+    "kit:help": "deno run -A jsr:@deno-kit/kit help",
+    "kit": "deno run -A jsr:@deno-kit/kit"
   },
   // Import maps. Prefer import "@scope/package" syntax in code.
   "imports": {
