@@ -64,11 +64,32 @@ class ConfigSingleton {
         templatesDir = envTemplatesDir
       } else if (isJsrPackage) {
         // When running from JSR package, use templates from the package source
-        const moduleVersion =
-          import.meta.url.match(/@deno-kit\/kit\/(\d+\.\d+\.\d+)/)?.[1] ||
-          '0.0.2'
-        templatesDir =
-          `https://jsr.io/@deno-kit/kit/${moduleVersion}/src/templates`
+        // Extract the module version from the URL, don't hardcode a fallback
+        const moduleVersionMatch = import.meta.url.match(
+          /@deno-kit\/kit\/(\d+\.\d+\.\d+)/,
+        )
+
+        if (moduleVersionMatch?.[1]) {
+          const moduleVersion = moduleVersionMatch[1]
+          templatesDir =
+            `https://jsr.io/@deno-kit/kit/${moduleVersion}/src/templates`
+        } else {
+          // If we can't determine the version, use the URL path to determine it relatively
+          const urlParts = import.meta.url.split('/')
+          const kitIndex = urlParts.findIndex((part) =>
+            part.includes('@deno-kit/kit')
+          )
+
+          if (kitIndex !== -1 && kitIndex < urlParts.length - 1) {
+            // Rebuild URL until the package, then add "src/templates"
+            const baseUrl = urlParts.slice(0, kitIndex + 2).join('/')
+            templatesDir = `${baseUrl}/src/templates`
+          } else {
+            // Fallback to a direct import using the same URL base
+            const baseUrl = new URL('.', import.meta.url).href
+            templatesDir = `${baseUrl}templates`
+          }
+        }
       } else {
         templatesDir = join(kitDir, 'templates')
       }

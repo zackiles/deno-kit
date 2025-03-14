@@ -410,8 +410,32 @@ async function processTemplate(
     const finalDestPath = workspaceDir ? join(workspaceDir, destPath) : destPath
     await backupExistingFile(finalDestPath)
 
-    // Read template file
-    const content = await Deno.readTextFile(templatePath)
+    // Read template file - handle both local and remote files
+    let content: string
+    if (
+      templatePath.startsWith('http://') || templatePath.startsWith('https://')
+    ) {
+      try {
+        // Handle remote files
+        const response = await fetch(templatePath)
+        if (!response.ok) {
+          throw new Error(
+            `Failed to fetch ${templatePath}: ${response.status} ${response.statusText}`,
+          )
+        }
+        content = await response.text()
+      } catch (error: unknown) {
+        const fetchError = error instanceof Error
+          ? error
+          : new Error(String(error))
+        throw new Error(
+          `Failed to fetch remote template: ${fetchError.message}`,
+        )
+      }
+    } else {
+      // Handle local files
+      content = await Deno.readTextFile(templatePath)
+    }
 
     // Replace placeholders
     const processedContent = replacePlaceholders(content, values)
