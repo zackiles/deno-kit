@@ -22,14 +22,7 @@ jobs:
           deno-version: v2.x
 
       - name: Update version in README
-        run: |
-          # Extract version from deno.jsonc using the proper JSONC parser
-          VERSION=$(deno eval --import-map=deno.jsonc "import { parse } from '@std/jsonc'; const config = parse(Deno.readTextFileSync('deno.jsonc')); console.log(config.version)")
-
-          # Update README with the new version
-          sed -i "s|https://jsr.io/@deno-kit/kit/[0-9]\+\.[0-9]\+\.[0-9]\+/|https://jsr.io/@deno-kit/kit/$VERSION/|g" README.md
-
-          echo "Updated README.md with version: $VERSION"
+        run: deno task bump-version
 
       - name: Commit and push changes
         run: |

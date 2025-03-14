@@ -1,7 +1,7 @@
 {
   // Schema deno.jsonc: @https://github.com/denoland/deno/blob/main/cli/schemas/config-file.v1.json
   "name": "@deno-kit/kit",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "description": "The modern, unopinionated, and AI-native way to quickly scaffold and maintain Deno projects.",
   "license": "MIT",
   "author": "Zachary Iles <zack.iles@gmail.com>",
@@ -12,7 +12,8 @@
   },
   "tasks": {
     "test": "deno test -A",
-    "kit": "deno run -A src/main.ts"
+    "kit": "deno run -A src/main.ts",
+    "bump-version": "deno run -A scripts/bump-version.ts"
   },
   // Import maps. Prefer import "@scope/package" syntax in code.
   "imports": {
