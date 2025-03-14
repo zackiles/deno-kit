@@ -32,6 +32,8 @@ class ConfigSingleton {
     try {
       // Check if running from a local file URL or remotely
       const isLocalFile = import.meta.url.startsWith('file:')
+      const isJsrPackage = import.meta.url.includes('jsr.io') ||
+        import.meta.url.includes('@deno-kit/kit')
 
       // Get the absolute path of this file
       const kitDir = isLocalFile
@@ -55,8 +57,21 @@ class ConfigSingleton {
 
       // Define the templates directory path
       // Use DENO_KIT_TEMPLATES_DIR if set, otherwise default to kit/templates
-      const templatesDir = Deno.env.get('DENO_KIT_TEMPLATES_DIR') ||
-        join(kitDir, 'templates')
+      let templatesDir: string
+
+      const envTemplatesDir = Deno.env.get('DENO_KIT_TEMPLATES_DIR')
+      if (envTemplatesDir) {
+        templatesDir = envTemplatesDir
+      } else if (isJsrPackage) {
+        // When running from JSR package, use templates from the package source
+        const moduleVersion =
+          import.meta.url.match(/@deno-kit\/kit\/(\d+\.\d+\.\d+)/)?.[1] ||
+          '0.0.2'
+        templatesDir =
+          `https://jsr.io/@deno-kit/kit/${moduleVersion}/src/templates`
+      } else {
+        templatesDir = join(kitDir, 'templates')
+      }
 
       // Define the backups directory path within the workspace
       const workspaceDir = Deno.env.get('DENO_KIT_WORKSPACE') || Deno.cwd()
