@@ -412,15 +412,29 @@ async function processTemplate(
 
     // Read template file - handle both local and remote files
     let content: string
+    // Fix URL formatting and improve detection
+    const fixedTemplatePath = templatePath.replace(
+      /^https:\/([^\/])/,
+      'https://$1',
+    )
+      .replace(/^http:\/([^\/])/, 'http://$1')
+
+    // More robust URL detection
     if (
-      templatePath.startsWith('http://') || templatePath.startsWith('https://')
+      fixedTemplatePath.startsWith('http://') ||
+      fixedTemplatePath.startsWith('https://') ||
+      fixedTemplatePath.includes('jsr.io')
     ) {
       try {
+        // Ensure the URL is properly formatted
+        const templateUrl = new URL(fixedTemplatePath)
+        console.log(`🌐 Fetching remote template: ${templateUrl.href}`)
+
         // Handle remote files
-        const response = await fetch(templatePath)
+        const response = await fetch(templateUrl)
         if (!response.ok) {
           throw new Error(
-            `Failed to fetch ${templatePath}: ${response.status} ${response.statusText}`,
+            `Failed to fetch ${templateUrl.href}: ${response.status} ${response.statusText}`,
           )
         }
         content = await response.text()
@@ -434,7 +448,7 @@ async function processTemplate(
       }
     } else {
       // Handle local files
-      content = await Deno.readTextFile(templatePath)
+      content = await Deno.readTextFile(fixedTemplatePath)
     }
 
     // Replace placeholders
