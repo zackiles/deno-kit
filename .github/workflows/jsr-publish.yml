@@ -15,6 +15,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Deno
         uses: denoland/setup-deno@v2
@@ -28,7 +30,22 @@ jobs:
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git diff --quiet README.md || (git add README.md && git commit -m "docs: update version in README to match deno.jsonc" && git push)
+
+          # Check if we're in detached HEAD state and handle accordingly
+          if git diff --quiet README.md; then
+            echo "No changes to README.md, skipping commit and push"
+          else
+            # Create a branch from the current detached HEAD
+            git branch temp-branch
+            git checkout temp-branch
+
+            # Add, commit, and push changes
+            git add README.md
+            git commit -m "docs: update version in README to match deno.jsonc"
+
+            # Push to main branch
+            git push origin temp-branch:main
+          fi
 
       - name: Publish to JSR
         run: npx jsr publish
