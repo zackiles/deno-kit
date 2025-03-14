@@ -104,7 +104,7 @@ async function createTemplateMappings(
 const TEMPLATE_MAPPINGS = {
   [join(config.templatesDir, 'README.template.md')]: './README.md',
   [join(config.templatesDir, 'deno.template.jsonc')]: './deno.jsonc',
-  [join(config.templatesDir, 'CONTRIBUTING.template.MD')]: './CONTRIBUTING.md',
+  [join(config.templatesDir, 'CONTRIBUTING.template.md')]: './CONTRIBUTING.md',
   [join(config.templatesDir, 'LICENSE.template')]: './LICENSE',
   [join(config.templatesDir, '.env.template')]: './.env',
   [join(config.templatesDir, '.vscode', 'settings.template.json')]:
@@ -418,6 +418,11 @@ async function processTemplate(
       'https://$1',
     )
       .replace(/^http:\/([^\/])/, 'http://$1')
+      // Fix case sensitivity in file extensions
+      .replace(/\.MD$/i, '.md')
+      .replace(/\.JSON$/i, '.json')
+      .replace(/\.TS$/i, '.ts')
+      .replace(/\.JSONC$/i, '.jsonc')
 
     // More robust URL detection
     if (
@@ -517,8 +522,12 @@ async function generate(): Promise<void> {
       ? await createTemplateMappings(config.templatesDir)
       : TEMPLATE_MAPPINGS
 
+  console.log(`\n📁 Templates directory: ${config.templatesDir}`)
+  console.log('📝 Processing template files:')
+
   // Process all template files
   for (const [templatePath, destPath] of Object.entries(allTemplateMappings)) {
+    console.log(`  🔄 Processing: ${templatePath} -> ${destPath}`)
     await processTemplate(templatePath, destPath, templateValues)
   }
 
