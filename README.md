@@ -17,10 +17,9 @@ Deno-Kit works with new projects, old projects, monorepos, CLIs, servers, librar
 Only one command is needed to get started. In a new folder for your project (or even an existing project) run:
 
 ```sh
-deno run -A jsr:@deno-kit/kit setup
+deno run --allow-all https://jsr.io/@deno-kit/kit/0.0.7/src/commands/setup.ts
 
-# Or, start the project in a different directory
-# deno run -A jsr:@deno-kit/kit setup --workspace /some/path
+# Or, start the project in a different directory with --workspace /some/path
 ```
 
 This will:
