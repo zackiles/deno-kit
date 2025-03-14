@@ -24,7 +24,7 @@ jobs:
       - name: Update version in README
         run: |
           # Extract version from deno.jsonc using the proper JSONC parser
-          VERSION=$(deno eval --import-map=deno.jsonc "import { parse } from 'jsr:@std/jsonc'; const config = parse(Deno.readTextFileSync('deno.jsonc')); console.log(config.version)")
+          VERSION=$(deno eval --import-map=deno.jsonc "import { parse } from '@std/jsonc'; const config = parse(Deno.readTextFileSync('deno.jsonc')); console.log(config.version)")
 
           # Update README with the new version
           sed -i "s|https://jsr.io/@deno-kit/kit/[0-9]\+\.[0-9]\+\.[0-9]\+/|https://jsr.io/@deno-kit/kit/$VERSION/|g" README.md
