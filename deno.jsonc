@@ -1,7 +1,7 @@
 {
   // Schema deno.jsonc: @https://github.com/denoland/deno/blob/main/cli/schemas/config-file.v1.json
   "name": "@deno-kit/kit",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "The modern, unopinionated, and AI-native way to quickly scaffold and maintain Deno projects.",
   "license": "MIT",
   "author": "Zachary Iles <zack.iles@gmail.com>",
@@ -113,7 +113,9 @@
     "include": [
       "bin/**",
       "src/**/*.ts",
-      "src/templates/**",
+      "src/templates/**/*.*",
+      "src/templates/**/*",
+      "src/templates/**/.vscode/**",
       "README.md",
       "LICENSE"
     ],
