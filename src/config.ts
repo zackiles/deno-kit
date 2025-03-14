@@ -30,8 +30,13 @@ class ConfigSingleton {
     if (this.config) return
 
     try {
+      // Check if running from a local file URL or remotely
+      const isLocalFile = import.meta.url.startsWith('file:')
+
       // Get the absolute path of this file
-      const kitDir = fromFileUrl(new URL('.', import.meta.url))
+      const kitDir = isLocalFile
+        ? fromFileUrl(new URL('.', import.meta.url))
+        : join(Deno.cwd(), 'src')
 
       // Get command-line arguments
       const kitArgs = Deno.args
@@ -41,7 +46,9 @@ class ConfigSingleton {
       const projectArgs = Deno.args
 
       // Get the project directory (one level up from kitDir)
-      const projectDir = fromFileUrl(new URL('..', import.meta.url))
+      const projectDir = isLocalFile
+        ? fromFileUrl(new URL('..', import.meta.url))
+        : Deno.cwd()
 
       // Load environment variables from .env file
       const env = await load()
