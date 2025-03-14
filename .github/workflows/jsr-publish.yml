@@ -9,9 +9,9 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       id-token: write
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -21,5 +21,21 @@ jobs:
         with:
           deno-version: v2.x
 
+      - name: Update version in README
+        run: |
+          # Extract version from deno.jsonc (removing comments)
+          VERSION=$(deno eval "console.log(JSON.parse(Deno.readTextFileSync('deno.jsonc').replace(/\/\/.*$/gm, '')).version)")
+
+          # Update README with the new version
+          sed -i "s|https://jsr.io/@deno-kit/kit/[0-9]\+\.[0-9]\+\.[0-9]\+/|https://jsr.io/@deno-kit/kit/$VERSION/|g" README.md
+
+          echo "Updated README.md with version: $VERSION"
+
+      - name: Commit and push changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git diff --quiet README.md || (git add README.md && git commit -m "docs: update version in README to match deno.jsonc" && git push)
+
       - name: Publish to JSR
-        run: npx jsr publish 
+        run: npx jsr publish
