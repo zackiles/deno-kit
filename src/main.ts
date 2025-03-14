@@ -1,7 +1,15 @@
 #!/usr/bin/env -S deno run --allow-all
 import { getConfig } from './config.ts'
 import { join } from '@std/path'
-import { blue, bold, cyan, dim, green, red, yellow } from 'jsr:@std/fmt/colors'
+import {
+  blue,
+  bold,
+  cyan,
+  dim,
+  green,
+  red,
+  yellow,
+} from 'jsr:@std/fmt@1/colors'
 
 const KIT_NAME = 'deno kit'
 
@@ -53,7 +61,7 @@ const COMMAND_MAP: Record<string, {
     commandDescription: 'Remove the Deno-Kit files and CLI from the project',
   },
   'update': {
-    commandPath: 'update.ts',
+    commandPath: 'commands/update.ts',
     commandDescription: 'Update the Cursor configuration from GitHub',
   },
   'server': {
@@ -141,7 +149,7 @@ async function runCommand(scriptName: string): Promise<void> {
   const commandArgs = commandIndex >= 0
     ? Deno.args
       .slice(commandIndex + 1)
-      .filter((_, i, arr) =>
+      .filter((_, i, _arr) =>
         i !== workspaceIndex - (commandIndex + 1) &&
         i !== (workspaceIndex + 1) - (commandIndex + 1)
       )

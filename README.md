@@ -4,9 +4,9 @@
 [![JSR](https://jsr.io/badges/@deno-kit/kit)](https://jsr.io/@deno-kit/kit)
 [![JSR Scope](https://jsr.io/badges/@deno-kit)](https://jsr.io/@deno-kit)
 
-> The modern, unopinionated, and AI-native way to quickly scaffold and maintain Deno projects.
+> Modern, unopinionated, and AI-native way to quickly scaffold and maintain Deno projects.
 
-Go from an empty directory, to a published package in **seconds**. Deno-Kit is the modern approach to building Deno packages. Supercharge your development workflows with a powerful, intuitive, and unobtrusive approach to scaffolding and code generation using the latest in AI-driven development workflows. It's lightweight design allows you to use as little or as much of Deno-Kit as you want - you can even remove it completely with a single command at any time.
+Go from an empty directory, to a published package in **seconds**. Deno-Kit is a modern approach to building Deno packages. Supercharge your development workflows with a powerful, intuitive, and unobtrusive approach to scaffolding and code generation using the latest in AI-driven development workflows. It's lightweight design allows you to use as little or as much of Deno-Kit as you want - you can even remove it completely with a single command at any time.
 
 Deno-Kit works with new projects, old projects, monorepos, CLIs, servers, libraries, and even advanced templates like MCP Servers with SSE or stdio (think `deno init` on steroids).
 

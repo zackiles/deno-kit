@@ -115,11 +115,9 @@ const TEMPLATE_MAPPINGS = {
   [join(config.templatesDir, 'src', 'lib.template.ts')]: './src/lib.ts',
   [join(config.templatesDir, 'src', 'mod.template.ts')]: './src/mod.ts',
   [join(config.templatesDir, 'src', 'types.template.ts')]: './src/types.ts',
-  // Add src/core directory templates
-  [join(config.templatesDir, 'src', 'core', 'logger.template.ts')]:
-    './src/core/logger.ts',
-  [join(config.templatesDir, 'src', 'core', 'telemetry.template.ts')]:
-    './src/core/telemetry.ts',
+  // Add src/utils directory templates
+  [join(config.templatesDir, 'src', 'utils', 'telemetry.template.ts')]:
+    './src/utils/telemetry.ts',
 }
 
 // Get workspace directory from environment if set
@@ -429,11 +427,11 @@ async function processTemplate(
 }
 
 /**
- * Runs deno install after template processing
+ * Installs deno-kit and dependencies after template processing
  *
  * @returns {Promise<void>}
  */
-async function runDenoInstall(): Promise<void> {
+async function installDependencies(): Promise<void> {
   console.log('🦕 Running deno install...')
 
   try {
@@ -487,7 +485,7 @@ async function generate(): Promise<void> {
   }
 
   // Run deno install
-  await runDenoInstall()
+  await installDependencies()
 
   console.log('\n🎉 All done! Your Deno project is ready to use.')
   console.log('📦 Package:', templateValues.PACKAGE_NAME)

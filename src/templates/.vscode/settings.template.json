@@ -36,8 +36,7 @@
     "editor.formatOnSave": true
   },
   "search.exclude": {
-    "**/.cursor": true,
-    "**/.deno-kit": true
+    "**/.cursor": true
   },
   "cSpell.dictionaries": [
     "!typescript"
