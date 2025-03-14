@@ -33,7 +33,7 @@
     "@std/jsonc": "jsr:@std/jsonc@1",
     "@std/net": "jsr:@std/net@1",
     "@std/testing": "jsr:@std/testing@1"
-    // <@deno-kit IMPORTS END>
+    // </@deno-kit IMPORTS END>
   },
   "unstable": [
     "kv",
@@ -125,6 +125,6 @@
   },
   // The main entry point for the library to be published
   "exports": {
-    ".": "./src/mod.ts"
+    ".": "./src/main.ts"
   }
 }

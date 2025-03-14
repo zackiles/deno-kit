@@ -1,4 +1,4 @@
-import { Logger } from './core/logger.ts'
+import { Logger } from './utils/telemetry.ts'
 import type { LibConfig, LibRequest, LibResult } from './types.ts'
 
 // Default logger for you to use. Will print to the default OpenTelemetry sink.

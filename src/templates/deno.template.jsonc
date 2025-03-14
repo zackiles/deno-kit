@@ -11,11 +11,11 @@
     "url": "https://github.com/{PACKAGE_GITHUB_USER}/{PROJECT_NAME}.git"
   },
   "tasks": {
+    "dev": "deno run -A @deno-kit/kit --watch src/main.ts",
     "test": "deno test --allow-all",
     "pre-publish": "deno fmt && deno check -r src/ && deno lint",
-    "kit:telemetry": "OTEL_DENO=true deno run -A .deno-kit/main.ts",
-    "kit:help": "deno run -A ./.deno-kit/main.ts --help",
-    "kit": "deno run -A .deno-kit/main.ts"
+    "kit:help": "deno run -A @deno-kit/kit --help",
+    "kit": "deno run -A @deno-kit/kit"
   },
   // Import maps. Prefer import "@scope/package" syntax in code.
   "imports": {
@@ -36,8 +36,9 @@
     "@std/jsonc": "jsr:@std/jsonc@1",
     "@std/net": "jsr:@std/net@1",
     "@std/testing": "jsr:@std/testing@1",
+    "@deno-kit/kit": "jsr:@deno-kit/kit@0",
     "@deno-kit/module-to-cli": "jsr:@deno-kit/module-to-cli@0"
-    // <@deno-kit IMPORTS END>
+    // </@deno-kit IMPORTS END>
   },
   "unstable": [
     "kv",
