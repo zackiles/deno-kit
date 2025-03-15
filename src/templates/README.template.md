@@ -3,6 +3,8 @@
 [![JSR Score](https://jsr.io/badges/{PACKAGE_NAME}/score)](https://jsr.io/{PACKAGE_NAME})
 [![JSR](https://jsr.io/badges/{PACKAGE_SCOPE}/1. Clone this repository)](https://jsr.io/{PACKAGE_NAME})
 [![JSR Scope](https://jsr.io/badges/{PACKAGE_SCOPE})](https://jsr.io/{PACKAGE_SCOPE})
+[![ci](https://github.com/{PACKAGE_GITHUB_USER}/{PROJECT_NAME}/actions/workflows/ci.yml/badge.svg)](https://github.com/{PACKAGE_GITHUB_USER}/{PROJECT_NAME}/actions/workflows/ci.yml)
+[![license](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/{PACKAGE_GITHUB_USER}/{PROJECT_NAME}/blob/main/LICENSE)
 
 {PACKAGE_DESCRIPTION}
 
@@ -11,7 +13,7 @@
 
 ## Features
 
-- 🦖 **Modern Deno 2 Features:** Using the latest Deno 2
+- 🦖 **Modern Deno Features:** Using the latest Deno 2.
 - ...
 
 ## Getting Started
