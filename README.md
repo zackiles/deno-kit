@@ -68,21 +68,8 @@ Running `deno task kit update` will update the following:
 - MCP servers for AI in `ai/mcp`
 - Docs for AI in `ai/docs` (needed for some Cursor rules)
 - Docs for humans in `docs/`
-- Updates dependencies of `deno-kit`
+- Updates `deno-kit` dependencies
 - General enhancements and critical fixes to `deno-kit`
-
-## **How Template Strings Work**
-
-A freshly cloned repo will have these template strings found throughout the code base. All of them are optional. Running `deno task kit setup` will replace them. They are:
-
-```text
-{PACKAGE_NAME}: Required. e.g "@scope/package-name". Determines {PACKAGE_SCOPE}: Automatically determined from {PACKAGE_NAME}
-{PACKAGE_VERSION}: Defaults to 0.0.1
-{PACKAGE_DESCRIPTION} Defaults to ""
-{PACKAGE_GITHUB_USER}: Defaults to PACKAGE_SCOPE
-{PACKAGE_AUTHOR_NAME}: Defaults to "git config user.name"
-{PACKAGE_AUTHOR_EMAIL}: Defaults to "git config user.email"
-```
 
 ## **Prerequisites**
 
