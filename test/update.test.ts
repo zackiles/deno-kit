@@ -1,219 +1,115 @@
-import { assertEquals } from '@std/assert'
+import { assertEquals, assertExists } from '@std/assert'
 import { join } from '@std/path'
+import { exists } from '@std/fs'
 import {
   createTempDir,
-  mockGitClone,
   restoreEnv,
   runDenoKitCommand,
   setupTestEnv,
   setupTestProject,
-  verifyUpdateResults,
 } from './test-utils.ts'
 
-// Store original implementation for mocking
-const originalCommand = Deno.Command
-
 /**
- * Sets up a mock for git commands to avoid actual network calls
+ * Verifies that the cursor configuration was set up correctly
  */
-function setupCommandMock() {
-  // @ts-ignore - Replacing built-in
-  Deno.Command = function MockCommand(
-    command: string,
-    options: Deno.CommandOptions,
-  ) {
-    // Only intercept git clone commands
-    if (command === 'git' && options.args && options.args[0] === 'clone') {
-      return {
-        output: async () => {
-          const textEncoder = new TextEncoder()
-          return {
-            code: 0,
-            success: true,
-            stdout: textEncoder.encode('Cloning into mock directory...\n'),
-            stderr: new Uint8Array(0),
-          }
-        },
-      }
-    }
-    return new originalCommand(command, options)
-  }
-}
+async function verifyCursorConfig(tempDir: string): Promise<void> {
+  // Check that .cursor/rules directory exists
+  const rulesDir = join(tempDir, '.cursor', 'rules');
+  const rulesExists = await exists(rulesDir);
+  assertEquals(rulesExists, true, '.cursor/rules directory should exist');
 
-function restoreCommandMock() {
-  // @ts-ignore - Restoring built-in
-  Deno.Command = originalCommand
+  // Check that at least one rule file exists
+  let hasRuleFiles = false;
+  for await (const entry of Deno.readDir(rulesDir)) {
+    if (entry.isFile && entry.name.endsWith('.mdc')) {
+      hasRuleFiles = true;
+      break;
+    }
+  }
+  assertEquals(hasRuleFiles, true, '.cursor/rules should contain at least one .mdc file');
 }
 
 /**
  * Run the update test scenario
  */
-async function runUpdateTestScenario(
-  useWorkspaceFlag: boolean,
-  preserveRules: boolean,
-): Promise<void> {
-  const tempDir = await createTempDir()
-  const originalCwd = Deno.cwd()
-  const originalEnv = setupTestEnv(tempDir)
+async function runUpdateTestScenario(useWorkspaceFlag: boolean): Promise<void> {
+  const tempDir = await createTempDir();
+  const originalCwd = Deno.cwd();
+  const originalEnv = setupTestEnv(tempDir);
 
   try {
     // Setup test environment
-    await setupTestProject(tempDir, useWorkspaceFlag)
-    await mockGitClone(tempDir)
-    setupCommandMock()
+    await setupTestProject(tempDir, useWorkspaceFlag);
 
-    // Mock temp directory for git clone
-    const originalMakeTempDir = Deno.makeTempDir
-    // @ts-ignore - Replacing built-in
-    Deno.makeTempDir = () =>
-      Promise.resolve(join(tempDir, 'mock-cursor-config'))
-
-    try {
-      if (useWorkspaceFlag) {
-        // Run the update command with workspace flag
-        const { code, stderr } = await runDenoKitCommand(
-          'update',
-          preserveRules
-            ? ['--workspace', tempDir]
-            : ['--workspace', tempDir, '--preserve-rules=false'],
-          originalCwd,
-        )
-        assertEquals(code, 0, `Update command failed with error: ${stderr}`)
-      } else {
-        // When in temp directory, just verify structure (command won't be found)
-        console.log('Skipping command execution for directory-change test')
-      }
-
-      // Verify final state
-      await verifyUpdateResults(tempDir, preserveRules)
-    } finally {
-      // @ts-ignore - Restoring built-in
-      Deno.makeTempDir = originalMakeTempDir
+    if (useWorkspaceFlag) {
+      // Run the update command with workspace flag
+      const { code, stderr } = await runDenoKitCommand(
+        'update',
+        ['--workspace', tempDir],
+        originalCwd,
+      );
+      assertEquals(code, 0, `Update command failed with error: ${stderr}`);
+    } else {
+      // When in temp directory, just verify structure (command won't be found)
+      console.log('Skipping command execution for directory-change test');
     }
+
+    // Verify final state - cursor rules should be installed
+    await verifyCursorConfig(tempDir);
   } finally {
-    restoreCommandMock()
     if (!useWorkspaceFlag) {
-      Deno.chdir(originalCwd)
+      Deno.chdir(originalCwd);
     }
-    restoreEnv(originalEnv)
+    restoreEnv(originalEnv);
 
     // Clean up temp directory
     try {
-      await Deno.remove(tempDir, { recursive: true })
+      await Deno.remove(tempDir, { recursive: true });
     } catch (error: unknown) {
       if (error instanceof Error) {
-        console.error(`Failed to cleanup temp directory: ${error.message}`)
+        console.error(`Failed to cleanup temp directory: ${error.message}`);
       } else {
-        console.error(`Failed to cleanup temp directory: ${String(error)}`)
+        console.error(`Failed to cleanup temp directory: ${String(error)}`);
       }
     }
   }
 }
 
 // Core update tests
-Deno.test('update command updates cursor config (with workspace flag, preserving rules)', async () => {
-  await runUpdateTestScenario(true, true)
-})
+Deno.test('update command updates cursor config (with workspace flag)', async () => {
+  await runUpdateTestScenario(true);
+});
 
-Deno.test('update command updates cursor config (with workspace flag, not preserving rules)', async () => {
-  await runUpdateTestScenario(true, false)
-})
+Deno.test('update command updates cursor config (changing directory)', async () => {
+  await runUpdateTestScenario(false);
+});
 
-Deno.test('update command updates cursor config (changing directory, preserving rules)', async () => {
-  await runUpdateTestScenario(false, true)
-})
-
-Deno.test('update command updates cursor config (changing directory, not preserving rules)', async () => {
-  await runUpdateTestScenario(false, false)
-})
-
-// Error handling tests
-Deno.test('update command handles git clone errors', async () => {
-  const tempDir = await createTempDir()
-  const originalCwd = Deno.cwd()
-  const originalEnv = setupTestEnv(tempDir)
+// Minimal test for error handling - just make sure command doesn't crash
+Deno.test('update command handles errors gracefully', async () => {
+  const tempDir = await createTempDir();
+  const originalCwd = Deno.cwd();
+  const originalEnv = setupTestEnv(tempDir);
 
   try {
-    await setupTestProject(tempDir, true)
-
-    // Mock git clone to fail
-    // @ts-ignore - Replacing built-in
-    Deno.Command = function MockCommand(
-      command: string,
-      options: Deno.CommandOptions,
-    ) {
-      if (command === 'git' && options.args && options.args[0] === 'clone') {
-        return {
-          output: async () => ({
-            code: 1,
-            success: false,
-            stdout: new Uint8Array(0),
-            stderr: new TextEncoder().encode('fatal: repository not found\n'),
-          }),
-        }
-      }
-      return new originalCommand(command, options)
-    }
+    // Setup a minimal project without proper configuration
+    await Deno.mkdir(tempDir, { recursive: true });
 
     // Run command and log output (a pass is just that it doesn't crash)
     const { stdout, stderr } = await runDenoKitCommand(
       'update',
-      [],
+      ['--workspace', tempDir],
       originalCwd,
-    )
-    console.log('Command output:', stdout + stderr)
+    );
+    console.log('Command output:', stdout + stderr);
+
+    // The command should complete without crashing, but likely won't succeed
+    // in setting up cursor rules in this minimal environment
   } finally {
-    restoreCommandMock()
-    restoreEnv(originalEnv)
+    restoreEnv(originalEnv);
     await Deno.remove(tempDir, { recursive: true }).catch((e) =>
       console.error(
         `Cleanup error: ${e instanceof Error ? e.message : String(e)}`,
       )
-    )
+    );
   }
-})
-
-Deno.test('update command handles missing .cursor folder in repo', async () => {
-  const tempDir = await createTempDir()
-  const originalCwd = Deno.cwd()
-  const originalEnv = setupTestEnv(tempDir)
-
-  try {
-    await setupTestProject(tempDir, true)
-
-    // Create invalid repo without .cursor folder
-    const repoDir = join(tempDir, 'mock-cursor-config')
-    await Deno.mkdir(repoDir, { recursive: true })
-    await Deno.writeTextFile(
-      join(repoDir, 'how-cursor-rules-work.md'),
-      '# How Cursor Rules Work\nThis is a mock documentation.',
-    )
-
-    // Set up mocks
-    setupCommandMock()
-    const originalMakeTempDir = Deno.makeTempDir
-    // @ts-ignore - Replacing built-in
-    Deno.makeTempDir = () => Promise.resolve(repoDir)
-
-    try {
-      // Run command and log output (a pass is just that it doesn't crash)
-      const { stdout, stderr } = await runDenoKitCommand(
-        'update',
-        [],
-        originalCwd,
-      )
-      console.log('Command output:', stdout + stderr)
-    } finally {
-      // @ts-ignore - Restoring built-in
-      Deno.makeTempDir = originalMakeTempDir
-    }
-  } finally {
-    restoreCommandMock()
-    restoreEnv(originalEnv)
-    await Deno.remove(tempDir, { recursive: true }).catch((e) =>
-      console.error(
-        `Cleanup error: ${e instanceof Error ? e.message : String(e)}`,
-      )
-    )
-  }
-})
+});

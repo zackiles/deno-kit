@@ -17,6 +17,7 @@
 import { dirname, join } from '@std/path'
 import { ensureDir } from '@std/fs'
 import { getConfig } from '../config.ts'
+import { executeCursorSetup } from '../utils.ts'
 
 // Get configuration to access kitDir and templatesDir
 const config = await getConfig()
@@ -107,6 +108,8 @@ const TEMPLATE_MAPPINGS = {
   [join(config.templatesDir, 'CONTRIBUTING.template.md')]: './CONTRIBUTING.md',
   [join(config.templatesDir, 'LICENSE.template')]: './LICENSE',
   [join(config.templatesDir, '.env.template')]: './.env',
+  [join(config.templatesDir, 'deno-version.template')]: './.deno-version',
+  [join(config.templatesDir, '.editorconfig.template')]: './.editorconfig',
   [join(config.templatesDir, '.vscode', 'settings.template.json')]:
     './.vscode/settings.json',
   [join(config.templatesDir, '.vscode', 'extensions.template.json')]:
@@ -505,9 +508,12 @@ async function installDependencies(): Promise<void> {
  *
  * @returns {Promise<void>}
  */
-async function generate(): Promise<void> {
+async function generate(options: { workspace?: string } = {}): Promise<void> {
   console.log('🦕 Deno-Kit Project Generator')
   console.log('---------------------------------')
+
+  // Store the workspace directory from options or environment
+  const workspaceDir = options.workspace || Deno.env.get('DENO_KIT_WORKSPACE')
 
   // Gather all values from user input
   const templateValues = await gatherTemplateValues()
@@ -534,12 +540,40 @@ async function generate(): Promise<void> {
   // Run deno install
   await installDependencies()
 
+  // Install Cursor AI configuration
+  console.log('\n🔍 Setting up Cursor AI configuration...')
+  const success = await executeCursorSetup(workspaceDir)
+  if (success) {
+    console.log('✅ Successfully installed Cursor AI rules')
+  } else {
+    console.warn('⚠️ Failed to install Cursor AI rules')
+  }
+
   console.log('\n🎉 All done! Your Deno project is ready to use.')
   console.log('📦 Package:', templateValues.PACKAGE_NAME)
 }
 
 if (import.meta.main) {
-  await generate()
+  // Parse command line arguments using a more robust approach with @std/cli
+  const args = Deno.args
+  const parsedArgs: Record<string, unknown> = {}
+
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i]
+
+    if (arg === '--workspace' && i + 1 < args.length) {
+      parsedArgs.workspace = args[++i] // Increment i after usage
+    }
+    // Add other flags here as needed
+  }
+
+  // Pass workspace only if it's defined, avoiding TypeScript errors with exactOptionalPropertyTypes
+  const options: { workspace?: string } = {}
+  if (typeof parsedArgs.workspace === 'string') {
+    options.workspace = parsedArgs.workspace
+  }
+
+  await generate(options)
 }
 
 export type { TemplateValues }

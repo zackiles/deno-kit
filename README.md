@@ -3,6 +3,8 @@
 [![JSR Score](https://jsr.io/badges/@deno-kit/kit/score)](https://jsr.io/@deno-kit/kit)
 [![JSR](https://jsr.io/badges/@deno-kit/kit)](https://jsr.io/@deno-kit/kit)
 [![JSR Scope](https://jsr.io/badges/@deno-kit)](https://jsr.io/@deno-kit)
+[![cd](https://github.com/zackiles/deno-kit/actions/workflows/jsr-publish.yml/badge.svg)](https://github.com/zackiles/deno-kit/actions/workflows/jsr-publish.yml)
+[![license](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/zackiles/deno-kit/blob/main/LICENSE)
 
 > Modern, unopinionated, and AI-native way to quickly scaffold and maintain Deno projects.
 
@@ -17,7 +19,7 @@ Deno-Kit works with new projects, old projects, monorepos, CLIs, servers, librar
 Only one command is needed to get started. In a new folder for your project (or even an existing project) run:
 
 ```sh
-deno run --allow-all https://jsr.io/@deno-kit/kit/0.0.10/src/commands/setup.ts
+deno run -A https://jsr.io/@deno-kit/kit/0.0.10/src/commands/setup.ts
 
 # Or, start the project in a different directory with --workspace /some/path
 ```

@@ -1,5 +1,6 @@
 import { assertEquals, assertExists, assertFalse } from '@std/assert'
 import { join } from '@std/path'
+import { exists } from '@std/fs'
 import {
   createTempDir,
   getExpectedFiles,
@@ -19,6 +20,26 @@ const TEMPLATE_VARIABLES = [
   'YEAR',
   'PROJECT_NAME',
 ]
+
+/**
+ * Verifies that the cursor configuration was set up correctly
+ */
+async function verifyCursorConfig(tempDir: string): Promise<void> {
+  // Check that .cursor/rules directory exists
+  const rulesDir = join(tempDir, '.cursor', 'rules');
+  const rulesExists = await exists(rulesDir);
+  assertEquals(rulesExists, true, '.cursor/rules directory should exist');
+
+  // Check that at least one rule file exists
+  let hasRuleFiles = false;
+  for await (const entry of Deno.readDir(rulesDir)) {
+    if (entry.isFile && entry.name.endsWith('.mdc')) {
+      hasRuleFiles = true;
+      break;
+    }
+  }
+  assertEquals(hasRuleFiles, true, '.cursor/rules should contain at least one .mdc file');
+}
 
 /**
  * Run the test scenario with either the workspace flag or by changing directory
@@ -70,6 +91,9 @@ async function runTestScenario(useWorkspaceFlag: boolean) {
         )
       }
     }
+
+    // Verify cursor configuration
+    await verifyCursorConfig(tempDir);
   } finally {
     // If we changed directory, change back
     if (!useWorkspaceFlag) {
