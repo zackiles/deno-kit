@@ -47,11 +47,18 @@ class Workspace {
   readonly path: string
   readonly configFileName: string
   readonly templatesPath: string
-  readonly backupsPath: string
+  #backupsPath: string
   #files = new Map<string, string>()
   #templates = new Map<string, string>()
   #templateValues = new Map<string, string>()
   #backups = new Map<string, string>()
+
+  /**
+   * Get the backup path for the workspace
+   */
+  get backupsPath(): string {
+    return this.#backupsPath
+  }
 
   /**
    * Create a new Workspace instance
@@ -93,12 +100,12 @@ class Workspace {
 
     this.path = getCommonBasePath(workspaceFilePaths)
     this.templatesPath = getCommonBasePath(templateFilePaths)
-    this.backupsPath = backupFilePaths.length > 0 ? getCommonBasePath(backupFilePaths) : ''
+    this.#backupsPath = backupFilePaths.length > 0 ? getCommonBasePath(backupFilePaths) : ''
 
     validateCommonBasePath(workspaceFilePaths, this.path)
     validateCommonBasePath(templateFilePaths, this.templatesPath)
     if (backupFilePaths.length > 0) {
-      validateCommonBasePath(backupFilePaths, this.backupsPath)
+      validateCommonBasePath(backupFilePaths, this.#backupsPath)
     }
 
     this.#files = workspaceFiles
@@ -118,7 +125,9 @@ class Workspace {
   }
 
   /**
-   * Create a workspace by reading all files in the given paths and creating a backup.
+   * Create a workspace by reading all files in the given paths.
+   * NOTE: If no workspaceConfigFile is present in the workspacePath
+   * one will be created and a first backup of the workspace will be made.
    *
    * @param options Configuration options for creating a workspace
    * @param options.workspacePath Path to the workspace directory, if not provided a temporary directory will be created
@@ -213,9 +222,10 @@ class Workspace {
       ...(templatesValues && { templateValues: templatesValues }),
       configFileName: configFileName || DEFAULT_WORKSPACE_CONFIG_FILE_NAME,
     })
-
-    await workspace.#backup()
+    // Call save for the first time.
     await workspace.#save()
+    // Call backup for the first time.
+    await workspace.#backup()
     return workspace
   }
 
@@ -372,6 +382,18 @@ class Workspace {
       const backupPath = path.replace(this.path, backupBasePath)
       backupFiles.set(backupPath, content)
     }
+
+    // Update internal state with new backup files
+    this.#backups = backupFiles
+
+    // Update the backupsPath property
+    if (backupFiles.size > 0) {
+      const backupFilePaths = Array.from(backupFiles.keys())
+      this.#backupsPath = getCommonBasePath(backupFilePaths)
+    }
+
+    // Save the updated workspace configuration
+    await this.#save()
 
     return backupFiles
   }
