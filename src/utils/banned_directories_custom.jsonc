@@ -1,8 +1,11 @@
 {
   "windows": [
+    "**/{deno-kit,deno-kit/}**"
   ],
   "darwin": [
+    "**/{deno-kit,deno-kit/}**"
   ],
   "linux": [
+    "**/{deno-kit,deno-kit/}**"
   ]
 }

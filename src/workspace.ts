@@ -27,6 +27,7 @@ import {
   validateCommonBasePath,
 } from './utils/fs-extra.ts'
 import { getPackageInfo } from './utils/get-package-info.ts'
+import { isBannedDirectory } from './utils/banned-directories.ts'
 import { parse as parseJSONC } from '@std/jsonc'
 import type { KitFileSpecification, TemplateValues } from './types.ts'
 
@@ -215,6 +216,10 @@ class Workspace {
    */
   static async #validateWorkspacePath(workspacePath: string): Promise<string> {
     try {
+      // Check if the path is a banned directory (e.g system directories)
+      if (await isBannedDirectory(workspacePath)) {
+        throw new Error(`Workspace path '${workspacePath}' is a banned directory`)
+      }
       // Check if the path is the deno-kit source project
       const denoJsoncPath = join(workspacePath, 'deno.jsonc')
       const isDenoKitSource = await (async () => {
@@ -307,6 +312,11 @@ class Workspace {
       suffix: `-${this.workspaceId}`,
     })
 
+    // Check if backup directory is banned
+    if (await isBannedDirectory(backupBasePath)) {
+      throw new Error(`Cannot create backup in banned directory: ${backupBasePath}`)
+    }
+
     const backupFiles = new Map<string, string>()
 
     for (const [path, content] of this.#files.entries()) {
@@ -318,7 +328,7 @@ class Workspace {
   }
 
   /**
-   * Creates a backup of the workspace and saves the workspace configuration to kit.json
+   * Saves the workspace configuration to kit.json
    *
    * @private
    */
@@ -342,6 +352,11 @@ class Workspace {
     command: string,
     args: string[] = [],
   ): Promise<string> {
+    // Check if workspace directory is banned
+    if (await isBannedDirectory(this.workspacePath)) {
+      throw new Error(`Cannot run command in banned directory: ${this.workspacePath}`)
+    }
+
     const decoder = new TextDecoder()
     const options = {
       args,
@@ -416,6 +431,11 @@ class Workspace {
     }
 
     const parentDir = absolutePath.substring(0, absolutePath.lastIndexOf('/'))
+
+    // Check if parent directory is banned
+    if (await isBannedDirectory(parentDir)) {
+      throw new Error(`Cannot write file in banned directory: ${parentDir}`)
+    }
 
     try {
       await Deno.mkdir(parentDir, { recursive: true })

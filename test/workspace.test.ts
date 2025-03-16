@@ -56,11 +56,11 @@ Deno.test('Workspace - creates workspace and handles templates', async () => {
     'object',
     'Should have template values object',
   )
-
-  // Cleanup - remove temporary workspace directory
+  /**
   try {
     await Deno.remove(workspace.workspacePath, { recursive: true })
   } catch (error) {
     console.warn(`Failed to cleanup test workspace: ${error}`)
   }
+  */
 })
