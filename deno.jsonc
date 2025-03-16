@@ -47,7 +47,7 @@
   "lock": true,
   "nodeModulesDir": "none",
   "fmt": {
-    "lineWidth": 80,
+    "lineWidth": 100,
     "semiColons": false,
     "useTabs": false,
     "indentWidth": 2,

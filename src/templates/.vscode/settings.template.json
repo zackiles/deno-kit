@@ -56,6 +56,13 @@
     "MILLIS",
     "msvc",
     "denoland",
-    "dotenv"
+    "dotenv",
+    "swapfile",
+    "hiberfil",
+    "dconf",
+    "keyrings",
+    "dbus",
+    "dockerenv",
+    "fseventsd"
   ]
 }

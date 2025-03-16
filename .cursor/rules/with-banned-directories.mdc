@@ -1,0 +1,23 @@
+---
+description: 
+globs: banned_directories_custom.jsonc,banned_directories_default.jsonc
+alwaysApply: false
+---
+
+# Rules for Banned Directories Jsonc Config
+
+- These `.jsonc` files contain strings that represent either a) an absolute path to a directory, OR b) a glob pattern used to match using the method `checkPatternMatch` in the file `banned-direcories.ts`.
+- Glob patters MUST adhere to the specification provided by the method `globToRegExp` in the library `@std/path`.
+- Before editing, adding to, or analyzing these `.jsonc` files you MUST review the documentation for [`globToRegExp`](mdc:https:/jsr.io/@std/path/doc/~/globToRegExp) to ensure you use the right syntax, options, and patterns provided by the method.
+- Before editing, adding to, or analyzing these `.jsonc` files you MUST review the method `checkPatternMatch` in the file `banned-direcories.ts`.
+- The objective of these `jsonc` files and the `banned-direcories.ts` file is to be able to check an absolute path of a directory (or multiple paths) to see if it matches a list banned folders or patterns.
+
+## Pattern and Path Rules
+
+- If its a path and not a pattern it should NOT be the path of a file. These strings are ONLY for matching folders or directories (including folders that start with a dot like `.config`).
+- MUST be inside a platform and be platform specific
+- MUST match against folder paths only. This code is not for matching files.
+- MUST assume all first-level folders on a system are banned paths. This doesn't always apply to subfolders of the first-level UNLESS its a known system path
+- MUST be as speciifc as possible for any second-level or deeper paths.
+- MUST ensure all paths and patterns for a specific platform are unique. Redudant or overlapping paths or patterns must be removed. No patterns should be added to `banned_directories_custom.jsonc` that already exist in `banned_directories_default.jsonc`
+- Patterns in `banned_directories_default.jsonc` SHOULD whenever possible comprehensively target ALL platform specific directories, but WITHOUT matching against folders that typically would contain user application code such as second-level or deeper folders in appdata, user document folders, caches, user desktops, temp directories, and program file directories.

@@ -56,7 +56,7 @@
   "lock": true,
   "nodeModulesDir": "none",
   "fmt": {
-    "lineWidth": 80,
+    "lineWidth": 100,
     "semiColons": false,
     "useTabs": false,
     "indentWidth": 2,
@@ -64,15 +64,14 @@
     "proseWrap": "preserve",
     "include": [
       "src/**",
+      "scripts/**",
       "test/**",
       "README.md",
-      "CONTRIBUTING.md"
+      "CONTRIBUTING.md",
+      "CHANGELOG.md"
     ],
     "exclude": [
-      "docs/**",
-      ".vscode/**",
-      ".cursor/**",
-      ".deno-kit/**",
+      "bin/**",
       "test/mocks/**",
       "test/fixtures/**"
     ]
@@ -92,14 +91,14 @@
     },
     "include": [
       "src/**",
+      "scripts/**",
       "test/**",
       "README.md",
-      "CONTRIBUTING.md"
+      "CONTRIBUTING.md",
+      "CHANGELOG.md"
     ],
     "exclude": [
-      "docs/**",
-      ".cursor/**",
-      ".deno-kit/**",
+      "bin/**",
       "test/mocks/**",
       "test/fixtures/**"
     ],
@@ -123,19 +122,14 @@
   // See jsr publishing: @https://docs.deno.com/runtime/reference/cli/publish/
   "publish": {
     "include": [
+      "src/**",
       "bin/**",
-      "src/**/*.ts",
+      "scripts/**",
       "README.md",
-      "LICENSE"
+      "LICENSE",
+      "CHANGELOG.md"
     ],
-    "exclude": [
-      "docs/**",
-      ".vscode/**",
-      ".cursor/**",
-      ".deno-kit/**",
-      "test/mocks/**",
-      "test/fixtures/**"
-    ]
+    "exclude": []
   },
   // The main entry point for the library to be published
   "exports": {

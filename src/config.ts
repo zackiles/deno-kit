@@ -48,9 +48,7 @@ class ConfigSingleton {
       const projectArgs = Deno.args
 
       // Get the project directory (one level up from kitDir)
-      const projectDir = isLocalFile
-        ? fromFileUrl(new URL('..', import.meta.url))
-        : Deno.cwd()
+      const projectDir = isLocalFile ? fromFileUrl(new URL('..', import.meta.url)) : Deno.cwd()
 
       // Load environment variables from .env file
       const env = await load()
@@ -71,14 +69,11 @@ class ConfigSingleton {
 
         if (moduleVersionMatch?.[1]) {
           const moduleVersion = moduleVersionMatch[1]
-          templatesDir =
-            `https://jsr.io/@deno-kit/kit/${moduleVersion}/src/templates`
+          templatesDir = `https://jsr.io/@deno-kit/kit/${moduleVersion}/src/templates`
         } else {
           // If we can't determine the version, use the URL path to determine it relatively
           const urlParts = import.meta.url.split('/')
-          const kitIndex = urlParts.findIndex((part) =>
-            part.includes('@deno-kit/kit')
-          )
+          const kitIndex = urlParts.findIndex((part) => part.includes('@deno-kit/kit'))
 
           if (kitIndex !== -1 && kitIndex < urlParts.length - 1) {
             // Rebuild URL until the package, then add "src/templates"

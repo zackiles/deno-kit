@@ -1,7 +1,7 @@
 #!/usr/bin/env -S deno run --allow-all
 
 import { parseArgs as parse } from '@std/cli'
-import { executeCursorSetup } from '../utils.ts'
+import { setupOrUpdateCursorConfig } from '../utils/cursor-config.ts'
 
 interface UpdateOptions {
   /** Whether to install cursor rules */
@@ -21,7 +21,7 @@ async function update(options: UpdateOptions = {}): Promise<void> {
     // Run cursor setup if enabled (default to true)
     if (options.installCursorRules !== false) {
       console.log('🔄 Updating Cursor AI configuration...')
-      const success = await executeCursorSetup(options.workspace)
+      const success = await setupOrUpdateCursorConfig(options.workspace)
       if (success) {
         console.log('✅ Successfully installed Cursor AI rules')
       } else {
@@ -29,7 +29,10 @@ async function update(options: UpdateOptions = {}): Promise<void> {
       }
     }
   } catch (error) {
-    console.error('❌ Error updating cursor configuration:', error instanceof Error ? error.message : String(error))
+    console.error(
+      '❌ Error updating cursor configuration:',
+      error instanceof Error ? error.message : String(error),
+    )
   }
 }
 
@@ -42,7 +45,7 @@ if (import.meta.main) {
 
   await update({
     installCursorRules: flags['install-cursor-rules'],
-    workspace: flags.workspace
+    workspace: flags.workspace,
   })
 }
 

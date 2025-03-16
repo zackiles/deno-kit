@@ -1,5 +1,3 @@
-#!/usr/bin/env -S deno run --allow-all
-
 /**
  * @module generate
  * @description Template generator for Deno libraries
@@ -17,7 +15,7 @@
 import { dirname, join } from '@std/path'
 import { ensureDir } from '@std/fs'
 import { getConfig } from '../config.ts'
-import { executeCursorSetup } from '../utils.ts'
+import { setupOrUpdateCursorConfig } from '../utils/cursor-config.ts'
 
 // Get configuration to access kitDir and templatesDir
 const config = await getConfig()
@@ -72,9 +70,7 @@ async function createTemplateMappings(
     try {
       for await (const entry of Deno.readDir(dir)) {
         const entryPath = join(dir, entry.name)
-        const relPath = relativePath
-          ? join(relativePath, entry.name)
-          : entry.name
+        const relPath = relativePath ? join(relativePath, entry.name) : entry.name
 
         if (entry.isDirectory) {
           // Recursively scan subdirectories
@@ -110,17 +106,14 @@ const TEMPLATE_MAPPINGS = {
   [join(config.templatesDir, '.env.template')]: './.env',
   [join(config.templatesDir, 'deno-version.template')]: './.deno-version',
   [join(config.templatesDir, '.editorconfig.template')]: './.editorconfig',
-  [join(config.templatesDir, '.vscode', 'settings.template.json')]:
-    './.vscode/settings.json',
-  [join(config.templatesDir, '.vscode', 'extensions.template.json')]:
-    './.vscode/extensions.json',
+  [join(config.templatesDir, '.vscode', 'settings.template.json')]: './.vscode/settings.json',
+  [join(config.templatesDir, '.vscode', 'extensions.template.json')]: './.vscode/extensions.json',
   // Add src directory templates
   [join(config.templatesDir, 'src', 'lib.template.ts')]: './src/lib.ts',
   [join(config.templatesDir, 'src', 'mod.template.ts')]: './src/mod.ts',
   [join(config.templatesDir, 'src', 'types.template.ts')]: './src/types.ts',
   // Add src/utils directory templates
-  [join(config.templatesDir, 'src', 'utils', 'telemetry.template.ts')]:
-    './src/utils/telemetry.ts',
+  [join(config.templatesDir, 'src', 'utils', 'telemetry.template.ts')]: './src/utils/telemetry.ts',
 }
 
 // Get workspace directory from environment if set
@@ -198,9 +191,7 @@ async function promptWithDefault(
     }
   }
 
-  const promptWithDefault = defaultValue
-    ? `${promptText} [${defaultValue}]: `
-    : `${promptText}: `
+  const promptWithDefault = defaultValue ? `${promptText} [${defaultValue}]: ` : `${promptText}: `
 
   console.log(promptWithDefault)
 
@@ -332,8 +323,7 @@ function replacePlaceholders(
 ): string {
   return content.replace(
     /{([A-Z_]+)}/g,
-    (_match, placeholder) =>
-      placeholder in values ? values[placeholder] : _match,
+    (_match, placeholder) => placeholder in values ? values[placeholder] : _match,
   )
 }
 
@@ -447,9 +437,7 @@ async function processTemplate(
         }
         content = await response.text()
       } catch (error: unknown) {
-        const fetchError = error instanceof Error
-          ? error
-          : new Error(String(error))
+        const fetchError = error instanceof Error ? error : new Error(String(error))
         throw new Error(
           `Failed to fetch remote template: ${fetchError.message}`,
         )
@@ -523,10 +511,9 @@ async function generate(options: { workspace?: string } = {}): Promise<void> {
 
   // Get all template mappings
   // First use predefined mappings and then find any additional templates
-  const allTemplateMappings =
-    Deno.env.get('DENO_KIT_DISCOVER_TEMPLATES') === 'true'
-      ? await createTemplateMappings(config.templatesDir)
-      : TEMPLATE_MAPPINGS
+  const allTemplateMappings = Deno.env.get('DENO_KIT_DISCOVER_TEMPLATES') === 'true'
+    ? await createTemplateMappings(config.templatesDir)
+    : TEMPLATE_MAPPINGS
 
   console.log(`\n📁 Templates directory: ${config.templatesDir}`)
   console.log('📝 Processing template files:')
@@ -542,7 +529,7 @@ async function generate(options: { workspace?: string } = {}): Promise<void> {
 
   // Install Cursor AI configuration
   console.log('\n🔍 Setting up Cursor AI configuration...')
-  const success = await executeCursorSetup(workspaceDir)
+  const success = await setupOrUpdateCursorConfig(workspaceDir)
   if (success) {
     console.log('✅ Successfully installed Cursor AI rules')
   } else {
