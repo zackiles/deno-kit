@@ -93,11 +93,13 @@ class Workspace {
 
     this.path = getCommonBasePath(workspaceFilePaths)
     this.templatesPath = getCommonBasePath(templateFilePaths)
-    this.backupsPath = getCommonBasePath(backupFilePaths)
+    this.backupsPath = backupFilePaths.length > 0 ? getCommonBasePath(backupFilePaths) : ''
 
     validateCommonBasePath(workspaceFilePaths, this.path)
     validateCommonBasePath(templateFilePaths, this.templatesPath)
-    validateCommonBasePath(backupFilePaths, this.backupsPath)
+    if (backupFilePaths.length > 0) {
+      validateCommonBasePath(backupFilePaths, this.backupsPath)
+    }
 
     this.#files = workspaceFiles
     this.#templates = templateFiles
@@ -146,12 +148,11 @@ class Workspace {
       ? await Workspace.#validateWorkspacePath(workspacePath)
       : await Deno.makeTempDir({ prefix: DEFAULT_TEMP_PREFIX })
 
-    const currentDir = fromFileUrl(import.meta.url)
+    const currentDir = join(fromFileUrl(import.meta.url), '..')
+
     templatesPath = templatesPath
       ? await Workspace.#validateTemplatesPath(templatesPath)
-      : await Workspace.#validateTemplatesPath(join(currentDir, '..', 'templates'))
-
-    await Workspace.#validateTemplatesPath(templatesPath)
+      : await Workspace.#validateTemplatesPath(join(currentDir, 'templates'))
 
     const [workspaceFiles, templateFiles] = await Promise.all([
       readFilesRecursively(workspacePath),
@@ -230,7 +231,7 @@ class Workspace {
   static async createIdFromPath(path: string): Promise<string> {
     // Don't create errors for invalid workspace paths here.
     try {
-      await Workspace.#validateWorkspacePath(path)
+      await Workspace.#validateWorkspacePath(path, false)
     } catch (error) {
       throw new Error(
         `Error creating workspace ID from path ${path}. Error: ${
@@ -277,12 +278,17 @@ class Workspace {
    * @returns The validated workspace path
    * @throws Error if the directory doesn't exist, lacks write access, or is the deno-kit source project
    */
-  static async #validateWorkspacePath(path: string): Promise<string> {
+  static async #validateWorkspacePath(path: string, withConfigFile = true): Promise<string> {
     try {
       // Check if the path is a banned directory (e.g system directories)
       if (await isBannedDirectory(path)) {
         throw new Error(`Workspace path '${path}' is a banned directory`)
       }
+      // Check we have permission to write to the workspace path
+      await checkDirectoryWriteAccess(path)
+
+      // If we don't need to check for a config file we can return the path now
+      if (withConfigFile === false) return path
 
       // Get package config file path of the process or package currently executing this module.
       const packageConfigPath = await getPackageForPath(path, {
@@ -329,10 +335,9 @@ class Workspace {
       })()
 
       if (isDenoKitSource) {
-        throw new Error('Cannot use the deno-kit source project directory as a workspace')
+        throw new Error('Cannot use the same directory this code is located in as a workspace')
       }
 
-      await checkDirectoryWriteAccess(path)
       return path
     } catch (error) {
       const message = error instanceof Error
@@ -557,6 +562,9 @@ class Workspace {
     // Write all compiled templates to disk
     for (const [path, content] of compiledTemplates.entries()) {
       try {
+        // Ensure the directory exists before writing the file
+        const dirPath = path.substring(0, path.lastIndexOf('/'))
+        await Deno.mkdir(dirPath, { recursive: true })
         await Deno.writeTextFile(path, content)
       } catch (error) {
         throw new Error(

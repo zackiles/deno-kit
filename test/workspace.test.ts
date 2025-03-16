@@ -4,7 +4,12 @@ import type { KitFileSpecification } from '../src/types.ts'
 
 Deno.test('Workspace - creates workspace and handles templates', async () => {
   // Create a workspace instance
-  const workspace = await createWorkspace({ name: 'deno-kit' })
+  const workspace = await createWorkspace({
+    name: 'deno-kit',
+    configFileName: 'deno-kit.json',
+  })
+
+  console.log(workspace)
 
   // Verify workspace was created successfully
   assertExists(workspace, 'Workspace should be created')

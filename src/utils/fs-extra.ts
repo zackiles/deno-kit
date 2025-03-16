@@ -122,7 +122,25 @@ async function checkDirectoryWriteAccess(path: string): Promise<boolean> {
  */
 function getCommonBasePath(paths: string[]): string {
   if (!paths.length) {
-    throw new Error('Cannot determine common base path: input array is empty')
+    throw new Error('Cannot determine common base path. No paths were provided')
+  }
+
+  // Special case: If only one path is provided
+  if (paths.length === 1) {
+    const resolvedPath = resolve(paths[0])
+
+    try {
+      // Check if the path is a directory
+      const stat = Deno.statSync(resolvedPath)
+      if (stat.isDirectory) {
+        return resolvedPath // Return the directory path as-is
+      }
+    } catch {
+      // If stat fails (e.g., path doesn't exist), fall back to getting dirname
+    }
+
+    // For files or non-existent paths, return the parent directory
+    return dirname(resolvedPath)
   }
 
   // Normalize all paths
@@ -143,26 +161,22 @@ function getCommonBasePath(paths: string[]): string {
   // Find the most common base path
   let maxPath = ''
   let maxCount = 0
-  let tieDetected = false
 
   for (const [path, count] of basePathCounts) {
     if (count > maxCount) {
       maxPath = path
       maxCount = count
-      tieDetected = false
     } else if (count === maxCount) {
-      tieDetected = true
+      // If we have a tie, choose the deeper path in the directory structure
+      // (More specific path is preferable)
+      if (path.length > maxPath.length) {
+        maxPath = path
+      }
     }
   }
 
   if (!maxPath) {
     throw new Error('Could not determine a common base path')
-  }
-
-  if (tieDetected) {
-    throw new Error(
-      `Base path tie detected for path "${maxPath}" and others with ${maxCount} occurrences`,
-    )
   }
 
   return maxPath
