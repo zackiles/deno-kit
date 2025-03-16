@@ -43,8 +43,9 @@ interface TemplateValues {
  */
 interface KitFileSpecification {
   /** Unique identifier for the workspace */
-  workspaceId: string
+  id: string
   /** List of file paths in the workspace */
+  name?: string
   workspaceFiles: string[]
   /** List of template file paths */
   templateFiles: string[]

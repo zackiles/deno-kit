@@ -6,17 +6,15 @@
  *
  * @example
  * ```ts
- * import { createWorkspace, getWorkspace } from "./workspace.ts";
- * // See if a workspace exists for the current working directory (throws error or returns a KitSpecification)
- * const kit = await getWorkspace()
+ * import { createWorkspace } from "./workspace.ts";
  *
- * // Create a workspace if one doesn't exist
+ * // Create a workspace
  * const workspace = await createWorkspace({
  *   templatesPath: "./templates"
  * });
  *
  * // Access workspace data
- * console.log(workspace.toJSON());
+ * console.log(await workspace.toJSON());
  * ```
  */
 
@@ -24,16 +22,18 @@ import { fromFileUrl, join } from '@std/path'
 import {
   checkDirectoryWriteAccess,
   getCommonBasePath,
+  getPackageForPath,
+  PACKAGE_CONFIG_FILES,
+  readFilesRecursively,
   validateCommonBasePath,
 } from './utils/fs-extra.ts'
-import { getPackageInfo } from './utils/get-package-info.ts'
-import { isBannedDirectory } from './utils/banned-directories.ts'
 import { parse as parseJSONC } from '@std/jsonc'
 import type { KitFileSpecification, TemplateValues } from './types.ts'
+import { isBannedDirectory } from './utils/banned-directories.ts'
 
 const DEFAULT_TEMP_PREFIX = 'deno-kit-workspace-'
 const DEFAULT_BACKUPS_PREFIX = 'deno-kit-backups-'
-const KIT_FILE_NAME = 'kit.json'
+const DEFAULT_WORKSPACE_CONFIG_FILE_NAME = 'workspace.json'
 
 /**
  * Workspace class that manages files in workspace and template directories.
@@ -42,10 +42,12 @@ const KIT_FILE_NAME = 'kit.json'
  * for security.
  */
 class Workspace {
-  readonly workspacePath: string
+  readonly id: string
+  readonly name: string
+  readonly path: string
+  readonly configFileName: string
   readonly templatesPath: string
   readonly backupsPath: string
-  readonly workspaceId: string
   #files = new Map<string, string>()
   #templates = new Map<string, string>()
   #templateValues = new Map<string, string>()
@@ -54,29 +56,46 @@ class Workspace {
   /**
    * Create a new Workspace instance
    *
-   * @param workspaceId Unique identifier for the workspace
-   * @param workspaceFiles Map of workspace file paths to file contents
-   * @param templateFiles Map of template file paths to file contents
+   * @param options Object containing workspace configuration
+   * @param options.id Unique identifier for the workspace
+   * @param options.name Optional name for the workspace
+   * @param options.workspaceFiles Map of workspace file paths to file contents
+   * @param options.templateFiles Map of template file paths to file contents
+   * @param options.backupFiles Optional map of backup file paths to file contents
+   * @param options.templateValues Optional values to replace placeholders with in template files
+   * @param options.configFileName The name of the workspace configuration file
    * @private
    */
   private constructor(
-    { workspaceId, workspaceFiles, templateFiles, backupFiles }: {
-      workspaceId: string
+    {
+      id,
+      name,
+      workspaceFiles,
+      templateFiles,
+      backupFiles,
+      templateValues,
+      configFileName,
+    }: {
+      id: string
+      name?: string
       workspaceFiles: Map<string, string>
       templateFiles: Map<string, string>
       backupFiles?: Map<string, string>
+      templateValues?: TemplateValues
+      configFileName: string
     },
   ) {
-    this.workspaceId = workspaceId
+    this.id = id
+    this.name = name ?? ''
     const workspaceFilePaths = Array.from(workspaceFiles.keys())
     const templateFilePaths = Array.from(templateFiles.keys())
     const backupFilePaths = backupFiles ? Array.from(backupFiles.keys()) : []
 
-    this.workspacePath = getCommonBasePath(workspaceFilePaths)
+    this.path = getCommonBasePath(workspaceFilePaths)
     this.templatesPath = getCommonBasePath(templateFilePaths)
     this.backupsPath = getCommonBasePath(backupFilePaths)
 
-    validateCommonBasePath(workspaceFilePaths, this.workspacePath)
+    validateCommonBasePath(workspaceFilePaths, this.path)
     validateCommonBasePath(templateFilePaths, this.templatesPath)
     validateCommonBasePath(backupFilePaths, this.backupsPath)
 
@@ -84,16 +103,27 @@ class Workspace {
     this.#templates = templateFiles
     if (backupFiles) {
       // We don't _need_ backups made at this point.
-      // Call this.backup() if desired
+      // Call this.backup() if desired at a later time.
       this.#backups = backupFiles
     }
+
+    // Convert templateValues object to Map if provided
+    if (templateValues) {
+      this.#templateValues = new Map(Object.entries(templateValues))
+    }
+
+    this.configFileName = configFileName || DEFAULT_WORKSPACE_CONFIG_FILE_NAME
   }
 
   /**
    * Create a workspace by reading all files in the given paths and creating a backup.
    *
-   * @param workspacePath Path to the workspace directory, if not provided a temporary directory will be created
-   * @param templatesPath Path to the templates directory, defaults to 'templates' directory in same folder as workspace.ts
+   * @param options Configuration options for creating a workspace
+   * @param options.workspacePath Path to the workspace directory, if not provided a temporary directory will be created
+   * @param options.templatesPath Path to the templates directory, defaults to 'templates' directory in same folder as workspace.ts
+   * @param options.templatesValues Optional values to replace placeholders with in template files
+   * @param options.name Optional name for the workspace
+   * @param options.configFileName Optional name for the configuration file, defaults to 'kit.json'
    * @returns A new Workspace instance with an initial backup created
    * @throws Error if templatesPath doesn't exist or has no files
    * @throws Error if provided workspacePath doesn't exist or doesn't have write access
@@ -101,61 +131,91 @@ class Workspace {
   static async createWorkspace({
     workspacePath,
     templatesPath,
+    templatesValues,
+    name,
+    configFileName,
   }: {
     workspacePath?: string
     templatesPath?: string
+    templatesValues?: TemplateValues
+    name?: string
+    configFileName?: string
   } = {}): Promise<Workspace> {
-    const currentDir = fromFileUrl(import.meta.url)
-    const resolvedTemplatesPath = templatesPath ??
-      join(currentDir, '..', 'templates')
-
-    await Workspace.#validateTemplatesPath(resolvedTemplatesPath)
-
     // If a path isn't provided we fallback on a Deno temporary directory
-    const actualWorkspacePath = workspacePath
+    workspacePath = workspacePath
       ? await Workspace.#validateWorkspacePath(workspacePath)
       : await Deno.makeTempDir({ prefix: DEFAULT_TEMP_PREFIX })
 
+    const currentDir = fromFileUrl(import.meta.url)
+    templatesPath = templatesPath
+      ? await Workspace.#validateTemplatesPath(templatesPath)
+      : await Workspace.#validateTemplatesPath(join(currentDir, '..', 'templates'))
+
+    await Workspace.#validateTemplatesPath(templatesPath)
+
     const [workspaceFiles, templateFiles] = await Promise.all([
-      Workspace.#readFilesRecursively(actualWorkspacePath),
-      Workspace.#readFilesRecursively(resolvedTemplatesPath),
+      readFilesRecursively(workspacePath),
+      readFilesRecursively(templatesPath),
     ])
 
-    const workspaceId = await Workspace.createWorkspaceIdFromPath(
-      actualWorkspacePath,
-    )
+    const id = await Workspace.createIdFromPath(workspacePath)
+
+    if (workspaceFiles.size === 0) {
+      const packageConfigPath = await getPackageForPath()
+      if (!packageConfigPath) {
+        throw new Error(
+          'Missing package config file for this process. Looking for: deno.json, deno.jsonc, package.json, package.jsonc, jsr.json',
+        )
+      }
+
+      const packageConfig = parseJSONC(await Deno.readTextFile(packageConfigPath)) as {
+        name?: string
+        version?: string
+      }
+
+      if (!packageConfig.name || !packageConfig.version) {
+        throw new Error(
+          'Missing required fields in package config for this process: name and version must be defined',
+        )
+      }
+
+      const configName = (() => {
+        const name = configFileName || DEFAULT_WORKSPACE_CONFIG_FILE_NAME
+        return name.endsWith('.json') ? name : `${name}.json`
+      })()
+
+      const templateFileList = Array.from(templateFiles.keys())
+
+      const kitFileObject = {
+        [`${packageConfig.name}-version`]: packageConfig.version,
+        id,
+        workspaceFiles: [],
+        templateFiles: templateFileList,
+        backupFiles: [],
+        ...(name && { name }),
+        ...(templatesValues && { templateValues: templatesValues }),
+        ...(configName && { configName }),
+      }
+
+      const kitFilePath = join(workspacePath, configName)
+      const kitFileContent = JSON.stringify(kitFileObject, null, 2)
+
+      await Deno.writeTextFile(kitFilePath, kitFileContent)
+      workspaceFiles.set(kitFilePath, kitFileContent)
+    }
+
     const workspace = new Workspace({
-      workspaceId,
+      id,
+      name: name ?? 'default-workspace',
       workspaceFiles,
       templateFiles,
+      ...(templatesValues && { templateValues: templatesValues }),
+      configFileName: configFileName || DEFAULT_WORKSPACE_CONFIG_FILE_NAME,
     })
+
     await workspace.#backup()
     await workspace.#save()
     return workspace
-  }
-
-  /**
-   * Checks if a kit.json file exists in the current working directory and returns its parsed contents.
-   *
-   * @returns {Promise<KitFileSpecification>} The parsed contents of kit.json
-   * @throws {Error} If kit.json is not found in the current directory
-   */
-  static async getWorkspace(): Promise<KitFileSpecification> {
-    const kitPath = join(Deno.cwd(), KIT_FILE_NAME)
-
-    try {
-      const kitContent = await Deno.readTextFile(kitPath)
-      return JSON.parse(kitContent) as KitFileSpecification
-    } catch (error) {
-      if (error instanceof Deno.errors.NotFound) {
-        throw new Error(
-          'No kit.json found in current directory. Are you in a deno-kit workspace?',
-        )
-      }
-      throw new Error(
-        `Failed to get workspace: ${error instanceof Error ? error.message : String(error)}`,
-      )
-    }
   }
 
   /**
@@ -167,10 +227,10 @@ class Workspace {
    * @returns A hex string representation of the SHA-256 hash
    * @private
    */
-  static async createWorkspaceIdFromPath(path: string): Promise<string> {
+  static async createIdFromPath(path: string): Promise<string> {
     // Don't create errors for invalid workspace paths here.
     try {
-      await Workspace.#validateTemplatesPath(path)
+      await Workspace.#validateWorkspacePath(path)
     } catch (error) {
       throw new Error(
         `Error creating workspace ID from path ${path}. Error: ${
@@ -188,40 +248,57 @@ class Workspace {
   /**
    * Validate templates directory exists and contains files
    *
-   * @param templatesPath Path to validate
+   * @param path Path to validate
    * @throws Error if the directory doesn't exist or contains no files
    */
-  static async #validateTemplatesPath(templatesPath: string): Promise<void> {
+  static async #validateTemplatesPath(path: string): Promise<string> {
     try {
-      const templateEntries = [...Deno.readDirSync(templatesPath)]
+      const templateEntries = [...Deno.readDirSync(path)]
       if (!templateEntries.length) {
         throw new Error(
-          `Templates directory '${templatesPath}' exists but contains no files`,
+          `Templates directory '${path}' exists but contains no files`,
         )
       }
     } catch (error) {
       if (error instanceof Deno.errors.NotFound) {
-        throw new Error(`Templates directory '${templatesPath}' does not exist`)
+        throw new Error(`Templates directory '${path}' does not exist`)
       }
       throw error
     }
+    return path
   }
 
   /**
-   * Validate workspace directory exists and has write access
+   * Validate workspace directory exists, is valid, and has write access.
+   * NOTE: A workspace directory CANNOT be in the same directory as this
+   * code or and sub-directories thereof.
    *
-   * @param workspacePath Path to validate
+   * @param path Path to validate
    * @returns The validated workspace path
    * @throws Error if the directory doesn't exist, lacks write access, or is the deno-kit source project
    */
-  static async #validateWorkspacePath(workspacePath: string): Promise<string> {
+  static async #validateWorkspacePath(path: string): Promise<string> {
     try {
       // Check if the path is a banned directory (e.g system directories)
-      if (await isBannedDirectory(workspacePath)) {
-        throw new Error(`Workspace path '${workspacePath}' is a banned directory`)
+      if (await isBannedDirectory(path)) {
+        throw new Error(`Workspace path '${path}' is a banned directory`)
       }
-      // Check if the path is the deno-kit source project
-      const denoJsoncPath = join(workspacePath, 'deno.jsonc')
+
+      // Get package config file path of the process or package currently executing this module.
+      const packageConfigPath = await getPackageForPath(path, {
+        packageConfigFiles: ['deno.jsonc'],
+      })
+      if (!packageConfigPath) {
+        throw new Error(
+          `Cannot find package configuration. Looking for: ${PACKAGE_CONFIG_FILES.join(', ')}`,
+        )
+      }
+
+      // Get workspace file of the current workspace. We'll compare to the packageConfigPath
+      // to ensure we're not attempting to create a workspace in the same directory as this code itself.
+      const workspaceConfigPath = await getPackageForPath(path, {
+        packageConfigFiles: ['deno.jsonc'],
+      })
       const isDenoKitSource = await (async () => {
         try {
           // ----------------------------------------------------------------
@@ -231,14 +308,18 @@ class Workspace {
           // It is not fun to have the repo deleted on you along with its git
           // history, so we raise an error if this happens.
           // ----------------------------------------------------------------
-          const denoConfig = parseJSONC(await Deno.readTextFile(denoJsoncPath)) as { name?: string }
-          return denoConfig?.name === getPackageInfo().name
+          const workspaceConfig = parseJSONC(await Deno.readTextFile(workspaceConfigPath)) as {
+            name?: string
+          }
+          const packageConfig = parseJSONC(await Deno.readTextFile(packageConfigPath)) as {
+            name?: string
+          }
+          // Is the deno.jsonc file in the workspace the same of this source code?
+          return workspaceConfig?.name === packageConfig?.name
         } catch (error) {
-          // Not the deno-kit source project if the deno.jsonc file doesn't
-          // exist or it has a name property that doesn't match the package name
           if (!(error instanceof Deno.errors.NotFound)) {
             console.warn(
-              `Error validating workspace path: ${workspacePath}. Error reading deno.jsonc: ${
+              `Error validating workspace path: ${path}. Unable to read package config file: ${
                 error instanceof Error ? error.message : String(error)
               }`,
             )
@@ -251,8 +332,8 @@ class Workspace {
         throw new Error('Cannot use the deno-kit source project directory as a workspace')
       }
 
-      await checkDirectoryWriteAccess(workspacePath)
-      return workspacePath
+      await checkDirectoryWriteAccess(path)
+      return path
     } catch (error) {
       const message = error instanceof Error
         ? error.message.replace(/^(Path|Directory)/, 'Workspace directory')
@@ -262,54 +343,17 @@ class Workspace {
   }
 
   /**
-   * Recursively read all files in a directory and return a map of file paths to contents
-   *
-   * @param directoryPath The directory to read files from
-   * @returns A map of file paths to file contents
-   * @throws Error if the directory cannot be read or accessed
-   * @note Failed file reads are logged as warnings and skipped
-   */
-  static async #readFilesRecursively(
-    directoryPath: string,
-  ): Promise<Map<string, string>> {
-    const files = new Map<string, string>()
-    const absolutePath = Deno.realPathSync(directoryPath)
-
-    const readFileContent = async (path: string) => {
-      try {
-        const content = await Deno.readTextFile(path)
-        files.set(path, content)
-      } catch (error) {
-        console.warn(
-          `Failed to read file ${path}: ${error instanceof Error ? error.message : String(error)}`,
-        )
-      }
-    }
-
-    const processDirectory = async (dirPath: string): Promise<void> => {
-      const entries = Deno.readDir(dirPath)
-      for await (const entry of entries) {
-        const entryPath = join(dirPath, entry.name)
-        await (entry.isDirectory ? processDirectory(entryPath) : readFileContent(entryPath))
-      }
-    }
-
-    await processDirectory(absolutePath)
-    return files
-  }
-
-  /**
    * Creates a backup of all workspace files in a new temporary directory.
    * The backup is stored in a subdirectory named with the workspace's unique ID,
    * allowing multiple backups from different workspaces to coexist.
    *
-   * @returns {Promise<Map<string, string>>} A map of backed up file paths to their contents
+   * @returns A map of backed up file paths to their contents
    */
   async #backup(): Promise<Map<string, string>> {
     // Create a unique backup directory for the workspace based on its workspaceID
     const backupBasePath = await Deno.makeTempDir({
       prefix: DEFAULT_BACKUPS_PREFIX,
-      suffix: `-${this.workspaceId}`,
+      suffix: `-${this.id}`,
     })
 
     // Check if backup directory is banned
@@ -320,7 +364,7 @@ class Workspace {
     const backupFiles = new Map<string, string>()
 
     for (const [path, content] of this.#files.entries()) {
-      const backupPath = path.replace(this.workspacePath, backupBasePath)
+      const backupPath = path.replace(this.path, backupBasePath)
       backupFiles.set(backupPath, content)
     }
 
@@ -328,21 +372,21 @@ class Workspace {
   }
 
   /**
-   * Saves the workspace configuration to kit.json
+   * Saves the workspace configuration to the file specified by configFileName
    *
    * @private
    */
   async #save(): Promise<void> {
-    await this.writeFile(KIT_FILE_NAME, this.toJSON())
+    await this.writeFile(this.configFileName, await this.toJSON())
   }
 
   /**
    * Runs a shell command in the workspace directory
    *
-   * @param {string} command - The command to execute (e.g. 'git', 'npm')
-   * @param {string[]} args - Command arguments (e.g. ['config', 'user.name'])
-   * @returns {Promise<string>} The trimmed stdout output of the command
-   * @throws {Error} If the command fails to execute or produces stderr output
+   * @param command The command to execute (e.g. 'git', 'npm')
+   * @param args Command arguments (e.g. ['config', 'user.name'])
+   * @returns The trimmed stdout output of the command
+   * @throws Error If the command fails to execute or produces stderr output
    * @example
    * ```ts
    * const output = await workspace.#runCommandInWorkspace('git', ['status'])
@@ -353,8 +397,8 @@ class Workspace {
     args: string[] = [],
   ): Promise<string> {
     // Check if workspace directory is banned
-    if (await isBannedDirectory(this.workspacePath)) {
-      throw new Error(`Cannot run command in banned directory: ${this.workspacePath}`)
+    if (await isBannedDirectory(this.path)) {
+      throw new Error(`Cannot run command in banned directory: ${this.path}`)
     }
 
     const decoder = new TextDecoder()
@@ -362,7 +406,7 @@ class Workspace {
       args,
       stdout: 'piped',
       stderr: 'piped',
-      cwd: this.workspacePath,
+      cwd: this.path,
     } as const
 
     try {
@@ -385,7 +429,7 @@ class Workspace {
   /**
    * Gets the git user name from git config
    *
-   * @returns {Promise<string>} The git user name or empty string if not found
+   * @returns The git user name or empty string if not found
    */
   async getGitUserName(): Promise<string> {
     try {
@@ -401,7 +445,7 @@ class Workspace {
   /**
    * Gets the git user email from git config
    *
-   * @returns {Promise<string>} The git user email or empty string if not found
+   * @returns The git user email or empty string if not found
    */
   async getGitUserEmail(): Promise<string> {
     try {
@@ -421,12 +465,12 @@ class Workspace {
    * @param path The path to write the file to (absolute or relative to workspace)
    * @param content The content to write to the file
    * @param create If true, creates a new file or overwrites existing. If false, fails if file doesn't exist (default: true)
-   * @throws {Error} If the path is not within the workspace directory or if writing fails
+   * @throws Error If the path is not within the workspace directory or if writing fails
    */
   async writeFile(path: string, content: string, create = true): Promise<void> {
-    const absolutePath = path.startsWith('/') ? path : join(this.workspacePath, path)
+    const absolutePath = path.startsWith('/') ? path : join(this.path, path)
 
-    if (!absolutePath.startsWith(this.workspacePath)) {
+    if (!absolutePath.startsWith(this.path)) {
       throw new Error(`Cannot write file outside of workspace: ${absolutePath}`)
     }
 
@@ -459,8 +503,9 @@ class Workspace {
    * The template paths are adjusted to point to the workspace directory before saving.
    * Placeholders in templates should be in the format {PLACEHOLDER_NAME}.
    *
-   * @param templateValues Values to replace placeholders with in template files
-   * @throws {Error} If writing any template file fails
+   * @param templateValues Optional values to replace placeholders with in template files
+   * @param templateFiles Optional map of template files to use instead of this.#templates
+   * @throws Error If writing any template file fails or if no template files or values are available
    * @example
    * ```ts
    * await workspace.compileAndWriteTemplates({
@@ -470,20 +515,42 @@ class Workspace {
    * ```
    */
   async compileAndWriteTemplates(
-    templateValues: TemplateValues,
+    templateValues?: TemplateValues,
+    templateFiles?: Map<string, string>,
   ): Promise<void> {
+    const templatesMap = templateFiles || this.#templates
+
+    if (templatesMap.size === 0) {
+      throw new Error(
+        'No template files available to compile. Please provide template files or ensure the workspace has templates.',
+      )
+    }
+
+    // Merge class-level template values with provided ones, with provided values taking precedence
+    const mergedTemplateValues: TemplateValues = {
+      ...(this.#templateValues.size > 0 ? Object.fromEntries(this.#templateValues.entries()) : {}),
+      ...(templateValues || {}),
+    } as TemplateValues
+
+    // Error if no template values are available
+    if (Object.keys(mergedTemplateValues).length === 0) {
+      throw new Error(
+        'No template values provided. Please provide template values either during workspace creation or when calling compileAndWriteTemplates.',
+      )
+    }
+
     const compiledTemplates = new Map<string, string>()
 
     // First compile all templates with their values
-    for (const [path, content] of this.#templates.entries()) {
+    for (const [path, content] of templatesMap.entries()) {
       const processedContent = content.replace(
         /{([A-Z_]+)}/g,
         (_match, placeholder) =>
-          placeholder in templateValues ? templateValues[placeholder] : _match,
+          placeholder in mergedTemplateValues ? mergedTemplateValues[placeholder] : _match,
       )
 
       // Rewrite the base path of the template files to be the workspace path before writing them
-      const workspacePath = path.replace(this.templatesPath, this.workspacePath)
+      const workspacePath = path.replace(this.templatesPath, this.path)
       compiledTemplates.set(workspacePath, processedContent)
     }
 
@@ -504,14 +571,41 @@ class Workspace {
   }
 
   /**
-   * Convert workspace metadata to JSON
-   *
-   * @returns A JSON string representation of KitFileSpecification
+   * Convert workspace to JSON string representation including package information
+   * @returns JSON string representation of workspace
+   * @throws Error If package configuration cannot be found or loaded
    */
-  toJSON(): string {
+  async toJSON(): Promise<string> {
+    // Get package config
+    const packageConfigPath = await getPackageForPath()
+    if (!packageConfigPath) {
+      throw new Error(
+        'Cannot find package configuration. Looking for: deno.json, deno.jsonc, package.json, package.jsonc, jsr.json',
+      )
+    }
+
+    // Parse package config
+    let packageConfig: { name?: string; version?: string } = {}
+    try {
+      const content = Deno.readTextFileSync(packageConfigPath)
+      packageConfig = parseJSONC(content) as { name?: string; version?: string }
+      if (!packageConfig.name || !packageConfig.version) {
+        throw new Error(
+          'Missing required fields in package config: name and version must be defined',
+        )
+      }
+    } catch (error) {
+      throw new Error(
+        `Failed to load package information from config file: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      )
+    }
+
     const workspaceSpecification: KitFileSpecification = {
-      [`${getPackageInfo().name}-version`]: getPackageInfo().version,
-      workspaceId: this.workspaceId,
+      [`${packageConfig.name}-version`]: packageConfig.version,
+      id: this.id,
+      name: this.name,
       workspaceFiles: Array.from(this.#files.keys()),
       templateFiles: Array.from(this.#templates.keys()),
       backupFiles: Array.from(this.#backups.keys()),
@@ -519,8 +613,9 @@ class Workspace {
         this.#templateValues.entries(),
       ) as TemplateValues,
     }
+
     return JSON.stringify(workspaceSpecification, null, 2)
   }
 }
 
-export const { createWorkspace, getWorkspace } = Workspace
+export const { createWorkspace } = Workspace

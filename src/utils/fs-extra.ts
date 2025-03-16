@@ -1,4 +1,56 @@
-import { dirname, join, resolve } from '@std/path'
+import { dirname, fromFileUrl, join, resolve } from '@std/path'
+
+/**
+ * Package configuration file names
+ */
+const PACKAGE_CONFIG_FILES = [
+  'deno.json',
+  'deno.jsonc',
+  'package.json',
+  'package.jsonc',
+  'jsr.json',
+] as const
+
+/**
+ * Finds the nearest package configuration file by traversing up from the given path
+ *
+ * @param path - Optional file or directory path to start the search from
+ * @param options - Configuration options for the search
+ * @param options.packageConfigFiles - Optional array of package config filenames to search for (defaults to PACKAGE_CONFIG_FILES)
+ * @returns Promise resolving to the absolute path to the found config file, or empty string if none found
+ */
+async function getPackageForPath(
+  path?: string,
+  options: { packageConfigFiles?: string[] } = {},
+): Promise<string> {
+  const configFiles = options.packageConfigFiles || PACKAGE_CONFIG_FILES
+
+  // Determine starting directory
+  let startDir = path ? resolve(path) : dirname(fromFileUrl(import.meta.url))
+
+  // Check if path is a file and get its directory if needed
+  if (path) {
+    const stat = await Deno.stat(startDir).catch(() => null)
+    if (stat && !stat.isDirectory) startDir = dirname(startDir)
+  }
+
+  // Traverse up from starting directory
+  let currentDir = startDir
+  while (true) {
+    // Find first matching config file
+    for (const file of configFiles) {
+      const filePath = join(currentDir, file)
+      const exists = await Deno.stat(filePath).then(() => true).catch(() => false)
+      if (exists) return filePath
+    }
+
+    const parentDir = dirname(currentDir)
+    if (parentDir === currentDir) break
+    currentDir = parentDir
+  }
+
+  return ''
+}
 
 /**
  * Checks if a directory has write access permission
@@ -9,7 +61,7 @@ import { dirname, join, resolve } from '@std/path'
  * @param {string} path - Directory path to check for write access
  * @returns {Promise<boolean>} - True if the directory is writable, false otherwise
  */
-export async function checkDirectoryWriteAccess(path: string): Promise<boolean> {
+async function checkDirectoryWriteAccess(path: string): Promise<boolean> {
   const absPath = resolve(path)
 
   // Verify it's a valid directory first
@@ -68,7 +120,7 @@ export async function checkDirectoryWriteAccess(path: string): Promise<boolean> 
  * const basePath = getCommonBasePath(filePaths); // '/users/data'
  * ```
  */
-export function getCommonBasePath(paths: string[]): string {
+function getCommonBasePath(paths: string[]): string {
   if (!paths.length) {
     throw new Error('Cannot determine common base path: input array is empty')
   }
@@ -124,7 +176,7 @@ export function getCommonBasePath(paths: string[]): string {
  * @throws Error if any file path is not within the base path or if the base path is not writable
  * @returns true if all paths are valid
  */
-export function validateCommonBasePath(
+function validateCommonBasePath(
   filePaths: string[],
   basePath: string,
 ): boolean {
@@ -146,4 +198,50 @@ export function validateCommonBasePath(
   }
 
   return true
+}
+
+/**
+ * Recursively read all files in a directory and return a map of file paths to contents
+ *
+ * @param directoryPath The directory to read files from
+ * @returns A map of file paths to file contents
+ * @throws Error if the directory cannot be read or accessed
+ * @note Failed file reads are logged as warnings and skipped
+ */
+async function readFilesRecursively(
+  directoryPath: string,
+): Promise<Map<string, string>> {
+  const files = new Map<string, string>()
+  const absolutePath = Deno.realPathSync(directoryPath)
+
+  const readFileContent = async (path: string) => {
+    try {
+      const content = await Deno.readTextFile(path)
+      files.set(path, content)
+    } catch (error) {
+      console.warn(
+        `Failed to read file ${path}: ${error instanceof Error ? error.message : String(error)}`,
+      )
+    }
+  }
+
+  const processDirectory = async (dirPath: string): Promise<void> => {
+    const entries = Deno.readDir(dirPath)
+    for await (const entry of entries) {
+      const entryPath = join(dirPath, entry.name)
+      await (entry.isDirectory ? processDirectory(entryPath) : readFileContent(entryPath))
+    }
+  }
+
+  await processDirectory(absolutePath)
+  return files
+}
+
+export {
+  checkDirectoryWriteAccess,
+  getCommonBasePath,
+  getPackageForPath,
+  PACKAGE_CONFIG_FILES,
+  readFilesRecursively,
+  validateCommonBasePath,
 }
