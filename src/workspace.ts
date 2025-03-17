@@ -28,7 +28,7 @@ import {
   validateCommonBasePath,
 } from './utils/fs-extra.ts'
 import { parse as parseJSONC } from '@std/jsonc'
-import type { KitFileSpecification, TemplateValues } from './types.ts'
+import type { TemplateValues, WorkspaceConfigFile } from './types.ts'
 import { isBannedDirectory } from './utils/banned-directories.ts'
 
 const DEFAULT_TEMP_PREFIX = 'workspace-temp-'
@@ -127,7 +127,7 @@ class Workspace {
    * @param options.templatesPath Path to the templates directory, defaults to 'templates' directory in same folder as workspace.ts
    * @param options.templatesValues Optional values to replace placeholders with in template files
    * @param options.name Optional name for the workspace
-   * @param options.configFileName Optional name for the configuration file, defaults to 'kit.json'
+   * @param options.configFileName Optional name for the configuration file, defaults to 'workspace.json'
    * @returns A new Workspace instance with an initial backup created
    * @throws Error if templatesPath doesn't exist or has no files
    * @throws Error if provided workspacePath doesn't exist or doesn't have write access
@@ -189,7 +189,7 @@ class Workspace {
 
       const templateFileList = Array.from(templateFiles.keys())
 
-      const kitFileObject = {
+      const workspaceConfig = {
         [`${packageConfig.name}-version`]: packageConfig.version,
         id,
         workspaceFiles: [],
@@ -200,11 +200,11 @@ class Workspace {
         ...(configName && { configName }),
       }
 
-      const kitFilePath = join(workspacePath, configName)
-      const kitFileContent = JSON.stringify(kitFileObject, null, 2)
+      const workspaceConfigFilePath = join(workspacePath, configName)
+      const workspaceConfigFileJSON = JSON.stringify(workspaceConfig, null, 2)
 
-      await Deno.writeTextFile(kitFilePath, kitFileContent)
-      workspaceFiles.set(kitFilePath, kitFileContent)
+      await Deno.writeTextFile(workspaceConfigFilePath, workspaceConfigFileJSON)
+      workspaceFiles.set(workspaceConfigFilePath, workspaceConfigFileJSON)
     }
 
     const workspace = new Workspace({
@@ -623,7 +623,7 @@ class Workspace {
       )
     }
 
-    const workspaceSpecification: KitFileSpecification = {
+    const workspaceSpecification: WorkspaceConfigFile = {
       [`${packageConfig.name}-version`]: packageConfig.version,
       id: this.id,
       name: this.name,

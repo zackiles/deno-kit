@@ -1,7 +1,7 @@
 import { assertEquals, assertExists, assertRejects, assertStringIncludes } from '@std/assert'
 import { createWorkspace } from '../src/workspace.ts'
 import { isBannedDirectory } from '../src/utils/banned-directories.ts'
-import type { KitFileSpecification, TemplateValues } from '../src/types.ts'
+import type { TemplateValues, WorkspaceConfigFile } from '../src/types.ts'
 import { join } from '@std/path'
 
 Deno.test('Workspace functionality', async (t) => {
@@ -103,7 +103,7 @@ Deno.test('Workspace functionality', async (t) => {
   // Step 3: Test JSON representation contains all expected properties
   await t.step('toJSON - returns valid JSON with all required properties', async () => {
     const workspaceJson = await workspace.toJSON()
-    const parsedJson = JSON.parse(workspaceJson) as KitFileSpecification
+    const parsedJson = JSON.parse(workspaceJson) as WorkspaceConfigFile
 
     assertEquals(parsedJson.id, workspace.id, 'JSON should contain correct ID')
     assertEquals(parsedJson.name, workspace.name, 'JSON should contain correct name')
@@ -380,7 +380,7 @@ Deno.test('Workspace functionality', async (t) => {
 
       // Verify the config file contains valid JSON
       const configContent = await Deno.readTextFile(configFilePath)
-      const config = JSON.parse(configContent) as KitFileSpecification
+      const config = JSON.parse(configContent) as WorkspaceConfigFile
 
       // Check essential properties
       assertEquals(config.id, workspace.id, 'Config file should contain correct workspace ID')

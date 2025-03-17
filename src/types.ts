@@ -41,7 +41,7 @@ interface TemplateValues {
 /**
  * Specification for the kit.json file structure that defines the workspace configuration
  */
-interface KitFileSpecification {
+interface WorkspaceConfigFile {
   /** Unique identifier for the workspace */
   id: string
   /** List of file paths in the workspace */
@@ -55,4 +55,4 @@ interface KitFileSpecification {
   templateValues: TemplateValues
 }
 
-export type { KitFileSpecification, TemplateValues }
+export type { TemplateValues, WorkspaceConfigFile }
