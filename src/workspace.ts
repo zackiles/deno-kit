@@ -31,8 +31,8 @@ import { parse as parseJSONC } from '@std/jsonc'
 import type { KitFileSpecification, TemplateValues } from './types.ts'
 import { isBannedDirectory } from './utils/banned-directories.ts'
 
-const DEFAULT_TEMP_PREFIX = 'deno-kit-workspace-'
-const DEFAULT_BACKUPS_PREFIX = 'deno-kit-backups-'
+const DEFAULT_TEMP_PREFIX = 'workspace-temp-'
+const DEFAULT_BACKUPS_PREFIX = 'workspace-backups-'
 const DEFAULT_WORKSPACE_CONFIG_FILE_NAME = 'workspace.json'
 
 /**
@@ -47,18 +47,11 @@ class Workspace {
   readonly path: string
   readonly configFileName: string
   readonly templatesPath: string
-  #backupsPath: string
+  backupsPath: string
   #files = new Map<string, string>()
   #templates = new Map<string, string>()
   #templateValues = new Map<string, string>()
   #backups = new Map<string, string>()
-
-  /**
-   * Get the backup path for the workspace
-   */
-  get backupsPath(): string {
-    return this.#backupsPath
-  }
 
   /**
    * Create a new Workspace instance
@@ -100,12 +93,12 @@ class Workspace {
 
     this.path = getCommonBasePath(workspaceFilePaths)
     this.templatesPath = getCommonBasePath(templateFilePaths)
-    this.#backupsPath = backupFilePaths.length > 0 ? getCommonBasePath(backupFilePaths) : ''
+    this.backupsPath = backupFilePaths.length > 0 ? getCommonBasePath(backupFilePaths) : ''
 
     validateCommonBasePath(workspaceFilePaths, this.path)
     validateCommonBasePath(templateFilePaths, this.templatesPath)
     if (backupFilePaths.length > 0) {
-      validateCommonBasePath(backupFilePaths, this.#backupsPath)
+      validateCommonBasePath(backupFilePaths, this.backupsPath)
     }
 
     this.#files = workspaceFiles
@@ -168,7 +161,7 @@ class Workspace {
       readFilesRecursively(templatesPath),
     ])
 
-    const id = await Workspace.createIdFromPath(workspacePath)
+    const id = await Workspace.#createIdFromPath(workspacePath)
 
     if (workspaceFiles.size === 0) {
       const packageConfigPath = await getPackageForPath()
@@ -223,9 +216,9 @@ class Workspace {
       configFileName: configFileName || DEFAULT_WORKSPACE_CONFIG_FILE_NAME,
     })
     // Call save for the first time.
-    await workspace.#save()
+    await workspace.save()
     // Call backup for the first time.
-    await workspace.#backup()
+    await workspace.backup()
     return workspace
   }
 
@@ -238,7 +231,7 @@ class Workspace {
    * @returns A hex string representation of the SHA-256 hash
    * @private
    */
-  static async createIdFromPath(path: string): Promise<string> {
+  static async #createIdFromPath(path: string): Promise<string> {
     // Don't create errors for invalid workspace paths here.
     try {
       await Workspace.#validateWorkspacePath(path, false)
@@ -364,7 +357,7 @@ class Workspace {
    *
    * @returns A map of backed up file paths to their contents
    */
-  async #backup(): Promise<Map<string, string>> {
+  async backup(): Promise<Map<string, string>> {
     // Create a unique backup directory for the workspace based on its workspaceID
     const backupBasePath = await Deno.makeTempDir({
       prefix: DEFAULT_BACKUPS_PREFIX,
@@ -389,21 +382,19 @@ class Workspace {
     // Update the backupsPath property
     if (backupFiles.size > 0) {
       const backupFilePaths = Array.from(backupFiles.keys())
-      this.#backupsPath = getCommonBasePath(backupFilePaths)
+      this.backupsPath = getCommonBasePath(backupFilePaths)
     }
 
     // Save the updated workspace configuration
-    await this.#save()
+    await this.save()
 
     return backupFiles
   }
 
   /**
    * Saves the workspace configuration to the file specified by configFileName
-   *
-   * @private
    */
-  async #save(): Promise<void> {
+  async save(): Promise<void> {
     await this.writeFile(this.configFileName, await this.toJSON())
   }
 
@@ -416,10 +407,10 @@ class Workspace {
    * @throws Error If the command fails to execute or produces stderr output
    * @example
    * ```ts
-   * const output = await workspace.#runCommandInWorkspace('git', ['status'])
+   * const output = await workspace.runCommand('git', ['status'])
    * ```
    */
-  async #runCommandInWorkspace(
+  async runCommand(
     command: string,
     args: string[] = [],
   ): Promise<string> {
@@ -460,7 +451,7 @@ class Workspace {
    */
   async getGitUserName(): Promise<string> {
     try {
-      return await this.#runCommandInWorkspace('git', [
+      return await this.runCommand('git', [
         'config',
         'user.name',
       ])
@@ -476,7 +467,7 @@ class Workspace {
    */
   async getGitUserEmail(): Promise<string> {
     try {
-      return await this.#runCommandInWorkspace('git', [
+      return await this.runCommand('git', [
         'config',
         'user.email',
       ])
@@ -597,7 +588,7 @@ class Workspace {
       }
     }
 
-    await this.#save()
+    await this.save()
   }
 
   /**

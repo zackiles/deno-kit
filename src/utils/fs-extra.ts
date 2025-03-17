@@ -1,56 +1,5 @@
-import { dirname, fromFileUrl, join, resolve } from '@std/path'
-
-/**
- * Package configuration file names
- */
-const PACKAGE_CONFIG_FILES = [
-  'deno.json',
-  'deno.jsonc',
-  'package.json',
-  'package.jsonc',
-  'jsr.json',
-] as const
-
-/**
- * Finds the nearest package configuration file by traversing up from the given path
- *
- * @param path - Optional file or directory path to start the search from
- * @param options - Configuration options for the search
- * @param options.packageConfigFiles - Optional array of package config filenames to search for (defaults to PACKAGE_CONFIG_FILES)
- * @returns Promise resolving to the absolute path to the found config file, or empty string if none found
- */
-async function getPackageForPath(
-  path?: string,
-  options: { packageConfigFiles?: string[] } = {},
-): Promise<string> {
-  const configFiles = options.packageConfigFiles || PACKAGE_CONFIG_FILES
-
-  // Determine starting directory
-  let startDir = path ? resolve(path) : dirname(fromFileUrl(import.meta.url))
-
-  // Check if path is a file and get its directory if needed
-  if (path) {
-    const stat = await Deno.stat(startDir).catch(() => null)
-    if (stat && !stat.isDirectory) startDir = dirname(startDir)
-  }
-
-  // Traverse up from starting directory
-  let currentDir = startDir
-  while (true) {
-    // Find first matching config file
-    for (const file of configFiles) {
-      const filePath = join(currentDir, file)
-      const exists = await Deno.stat(filePath).then(() => true).catch(() => false)
-      if (exists) return filePath
-    }
-
-    const parentDir = dirname(currentDir)
-    if (parentDir === currentDir) break
-    currentDir = parentDir
-  }
-
-  return ''
-}
+import { dirname, join, resolve } from '@std/path'
+import { getPackageForPath, PACKAGE_CONFIG_FILES } from './package-info.ts'
 
 /**
  * Checks if a directory has write access permission

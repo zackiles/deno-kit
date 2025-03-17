@@ -20,10 +20,11 @@
  * For full documentation on the starter kit and its features, see the README.md
  */
 import { join } from '@std/path'
-import { Logger } from '../logger.ts'
+//import { Logger } from '../logger.ts'
 import { parseArgs } from '@std/cli'
 
-const logger = Logger.get('cli')
+//const logger = Logger.get('cli')
+const logger = console
 
 /**
  * Main CLI function. Uses @deno-kit/module-to-cli to dynamically generate a CLI

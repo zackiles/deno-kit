@@ -33,7 +33,8 @@
     "@std/cli": "jsr:@std/cli@1",
     "@std/jsonc": "jsr:@std/jsonc@1",
     "@std/net": "jsr:@std/net@1",
-    "@std/testing": "jsr:@std/testing@1"
+    "@std/testing": "jsr:@std/testing@1",
+    "@deno-kit/module-to-cli": "jsr:@deno-kit/module-to-cli@0"
     // </@deno-kit IMPORTS END>
   },
   "unstable": [
@@ -55,13 +56,14 @@
     "proseWrap": "preserve",
     "include": [
       "src/**",
+      "docs/**",
+      "scripts/**",
       "test/**",
       "README.md",
       "CONTRIBUTING.md"
     ],
     "exclude": [
       "src/templates/**",
-      "docs/**",
       ".cursor/**",
       "test/mocks/**",
       "test/fixtures/**"
@@ -81,6 +83,7 @@
     },
     "include": [
       "src/**",
+      "scripts/**",
       "test/**",
       "README.md",
       "CONTRIBUTING.md"
@@ -113,10 +116,9 @@
   "publish": {
     "include": [
       "bin/**",
+      "scripts/**",
       "src/**/*.ts",
-      "src/templates/**/*.*",
-      "src/templates/**/*",
-      "src/templates/**/.vscode/**",
+      "src/templates/**",
       "README.md",
       "LICENSE"
     ],

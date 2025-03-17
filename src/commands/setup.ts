@@ -1,123 +1,52 @@
 /**
- * @module generate
- * @description Template generator for Deno libraries
+ * @module setup
+ * @description CLI setup module for Deno libraries
  *
- * This script generates a new Deno library from templates, replacing placeholders
- * with user-provided values. It handles package metadata, GitHub information,
- * and other configuration details.
+ * This module handles the interactive CLI prompts for setting up a new Deno library,
+ * gathering system information, and managing dependencies.
  *
  * @example
  * ```bash
- * deno run --allow-read --allow-write --allow-run --allow-env .deno-kit/generate.ts
+ * deno run --allow-run --allow-env setup.ts
  * ```
  */
 
-import { dirname, join } from '@std/path'
-import { ensureDir } from '@std/fs'
 import { getConfig } from '../config.ts'
 import { setupOrUpdateCursorConfig } from '../utils/cursor-config.ts'
+import { extractProjectName, extractScope, isValidPackageName } from '../utils/package-info.ts'
 
-// Get configuration to access kitDir and templatesDir
+// Get configuration to access basic settings
 const config = await getConfig()
 
-// Define the template placeholders and their corresponding values
-interface TemplateValues {
+/** Core information gathered during setup */
+export interface SetupValues {
   /** Full package name including scope (e.g., "@deno/example") */
-  PACKAGE_NAME: string
+  packageName: string
 
   /** Package scope with @ symbol (e.g., "@deno") */
-  PACKAGE_SCOPE: string
+  packageScope: string
 
   /** Semantic version number (e.g., "1.0.0") */
-  PACKAGE_VERSION: string
+  packageVersion: string
 
   /** Author's full name (e.g., "John Doe") */
-  PACKAGE_AUTHOR_NAME: string
+  authorName: string
 
   /** Author's email address (e.g., "john.doe@example.com") */
-  PACKAGE_AUTHOR_EMAIL: string
+  authorEmail: string
 
   /** Short description of the package (e.g., "A modern HTTP client for Deno") */
-  PACKAGE_DESCRIPTION: string
+  packageDescription: string
 
   /** GitHub username or organization without @ (e.g., "denoland") */
-  PACKAGE_GITHUB_USER: string
+  githubUser: string
 
   /** Current year for license and documentation (e.g., "2024") */
-  YEAR: string
+  year: string
 
   /** Package name without scope (e.g., "example" from "@deno/example") */
-  PROJECT_NAME: string
-
-  /** Allow string indexing for dynamic template values */
-  [key: string]: string
+  projectName: string
 }
-
-/**
- * Creates dynamic template mappings for template files found in the templates directory.
- * This function supports nested directory structures and recursively finds templates.
- *
- * @param {string} templatesDir - The root directory containing templates
- * @returns {Record<string, string>} A mapping of template paths to destination paths
- */
-async function createTemplateMappings(
-  templatesDir: string,
-): Promise<Record<string, string>> {
-  const mappings: Record<string, string> = {}
-
-  // Helper function to recursively scan directories for templates
-  async function scanDir(dir: string, relativePath = ''): Promise<void> {
-    try {
-      for await (const entry of Deno.readDir(dir)) {
-        const entryPath = join(dir, entry.name)
-        const relPath = relativePath ? join(relativePath, entry.name) : entry.name
-
-        if (entry.isDirectory) {
-          // Recursively scan subdirectories
-          await scanDir(entryPath, relPath)
-        } else if (entry.isFile && entry.name.includes('.template.')) {
-          // Create a destination path by removing '.template' from filename
-          const destFilename = entry.name.replace('.template', '')
-          // Create the destination path, preserving the directory structure
-          const destRelPath = dirname(relPath) === '.' ? '' : dirname(relPath)
-          const destPath = join('./', destRelPath, destFilename)
-
-          // Add to mappings
-          mappings[entryPath] = destPath
-        }
-      }
-    } catch (error) {
-      console.error(`Error scanning directory ${dir}:`, error)
-    }
-  }
-
-  // Scan the templates directory
-  await scanDir(templatesDir)
-  return mappings
-}
-
-// Template file mappings (source -> destination)
-// Define basic mappings but allow for flexible discovery of templates
-const TEMPLATE_MAPPINGS = {
-  [join(config.templatesDir, 'README.template.md')]: './README.md',
-  [join(config.templatesDir, 'deno.template.jsonc')]: './deno.jsonc',
-  [join(config.templatesDir, 'CONTRIBUTING.template.md')]: './CONTRIBUTING.md',
-  [join(config.templatesDir, 'LICENSE.template')]: './LICENSE',
-  [join(config.templatesDir, '.env.template')]: './.env',
-  [join(config.templatesDir, 'deno-version.template')]: './.deno-version',
-  [join(config.templatesDir, '.editorconfig.template')]: './.editorconfig',
-  [join(config.templatesDir, '.vscode', 'settings.template.json')]: './.vscode/settings.json',
-  [join(config.templatesDir, '.vscode', 'extensions.template.json')]: './.vscode/extensions.json',
-  // Add src directory templates
-  [join(config.templatesDir, 'src', 'lib.template.ts')]: './src/lib.ts',
-  [join(config.templatesDir, 'src', 'mod.template.ts')]: './src/mod.ts',
-  [join(config.templatesDir, 'src', 'types.template.ts')]: './src/types.ts',
-  // Add src/utils directory templates
-  [join(config.templatesDir, 'src', 'utils', 'telemetry.template.ts')]: './src/utils/telemetry.ts',
-}
-
-// Get workspace directory from environment if set
-const workspaceDir = Deno.env.get('DENO_KIT_WORKSPACE')
 
 /**
  * Gets the git user name from git config
@@ -206,43 +135,11 @@ async function promptWithDefault(
 }
 
 /**
- * Validates a package name to ensure it's in the format @scope/name
+ * Gathers all setup values from user input
  *
- * @param {string} packageName - The package name to validate
- * @returns {boolean} True if the package name is valid, false otherwise
+ * @returns {Promise<SetupValues>} The setup values provided by the user
  */
-function isValidPackageName(packageName: string): boolean {
-  return /^@[a-z0-9-]+\/[a-z0-9-]+$/.test(packageName)
-}
-
-/**
- * Extracts the scope from a package name
- *
- * @param {string} packageName - The package name to extract the scope from
- * @returns {string} The scope (including @) or empty string if not found
- */
-function extractScope(packageName: string): string {
-  const match = packageName.match(/^(@[a-z0-9-]+)\/[a-z0-9-]+$/)
-  return match ? match[1] : ''
-}
-
-/**
- * Extracts the project name from a package name (without scope)
- *
- * @param {string} packageName - The package name to extract the project name from
- * @returns {string} The project name (without scope) or the original package name
- */
-function extractProjectName(packageName: string): string {
-  const match = packageName.match(/^@[a-z0-9-]+\/([a-z0-9-]+)$/)
-  return match ? match[1] : packageName
-}
-
-/**
- * Gathers all template values from user input
- *
- * @returns {Promise<TemplateValues>} The template values provided by the user
- */
-async function gatherTemplateValues(): Promise<TemplateValues> {
+async function gatherSetupValues(): Promise<SetupValues> {
   // Get default values
   const defaultName = await getGitUserName()
   const defaultEmail = await getGitUserEmail()
@@ -298,170 +195,20 @@ async function gatherTemplateValues(): Promise<TemplateValues> {
 
   // Return all gathered values
   return {
-    PACKAGE_NAME: packageName,
-    PACKAGE_SCOPE: packageScope,
-    PACKAGE_VERSION: packageVersion,
-    PACKAGE_AUTHOR_NAME: authorName,
-    PACKAGE_AUTHOR_EMAIL: authorEmail,
-    PACKAGE_DESCRIPTION: packageDescription,
-    PACKAGE_GITHUB_USER: githubUser,
-    YEAR: currentYear,
-    PROJECT_NAME: projectName,
+    packageName,
+    packageScope,
+    packageVersion,
+    authorName,
+    authorEmail,
+    packageDescription,
+    githubUser,
+    year: currentYear,
+    projectName,
   }
 }
 
 /**
- * Replaces all placeholders in a string with their values
- *
- * @param {string} content - The content containing placeholders
- * @param {TemplateValues} values - The values to replace placeholders with
- * @returns {string} The content with placeholders replaced
- */
-function replacePlaceholders(
-  content: string,
-  values: TemplateValues,
-): string {
-  return content.replace(
-    /{([A-Z_]+)}/g,
-    (_match, placeholder) => placeholder in values ? values[placeholder] : _match,
-  )
-}
-
-/**
- * Creates the backup directory if it doesn't exist
- *
- * @returns {Promise<void>}
- */
-async function ensureBackupsDir(): Promise<void> {
-  try {
-    await Deno.mkdir(config.backupsDir, { recursive: true })
-  } catch (error) {
-    if (!(error instanceof Deno.errors.AlreadyExists)) {
-      throw error
-    }
-  }
-}
-
-/**
- * Backs up an existing file before overwriting it
- *
- * @param {string} filePath - The path of the file to back up
- * @returns {Promise<boolean>} True if the file was backed up, false otherwise
- */
-async function backupExistingFile(filePath: string): Promise<boolean> {
-  try {
-    // Check if the file exists
-    await Deno.stat(filePath)
-
-    // Get relative path from workspace
-    const workspaceRelativePath = filePath.startsWith(workspaceDir || '')
-      ? filePath.slice((workspaceDir?.length || 0) + 1)
-      : filePath.startsWith('./')
-      ? filePath.slice(2)
-      : filePath
-
-    const backupPath = join(
-      config.backupsDir,
-      `${workspaceRelativePath}.backup`,
-    )
-
-    // Ensure backup directory exists
-    await ensureDir(dirname(backupPath))
-
-    // Copy the file to backup location
-    await Deno.copyFile(filePath, backupPath)
-    console.log(`🔄 Backed up ${filePath} to ${backupPath}`)
-    return true
-  } catch (error) {
-    if (error instanceof Deno.errors.NotFound) {
-      // File doesn't exist, no backup needed
-      return false
-    }
-    console.error(`⚠️ Failed to backup ${filePath}:`, error)
-    return false
-  }
-}
-
-/**
- * Processes a template file and writes it to the destination
- *
- * @param {string} templatePath - The path to the template file
- * @param {string} destPath - The path to write the processed file to
- * @param {TemplateValues} values - The values to replace placeholders with
- * @returns {Promise<void>}
- */
-async function processTemplate(
-  templatePath: string,
-  destPath: string,
-  values: TemplateValues,
-): Promise<void> {
-  try {
-    // Ensure backup directory exists
-    await ensureBackupsDir()
-
-    // If workspace directory is set, adjust the destination path
-    const finalDestPath = workspaceDir ? join(workspaceDir, destPath) : destPath
-    await backupExistingFile(finalDestPath)
-
-    // Read template file - handle both local and remote files
-    let content: string
-    // Fix URL formatting and improve detection
-    const fixedTemplatePath = templatePath.replace(
-      /^https:\/([^\/])/,
-      'https://$1',
-    )
-      .replace(/^http:\/([^\/])/, 'http://$1')
-      // Fix case sensitivity in file extensions
-      .replace(/\.MD$/i, '.md')
-      .replace(/\.JSON$/i, '.json')
-      .replace(/\.TS$/i, '.ts')
-      .replace(/\.JSONC$/i, '.jsonc')
-
-    // More robust URL detection
-    if (
-      fixedTemplatePath.startsWith('http://') ||
-      fixedTemplatePath.startsWith('https://') ||
-      fixedTemplatePath.includes('jsr.io')
-    ) {
-      try {
-        // Ensure the URL is properly formatted
-        const templateUrl = new URL(fixedTemplatePath)
-        console.log(`🌐 Fetching remote template: ${templateUrl.href}`)
-
-        // Handle remote files
-        const response = await fetch(templateUrl)
-        if (!response.ok) {
-          throw new Error(
-            `Failed to fetch ${templateUrl.href}: ${response.status} ${response.statusText}`,
-          )
-        }
-        content = await response.text()
-      } catch (error: unknown) {
-        const fetchError = error instanceof Error ? error : new Error(String(error))
-        throw new Error(
-          `Failed to fetch remote template: ${fetchError.message}`,
-        )
-      }
-    } else {
-      // Handle local files
-      content = await Deno.readTextFile(fixedTemplatePath)
-    }
-
-    // Replace placeholders
-    const processedContent = replacePlaceholders(content, values)
-
-    // Write the processed template to its final destination
-    await ensureDir(dirname(finalDestPath))
-    await Deno.writeTextFile(finalDestPath, processedContent)
-
-    console.log(`✅ Created ${finalDestPath}`)
-  } catch (error) {
-    console.error(`❌ Error processing template ${templatePath}:`, error)
-  }
-}
-
-/**
- * Installs deno-kit and dependencies after template processing
+ * Installs deno-kit and dependencies
  *
  * @returns {Promise<void>}
  */
@@ -492,37 +239,22 @@ async function installDependencies(): Promise<void> {
 }
 
 /**
- * Main function for template generation
+ * Main setup function that orchestrates the CLI interaction
  *
  * @returns {Promise<void>}
  */
-async function generate(options: { workspace?: string } = {}): Promise<void> {
-  console.log('🦕 Deno-Kit Project Generator')
+async function setup(options: { workspace?: string } = {}): Promise<void> {
+  console.log('🦕 Deno-Kit Project Setup')
   console.log('---------------------------------')
 
   // Store the workspace directory from options or environment
   const workspaceDir = options.workspace || Deno.env.get('DENO_KIT_WORKSPACE')
 
   // Gather all values from user input
-  const templateValues = await gatherTemplateValues()
+  const setupValues = await gatherSetupValues()
 
   console.log('\nℹ️ Using the following values:')
-  console.table(templateValues)
-
-  // Get all template mappings
-  // First use predefined mappings and then find any additional templates
-  const allTemplateMappings = Deno.env.get('DENO_KIT_DISCOVER_TEMPLATES') === 'true'
-    ? await createTemplateMappings(config.templatesDir)
-    : TEMPLATE_MAPPINGS
-
-  console.log(`\n📁 Templates directory: ${config.templatesDir}`)
-  console.log('📝 Processing template files:')
-
-  // Process all template files
-  for (const [templatePath, destPath] of Object.entries(allTemplateMappings)) {
-    console.log(`  🔄 Processing: ${templatePath} -> ${destPath}`)
-    await processTemplate(templatePath, destPath, templateValues)
-  }
+  console.table(setupValues)
 
   // Run deno install
   await installDependencies()
@@ -536,12 +268,12 @@ async function generate(options: { workspace?: string } = {}): Promise<void> {
     console.warn('⚠️ Failed to install Cursor AI rules')
   }
 
-  console.log('\n🎉 All done! Your Deno project is ready to use.')
-  console.log('📦 Package:', templateValues.PACKAGE_NAME)
+  console.log('\n🎉 Setup complete! Your Deno project is ready for initialization.')
+  console.log('📦 Package:', setupValues.packageName)
 }
 
 if (import.meta.main) {
-  // Parse command line arguments using a more robust approach with @std/cli
+  // Parse command line arguments
   const args = Deno.args
   const parsedArgs: Record<string, unknown> = {}
 
@@ -549,30 +281,17 @@ if (import.meta.main) {
     const arg = args[i]
 
     if (arg === '--workspace' && i + 1 < args.length) {
-      parsedArgs.workspace = args[++i] // Increment i after usage
+      parsedArgs.workspace = args[++i]
     }
-    // Add other flags here as needed
   }
 
-  // Pass workspace only if it's defined, avoiding TypeScript errors with exactOptionalPropertyTypes
+  // Pass workspace only if it's defined
   const options: { workspace?: string } = {}
   if (typeof parsedArgs.workspace === 'string') {
     options.workspace = parsedArgs.workspace
   }
 
-  await generate(options)
+  await setup(options)
 }
 
-export type { TemplateValues }
-export {
-  backupExistingFile,
-  ensureBackupsDir,
-  extractProjectName,
-  extractScope,
-  gatherTemplateValues,
-  generate,
-  isValidPackageName,
-  processTemplate,
-  replacePlaceholders,
-  TEMPLATE_MAPPINGS,
-}
+export { gatherSetupValues, getGitUserEmail, getGitUserName, installDependencies, setup }

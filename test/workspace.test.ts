@@ -328,7 +328,7 @@ Deno.test('Workspace functionality', async (t) => {
     // The backups path should be different from the workspace path
     assertStringIncludes(
       workspace.backupsPath,
-      'deno-kit-backups',
+      'workspace-backups',
       'Backup path should contain correct prefix',
     )
 
