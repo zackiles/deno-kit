@@ -1,5 +1,6 @@
 import { dirname, join, resolve } from '@std/path'
 import { getPackageForPath, PACKAGE_CONFIG_FILES } from './package-info.ts'
+import { walk } from '@std/fs/walk'
 
 /**
  * Checks if a directory has write access permission
@@ -164,39 +165,44 @@ function validateCommonBasePath(
 }
 
 /**
- * Recursively read all files in a directory and return a map of file paths to contents
+ * Recursively reads all files in a directory and returns a map of file paths to their content.
  *
- * @param directoryPath The directory to read files from
- * @returns A map of file paths to file contents
- * @throws Error if the directory cannot be read or accessed
- * @note Failed file reads are logged as warnings and skipped
+ * @param directoryPath The path to read files from
+ * @returns A map where keys are file paths and values are file contents
  */
 async function readFilesRecursively(
   directoryPath: string,
 ): Promise<Map<string, string>> {
   const files = new Map<string, string>()
-  const absolutePath = Deno.realPathSync(directoryPath)
+  const absolutePath = await Deno.realPath(directoryPath)
 
-  const readFileContent = async (path: string) => {
-    try {
-      const content = await Deno.readTextFile(path)
-      files.set(path, content)
-    } catch (error) {
-      console.warn(
-        `Failed to read file ${path}: ${error instanceof Error ? error.message : String(error)}`,
-      )
+  try {
+    for await (
+      const entry of walk(absolutePath, {
+        includeFiles: true,
+        includeDirs: false,
+        followSymlinks: false,
+      })
+    ) {
+      try {
+        const content = await Deno.readTextFile(entry.path)
+        files.set(entry.path, content)
+      } catch (error) {
+        console.warn(
+          `Failed to read file ${entry.path}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        )
+      }
     }
+  } catch (error) {
+    console.warn(
+      `Failed to read directory ${absolutePath}: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    )
   }
 
-  const processDirectory = async (dirPath: string): Promise<void> => {
-    const entries = Deno.readDir(dirPath)
-    for await (const entry of entries) {
-      const entryPath = join(dirPath, entry.name)
-      await (entry.isDirectory ? processDirectory(entryPath) : readFileContent(entryPath))
-    }
-  }
-
-  await processDirectory(absolutePath)
   return files
 }
 
