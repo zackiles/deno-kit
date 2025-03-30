@@ -1,6 +1,6 @@
 import { dirname, join } from '@std/path'
 import { assertEquals, assertExists } from '@std/assert'
-import { TEMPLATE_MAPPINGS } from '../src/commands/setup.ts'
+import { TEMPLATE_MAPPINGS } from '../src/commands/setup-old.ts'
 
 /**
  * Dynamically generate expected files from TEMPLATE_MAPPINGS
@@ -12,9 +12,7 @@ export async function getExpectedFiles(): Promise<string[]> {
   // Extract destination paths from TEMPLATE_MAPPINGS
   for (const destPath of Object.values(TEMPLATE_MAPPINGS) as string[]) {
     // Remove leading './' if present
-    const normalizedPath = destPath.startsWith('./')
-      ? destPath.slice(2)
-      : destPath
+    const normalizedPath = destPath.startsWith('./') ? destPath.slice(2) : destPath
     expectedFiles.push(normalizedPath)
   }
 
@@ -256,9 +254,7 @@ export async function verifyUpdateResults(
     }
   } catch (error) {
     console.error(
-      `Error during verification: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
+      `Error during verification: ${error instanceof Error ? error.message : String(error)}`,
     )
     throw error
   }

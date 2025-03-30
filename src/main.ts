@@ -1,295 +1,174 @@
-#!/usr/bin/env -S deno run --allow-all
-import { getConfig } from './config.ts'
-import { join } from '@std/path'
+/**
+ * Main entry point for the Deno-Kit CLI.
+ *
+ * @module
+ * @see {@link https://jsr.io/@std/cli/doc/~/parseArgs}
+ * @see {@link https://jsr.io/@std/cli/doc/parse-args/~/Args}
+ * @see {@link https://jsr.io/@std/cli/doc/~/ParseOptions}
+ */
+import { parseArgs } from '@std/cli/parse-args'
+import { walk } from '@std/fs'
+import { basename, join } from '@std/path'
+import type { Args } from '@std/cli'
+
+import resolveResourcePath from './utils/resource-path.ts'
+import logger from './utils/logger.ts'
+import gracefulShutdown from './utils/graceful-shutdown.ts'
+import { type CommandArgs, type CommandDefinition, isCommandDefinition } from './types.ts'
 import {
-  blue,
-  bold,
-  cyan,
-  dim,
-  green,
-  red,
-  yellow,
-} from 'jsr:@std/fmt@1/colors'
+  create as createWorkspace,
+  isConfigFile,
+  load as loadWorkspace,
+  type Workspace,
+} from './workspace.ts'
+import { getPackageForPath } from './utils/package-info.ts'
 
-const KIT_NAME = 'deno kit'
-
-const config = await getConfig()
-
-// Create a logger for the main process with colored output
-const logger = {
-  info: (msg: string, ...args: unknown[]) =>
-    console.log(`${bold(green(`[${KIT_NAME}]`))} ${msg}`, ...args),
-  error: (msg: string, ...args: unknown[]) =>
-    console.error(`${bold(red(`[${KIT_NAME}] ❌`))} ${msg}`, ...args),
-  debug: (msg: string, ...args: unknown[]) =>
-    console.debug(`${bold(blue(`[${KIT_NAME}]`))} ${msg}`, ...args),
-  warn: (msg: string, ...args: unknown[]) =>
-    console.warn(`${bold(yellow(`[${KIT_NAME}] ⚠`))} ${msg}`, ...args),
-  // Help menu specific methods
-  helpTitle: (title: string) => console.log(`\n${bold(cyan(title))}`),
-  helpUsage: (usage: string) => console.log(`${dim(usage)}`),
-  helpSection: (title: string) => console.log(`\n${bold(blue(title))}`),
-  helpCommand: (command: string, description: string, padding: number) => {
-    const paddingSpaces = ' '.repeat(padding - command.length + 2)
-    console.log(`  ${bold(green(command))}${paddingSpaces}${dim(description)}`)
-  },
-  helpNote: (note: string) => console.log(`\n${dim(note)}`),
-}
+const CLI_NAME = 'Deno-Kit'
 
 /**
- * Map of commands to their corresponding configuration
- * Commands handled locally (like "help") are not included
+ * Loads and manages command definitions from the commands directory.
+ * Handles command loading, validation, and routing.
  */
-const COMMAND_MAP: Record<string, {
-  commandPath: string
-  commandDescription: string
-}> = {
-  'setup': {
-    commandPath: 'commands/setup.ts',
-    commandDescription: 'Setup a new Deno project',
-  },
-  'reset': {
-    commandPath: 'commands/reset.ts',
-    commandDescription: 'Restore original project files from backups',
-  },
-  'publish': {
-    commandPath: '', // Currently disabled
-    commandDescription: 'Publish your module to JSR',
-  },
-  'remove': {
-    commandPath: '', // Currently disabled
-    commandDescription: 'Remove the Deno-Kit files and CLI from the project',
-  },
-  'update': {
-    commandPath: 'commands/update.ts',
-    commandDescription: 'Update the Cursor configuration from GitHub',
-  },
-  'server': {
-    commandPath: '', // Currently disabled
-    commandDescription:
-      'Start the auto-generated HTTP and WebSocket server for your module',
-  },
-  'cli': {
-    commandPath: 'commands/run-cli.ts',
-    commandDescription: 'Run the auto-generated CLI interface for your module',
-  },
-}
+async function loadCommands(defaultCommand: string): Promise<{
+  routes: CommandDefinition[]
+  getRoute: (args: unknown[]) => CommandDefinition | undefined
+  getOptions: (route: CommandDefinition) => Args
+}> {
+  const routes: CommandDefinition[] = []
 
-/**
- * Set up signal handlers for graceful shutdown
- * @returns A cleanup function to remove the signal handlers
- */
-function setupSignalHandlers(childProcess?: Deno.ChildProcess): () => void {
-  const signals: Deno.Signal[] = ['SIGINT', 'SIGTERM', 'SIGHUP']
-  const handlers: { signal: Deno.Signal; handler: () => void }[] = []
-
-  for (const signal of signals) {
-    const handler = () => {
-      logger.info(`Received ${signal}, initiating graceful shutdown...`)
-
-      // If we have a child process, let it handle the signal
-      // The signal will be automatically propagated to the child
-      if (childProcess) {
-        logger.debug('Waiting for child process to handle signal...')
-      } else {
-        // If no child process, exit gracefully
-        logger.info('No child process, exiting gracefully...')
-        Deno.exit(0)
-      }
-    }
-
-    try {
-      Deno.addSignalListener(signal, handler)
-      handlers.push({ signal, handler })
-    } catch (error) {
-      logger.error(`Failed to set up ${signal} handler:`, error)
-    }
-  }
-
-  // Return cleanup function
-  return () => {
-    for (const { signal, handler } of handlers) {
+  try {
+    // Load and process command modules
+    const commandsDir = join(new URL(import.meta.url).pathname, '..', 'commands')
+    for await (
+      const entry of walk(commandsDir, {
+        includeDirs: false,
+        exts: ['.ts'],
+        skip: [/\.disabled$/],
+      })
+    ) {
       try {
-        Deno.removeSignalListener(signal, handler)
-      } catch (_) {
-        // Ignore errors when removing signal handlers
+        // Try importing the command with fallback
+        const mod = await (async () => {
+          try {
+            return await import(`./commands/${basename(entry.path)}`)
+          } catch {
+            return await import(await resolveResourcePath(`src/commands/${basename(entry.path)}`))
+          }
+        })()
+
+        // Add valid command to routes
+        if (mod.default && isCommandDefinition(mod.default)) {
+          routes.push({
+            ...mod.default,
+            options: mod.default.options || {},
+          })
+        }
+      } catch (err) {
+        logger.warn(
+          `Failed to load command from ${entry.path}: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        )
       }
     }
+  } catch (err) {
+    logger.error(
+      `Failed to scan commands directory: ${err instanceof Error ? err.message : String(err)}`,
+    )
   }
-}
 
-/**
- * Run a command as a separate process using Deno.command
- * This function executes the specified script with the same permissions as the parent process
- * @param scriptName The name of the script to run (without .ts extension)
- * @returns Promise that resolves when the process completes
- */
-async function runCommand(scriptName: string): Promise<void> {
-  // Get the current executable and flags
-  const denoExecutable = Deno.execPath()
-
-  // Get the full path to the script using config.kitDir
-  const scriptPath = join(config.kitDir, scriptName)
-
-  // Find the command in args to know where to start slicing from
-  // Handle both 'cli' and 'run-cli' as valid command names
-  const baseCommand = scriptName.replace('.ts', '')
-  const shortCommand = baseCommand.replace('run-', '')
-  const commandIndex = Deno.args.findIndex((arg) =>
-    arg === baseCommand || arg === shortCommand
-  )
-
-  // Extract workspace flag if present
-  const workspaceIndex = Deno.args.findIndex((arg) => arg === '--workspace')
-  const workspaceDir = workspaceIndex >= 0
-    ? Deno.args[workspaceIndex + 1]
-    : undefined
-
-  // Filter out workspace flag and value from command args
-  const commandArgs = commandIndex >= 0
-    ? Deno.args
-      .slice(commandIndex + 1)
-      .filter((_, i, _arr) =>
-        i !== workspaceIndex - (commandIndex + 1) &&
-        i !== (workspaceIndex + 1) - (commandIndex + 1)
-      )
-    : []
-
-  // Debug logging
-  logger.debug('Running command with:', {
-    scriptName,
-    scriptPath,
-    baseCommand,
-    shortCommand,
-    originalArgs: Deno.args,
-    commandIndex,
-    commandArgs,
-    workspaceDir,
-  })
-
-  // Create the command with the same permissions
-  const command = new Deno.Command(denoExecutable, {
-    args: [
-      'run',
-      '--allow-all',
-      scriptPath,
-      ...commandArgs,
-    ],
-    stdout: 'inherit',
-    stderr: 'inherit',
-    env: {
-      ...Deno.env.toObject(), // Pass through all environment variables
-      FORCE_COLOR: '1', // Ensure colors work in child process
-      ...(workspaceDir ? { DENO_KIT_WORKSPACE: workspaceDir } : {}), // Pass workspace dir if specified
+  // Return routes and helper functions for command handling
+  return {
+    routes,
+    getRoute: (args: unknown[]) => {
+      if (args.length > 0) {
+        const match = routes.find((r) => r.name === String(args[0])) ??
+          (args.length > 1 ? routes.find((r) => r.name === String(args[1])) : undefined)
+        if (match) return match
+      }
+      return routes.find((r) => r.name === defaultCommand)
     },
-  })
-
-  // Log the full command being executed
-  logger.debug('Executing command:', {
-    executable: denoExecutable,
-    fullArgs: ['run', '--allow-all', scriptPath, ...commandArgs],
-  })
-
-  // Spawn the process
-  const process = command.spawn()
-
-  // Set up signal handlers that will wait for the child to exit
-  const cleanupSignalHandlers = setupSignalHandlers(process)
-
-  try {
-    // Wait for the process to complete and get its status
-    const status = await process.status
-
-    // If the command failed, exit with the same code
-    if (status.code !== 0) {
-      // Instead of throwing an error, exit with the same code
-      // This propagates the exit code up to the parent process
-      logger.error(`Command exited with code ${status.code}`)
-      Deno.exit(status.code)
-    }
-  } finally {
-    // Always clean up signal handlers
-    cleanupSignalHandlers()
+    getOptions: (route: CommandDefinition) => {
+      const idx = Deno.args.findIndex((arg) => arg === route.name)
+      return idx >= 0
+        ? parseArgs(Deno.args.slice(idx + 1), route.options)
+        : parseArgs([], route.options)
+    },
   }
 }
 
 /**
- * Display help message showing available commands
+ * Main entry point for the Deno-Kit CLI.
+ *
+ * @returns {Promise<void>}
  */
-function displayHelp(): void {
-  logger.helpTitle(
-    `${
-      KIT_NAME.split(' ').map((word) =>
-        word.charAt(0).toUpperCase() + word.slice(1)
-      ).join(' ')
-    } - Usage:`,
-  )
-  logger.helpUsage(
-    `  ${KIT_NAME} [command] [options]`,
-  )
+async function main(defaultCommand = 'help'): Promise<void> {
+  const { routes, getRoute, getOptions } = await loadCommands(defaultCommand)
+  const parsedArgs = parseArgs(Deno.args, {
+    string: ['workspace'],
+    boolean: ['help', 'h'],
+    alias: { h: 'help' },
+    //default: { 'workspace': Deno.cwd() },
+    default: { 'workspace': '/Users/zacharyiles/dev/temp' },
+  })
+  const rawArgs = parsedArgs._
 
-  logger.helpSection('Commands:')
+  const route = getRoute(rawArgs)
+  let workspace: Workspace | undefined
+  const packageInfo = await getPackageForPath(parsedArgs.workspace, {
+    packageConfigFiles: ['kit.json'],
+  })
 
-  // Find the longest command name for proper padding
-  const maxCommandLength = Math.max(
-    ...Object.keys(COMMAND_MAP).map((cmd) => cmd.length),
-    4, // length of "help"
-  )
-
-  // Display all commands from COMMAND_MAP
-  for (const [command, config] of Object.entries(COMMAND_MAP)) {
-    logger.helpCommand(command, config.commandDescription, maxCommandLength)
+  if (!route) {
+    logger.error(
+      'Critical error: Default help command not found in routes.',
+    )
+    return Deno.exit(1)
   }
 
-  // Display help command (handled locally)
-  logger.helpCommand('help', 'Display this help message', maxCommandLength)
-
-  logger.helpNote(
-    'If no command is provided, the "help" command will be executed.',
-  )
-}
-
-/**
- * Main function that dispatches to the appropriate command handler
- */
-export async function main(): Promise<void> {
-  // Set up signal handlers for the main process
-  const cleanupSignalHandlers = setupSignalHandlers()
+  if (route.name === 'setup') {
+    workspace = await createWorkspace({
+      workspacePath: parsedArgs.workspace,
+      templatesPath: await resolveResourcePath('templates'),
+      configFileName: 'kit.json',
+    })
+  } else if (route.name !== defaultCommand && route.name !== 'test') {
+    // If this isn't the setup command or help command, get the current workspace
+    if (!packageInfo || !isConfigFile(packageInfo)) {
+      logger.error(
+        `Invalid or no kit.json file found in workspace: ${parsedArgs.workspace}`,
+      )
+      return Deno.exit(1)
+    }
+    workspace = await loadWorkspace(packageInfo)
+  }
 
   try {
-    // Get the command from arguments
-    const command = Deno.args[0]?.toLowerCase() || 'help'
-
-    // Handle local commands first
-    if (command === 'help') {
-      displayHelp()
-      return
+    const commandArgs: CommandArgs = {
+      routes,
+      args: getOptions(route),
+      ...(workspace && { workspace }),
     }
-
-    // Check if the command exists in our map
-    if (command in COMMAND_MAP) {
-      await runCommand(COMMAND_MAP[command].commandPath)
-      return
-    }
-
-    // Handle unknown commands
-    logger.error(`Unknown command: ${command}`)
-    displayHelp()
-    Deno.exit(1)
-  } finally {
-    // Clean up signal handlers
-    cleanupSignalHandlers()
+    await route.command(commandArgs)
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    logger.error(`Failed to execute command: ${errorMessage}`)
+    throw error
   }
 }
 
-// Run the script if it's the main module
 if (import.meta.main) {
+  gracefulShutdown.start()
+
   try {
     await main()
-  } catch (error: unknown) {
-    logger.error(
-      `Error: ${error instanceof Error ? error.message : String(error)}`,
+  } catch (error) {
+    gracefulShutdown.triggerShutdown(
+      `Error in main execution: ${error instanceof Error ? error.message : String(error)}`,
     )
     Deno.exit(1)
   }
 }
+
+export { CLI_NAME, main }
+export default main

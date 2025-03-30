@@ -1,0 +1,99 @@
+{
+  "scriptId": "320",
+  "url": "file:///Users/zacharyiles/dev/deno-kit/src/utils/banned-directories.ts",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 6415, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "checkPatternMatch",
+      "ranges": [{ "startOffset": 1071, "endOffset": 1727, "count": 31 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "hasGlobChars",
+      "ranges": [
+        { "startOffset": 1146, "endOffset": 1342, "count": 961 },
+        { "startOffset": 1179, "endOffset": 1203, "count": 713 },
+        { "startOffset": 1204, "endOffset": 1228, "count": 713 },
+        { "startOffset": 1229, "endOffset": 1253, "count": 713 },
+        { "startOffset": 1254, "endOffset": 1278, "count": 713 },
+        { "startOffset": 1279, "endOffset": 1342, "count": 713 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [
+        { "startOffset": 1409, "endOffset": 1723, "count": 961 },
+        { "startOffset": 1453, "endOffset": 1572, "count": 248 },
+        { "startOffset": 1572, "endOffset": 1718, "count": 713 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "isBannedDirectory",
+      "ranges": [
+        { "startOffset": 2123, "endOffset": 2638, "count": 31 },
+        { "startOffset": 2303, "endOffset": 2310, "count": 0 },
+        { "startOffset": 2506, "endOffset": 2532, "count": 0 },
+        { "startOffset": 2549, "endOffset": 2616, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "getConfig",
+      "ranges": [
+        { "startOffset": 3081, "endOffset": 3461, "count": 31 },
+        { "startOffset": 3218, "endOffset": 3289, "count": 0 },
+        { "startOffset": 3453, "endOffset": 3458, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "loadBannedDirectories",
+      "ranges": [{ "startOffset": 3755, "endOffset": 5349, "count": 31 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "emptyConfig",
+      "ranges": [{ "startOffset": 4178, "endOffset": 4281, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "processConfigFile",
+      "ranges": [
+        { "startOffset": 4370, "endOffset": 5107, "count": 62 },
+        { "startOffset": 4476, "endOffset": 4486, "count": 31 },
+        { "startOffset": 4488, "endOffset": 4540, "count": 0 },
+        { "startOffset": 4561, "endOffset": 4577, "count": 0 },
+        { "startOffset": 4585, "endOffset": 5103, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "loadJsonFile",
+      "ranges": [
+        { "startOffset": 5521, "endOffset": 5764, "count": 62 },
+        { "startOffset": 5652, "endOffset": 5762, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "mergeConfigs",
+      "ranges": [{ "startOffset": 6015, "endOffset": 6384, "count": 31 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [
+        { "startOffset": 6090, "endOffset": 6376, "count": 93 },
+        { "startOffset": 6166, "endOffset": 6171, "count": 0 },
+        { "startOffset": 6225, "endOffset": 6230, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    }
+  ]
+}

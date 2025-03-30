@@ -3,6 +3,50 @@
  * @description Core type definitions for the deno-kit library
  */
 
+import type { Args, ParseOptions } from '@std/cli'
+import type { Workspace } from './workspace.ts'
+
+/**
+ * Arguments passed to a command's execution function
+ */
+type CommandArgs = {
+  /** CLI arguments parsed by std/cli */
+  args: Args
+  /** Optional workspace context */
+  workspace?: Workspace
+  /** Complete list of available command routes */
+  routes: CommandDefinition[]
+}
+
+/**
+ * Definition of a Deno-Kit CLI command
+ */
+type CommandDefinition = {
+  name: string
+  command: (params: CommandArgs) => Promise<void> | void
+  description: string
+  options?: ParseOptions
+}
+
+/**
+ * Type guard to validate if a module exports a valid CommandDefinition.
+ *
+ * @param value - The value to check, typically a module's default export
+ * @returns True if the value matches the CommandDefinition interface
+ */
+function isCommandDefinition(value: unknown): value is CommandDefinition {
+  return (
+    !!value &&
+    typeof value === 'object' &&
+    'name' in value &&
+    typeof (value as CommandDefinition).name === 'string' &&
+    'command' in value &&
+    typeof (value as CommandDefinition).command === 'function' &&
+    'description' in value &&
+    typeof (value as CommandDefinition).description === 'string'
+  )
+}
+
 /**
  * Template values interface for configuring workspace templates
  */
@@ -38,21 +82,5 @@ interface TemplateValues {
   [key: string]: string
 }
 
-/**
- * Specification for the kit.json file structure that defines the workspace configuration
- */
-interface WorkspaceConfigFile {
-  /** Unique identifier for the workspace */
-  id: string
-  /** List of file paths in the workspace */
-  name?: string
-  workspaceFiles: string[]
-  /** List of template file paths */
-  templateFiles: string[]
-  /** List of backup file paths */
-  backupFiles: string[]
-  /** Template values for the workspace */
-  templateValues: TemplateValues
-}
-
-export type { TemplateValues, WorkspaceConfigFile }
+export type { CommandArgs, CommandDefinition, TemplateValues }
+export { isCommandDefinition }

@@ -6,7 +6,7 @@
  */
 
 import { join } from '@std/path'
-import getConfig from '../src/config.ts'
+import getConfig from '../src/config-oldd.ts'
 
 async function build() {
   console.log('Building kit executable...')
@@ -19,7 +19,7 @@ async function build() {
     const sourceFile = join(config.kitDir, 'kit.ts')
 
     // Define the output file path
-    const outputFile = join(config.projectDir, 'kit')
+    const outputFile = join(config.workspaceDir, 'kit')
 
     // Define the config file path
     const configFile = join(config.kitDir, 'deno.jsonc')
@@ -48,15 +48,11 @@ async function build() {
     const arch = Deno.build.arch
 
     if (os === 'darwin') {
-      target = arch === 'aarch64'
-        ? 'aarch64-apple-darwin'
-        : 'x86_64-apple-darwin'
+      target = arch === 'aarch64' ? 'aarch64-apple-darwin' : 'x86_64-apple-darwin'
     } else if (os === 'windows') {
       target = 'x86_64-pc-windows-msvc'
     } else if (os === 'linux') {
-      target = arch === 'aarch64'
-        ? 'aarch64-unknown-linux-gnu'
-        : 'x86_64-unknown-linux-gnu'
+      target = arch === 'aarch64' ? 'aarch64-unknown-linux-gnu' : 'x86_64-unknown-linux-gnu'
     } else {
       throw new Error(`Unsupported OS: ${os}`)
     }

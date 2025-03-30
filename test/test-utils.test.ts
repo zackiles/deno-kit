@@ -10,7 +10,7 @@ import {
   setupTestProject,
   verifyUpdateResults,
 } from './test-utils.ts'
-import { TEMPLATE_MAPPINGS } from '../src/commands/setup.ts'
+import { TEMPLATE_MAPPINGS } from '../src/commands/setup-old.ts'
 
 Deno.test('getExpectedFiles returns the correct list of files', async () => {
   const expectedFiles = await getExpectedFiles()
@@ -22,9 +22,7 @@ Deno.test('getExpectedFiles returns the correct list of files', async () => {
   )
 
   for (const destPath of Object.values(TEMPLATE_MAPPINGS) as string[]) {
-    const normalizedPath = destPath.startsWith('./')
-      ? destPath.slice(2)
-      : destPath
+    const normalizedPath = destPath.startsWith('./') ? destPath.slice(2) : destPath
     assertEquals(
       expectedFiles.includes(normalizedPath),
       true,

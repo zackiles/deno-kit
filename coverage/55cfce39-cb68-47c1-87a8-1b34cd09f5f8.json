@@ -1,0 +1,100 @@
+{
+  "scriptId": "351",
+  "url": "file:///Users/zacharyiles/dev/deno-kit/src/utils/fs-extra.ts",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 6012, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "checkDirectoryWriteAccess",
+      "ranges": [
+        { "startOffset": 495, "endOffset": 1798, "count": 3 },
+        { "startOffset": 705, "endOffset": 718, "count": 2 },
+        { "startOffset": 720, "endOffset": 733, "count": 1 },
+        { "startOffset": 733, "endOffset": 1417, "count": 2 },
+        { "startOffset": 938, "endOffset": 942, "count": 0 },
+        { "startOffset": 1009, "endOffset": 1020, "count": 0 },
+        { "startOffset": 1087, "endOffset": 1098, "count": 0 },
+        { "startOffset": 1173, "endOffset": 1239, "count": 0 },
+        { "startOffset": 1240, "endOffset": 1288, "count": 0 },
+        { "startOffset": 1358, "endOffset": 1413, "count": 0 },
+        { "startOffset": 1417, "endOffset": 1796, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 674, "endOffset": 682, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "cleanupTestFile",
+      "ranges": [{ "startOffset": 1568, "endOffset": 1645, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "getCommonBasePath",
+      "ranges": [
+        { "startOffset": 2309, "endOffset": 3959, "count": 12 },
+        { "startOffset": 2366, "endOffset": 2453, "count": 0 },
+        { "startOffset": 2528, "endOffset": 2989, "count": 4 },
+        { "startOffset": 2702, "endOffset": 2784, "count": 0 },
+        { "startOffset": 2791, "endOffset": 2883, "count": 0 },
+        { "startOffset": 2989, "endOffset": 3196, "count": 8 },
+        { "startOffset": 3196, "endOffset": 3415, "count": 51 },
+        { "startOffset": 3295, "endOffset": 3411, "count": 407 },
+        { "startOffset": 3394, "endOffset": 3398, "count": 94 },
+        { "startOffset": 3415, "endOffset": 3537, "count": 8 },
+        { "startOffset": 3537, "endOffset": 3854, "count": 94 },
+        { "startOffset": 3565, "endOffset": 3618, "count": 8 },
+        { "startOffset": 3618, "endOffset": 3850, "count": 86 },
+        { "startOffset": 3648, "endOffset": 3850, "count": 51 },
+        { "startOffset": 3811, "endOffset": 3844, "count": 0 },
+        { "startOffset": 3854, "endOffset": 3871, "count": 8 },
+        { "startOffset": 3871, "endOffset": 3939, "count": 0 },
+        { "startOffset": 3939, "endOffset": 3958, "count": 8 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 3051, "endOffset": 3072, "count": 51 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "validateCommonBasePath",
+      "ranges": [
+        { "startOffset": 4322, "endOffset": 4914, "count": 8 },
+        { "startOffset": 4733, "endOffset": 4897, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 4528, "endOffset": 4549, "count": 35 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 4655, "endOffset": 4699, "count": 35 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 4858, "endOffset": 4877, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "readFilesRecursively",
+      "ranges": [
+        { "startOffset": 5147, "endOffset": 5865, "count": 2 },
+        { "startOffset": 5432, "endOffset": 5702, "count": 5 },
+        { "startOffset": 5555, "endOffset": 5696, "count": 0 },
+        { "startOffset": 5707, "endOffset": 5847, "count": 0 }
+      ],
+      "isBlockCoverage": true
+    }
+  ]
+}

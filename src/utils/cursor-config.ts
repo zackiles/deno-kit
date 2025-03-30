@@ -9,7 +9,7 @@ import { join, resolve } from '@std/path'
  * @param {string} workspaceDir - Optional workspace directory. If not provided, uses current working directory.
  * @returns {Promise<boolean>} - True if successful, false otherwise
  */
-export async function setupOrUpdateCursorConfig(workspaceDir?: string): Promise<boolean> {
+async function setupOrUpdateCursorConfig(workspaceDir?: string): Promise<boolean> {
   console.log('🔄 Setting up Cursor AI configuration...')
 
   // Get the absolute path of the workspace directory
@@ -82,3 +82,6 @@ export async function setupOrUpdateCursorConfig(workspaceDir?: string): Promise<
     }
   }
 }
+
+export { setupOrUpdateCursorConfig }
+export default setupOrUpdateCursorConfig

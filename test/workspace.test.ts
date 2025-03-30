@@ -1,8 +1,7 @@
-import { assertEquals, assertExists, assertRejects, assertStringIncludes } from '@std/assert'
-import { createWorkspace } from '../src/workspace.ts'
+import { create, load, type WorkspaceConfigFile } from '../src/workspace.ts'
 import { isBannedDirectory } from '../src/utils/banned-directories.ts'
-import type { TemplateValues, WorkspaceConfigFile } from '../src/types.ts'
 import { basename, join } from '@std/path'
+import { assertEquals, assertExists, assertRejects, assertStringIncludes } from '@std/assert'
 
 Deno.test('Workspace functionality', async (t) => {
   // Create a templates directory with sample templates for testing
@@ -45,7 +44,7 @@ Deno.test('Workspace functionality', async (t) => {
   }
 
   // Create a workspace instance for all tests
-  const workspace = await createWorkspace({
+  const workspace = await create({
     name: 'test-workspace',
     configFileName: 'test-workspace.json',
     templatesPath: templatesDir,
@@ -227,7 +226,7 @@ Deno.test('Workspace functionality', async (t) => {
 
     await assertRejects(
       async () => {
-        await createWorkspace({
+        await create({
           templatesPath: nonExistentPath,
         })
       },
@@ -314,8 +313,8 @@ Deno.test('Workspace functionality', async (t) => {
 
   // Step 14: Test handling of empty template values
   await t.step('compileAndWriteTemplates - rejects empty template values', async () => {
-    // Create empty template values that still satisfies the TemplateValues type
-    const emptyTemplateValues = {} as TemplateValues
+    // Create empty template values
+    const emptyTemplateValues = {} as { [key: string]: string }
 
     // Attempt to compile templates with empty values
     await assertRejects(
@@ -383,8 +382,11 @@ Deno.test('Workspace functionality', async (t) => {
 
     try {
       // Verify the config file exists
-      const stat = await Deno.stat(configFilePath)
-      assertEquals(stat.isFile, true, 'Workspace config file should exist')
+      const configFileInfo = await Deno.stat(configFilePath)
+      assertEquals(configFileInfo.isFile, true, 'Workspace config file should exist')
+
+      // Load the workspace from the config file
+      const loadedWorkspace = await load(configFilePath)
 
       // Verify the config file contains valid JSON
       const configContent = await Deno.readTextFile(configFilePath)
@@ -410,7 +412,7 @@ Deno.test('Workspace functionality', async (t) => {
     try {
       // This will likely fail due to specific workspace validation requirements
       // that's ok - we're testing that the validation logic runs, not the specific result
-      await createWorkspace({
+      await create({
         workspacePath: workspace.path,
         templatesPath: templatesDir,
       })
@@ -434,7 +436,7 @@ Deno.test('Workspace functionality', async (t) => {
       // Attempt to create a workspace with the empty templates directory
       await assertRejects(
         async () => {
-          await createWorkspace({
+          await create({
             templatesPath: emptyTemplatesDir,
           })
         },
@@ -459,7 +461,7 @@ Deno.test('Workspace functionality', async (t) => {
     // Test that validation happens (specific error varies by environment)
     await assertRejects(
       async () => {
-        await createWorkspace({
+        await create({
           workspacePath: nonExistentPath,
           templatesPath: templatesDir,
         })
@@ -492,7 +494,7 @@ Deno.test('Workspace functionality', async (t) => {
     }
 
     // Add debugging - inspect internal files map by reading workspace json
-    console.log(`Debug - Reading workspace state`)
+    console.log('Debug - Reading workspace state')
     const workspaceJson = await workspace.toJSON()
     console.log(`Debug - Workspace JSON: ${workspaceJson}`)
 
@@ -501,7 +503,7 @@ Deno.test('Workspace functionality', async (t) => {
 
     // Add debugging - dump the backup files contents
     console.log(`Debug - Backup files count: ${backupFiles.size}`)
-    console.log(`Debug - Backup paths:`)
+    console.log('Debug - Backup paths:')
     for (const path of backupFiles.keys()) {
       console.log(`  ${path}`)
     }
@@ -712,6 +714,173 @@ Deno.test('Workspace functionality', async (t) => {
     }
 
     assertEquals(foundTemplateDirFiles, false, 'No template directory files should be in backup')
+  })
+
+  // Step 24: Test loadWorkspace - loads an existing workspace from configuration
+  await t.step('loadWorkspace - loads workspace from configuration file', async () => {
+    // Get the path to the workspace configuration file
+    const configFilePath = join(workspace.path, workspace.configFileName)
+
+    // Verify the config file exists
+    const configFileInfo = await Deno.stat(configFilePath)
+    assertEquals(configFileInfo.isFile, true, 'Workspace config file should exist')
+
+    // Load the workspace from the config file
+    const loadedWorkspace = await load(configFilePath)
+
+    // Verify the loaded workspace has the same basic properties
+    assertExists(loadedWorkspace, 'Loaded workspace should exist')
+    assertEquals(loadedWorkspace.id, workspace.id, 'Loaded workspace ID should match original')
+    assertEquals(
+      loadedWorkspace.name,
+      workspace.name,
+      'Loaded workspace name should match original',
+    )
+    assertEquals(
+      loadedWorkspace.configFileName,
+      workspace.configFileName,
+      'Config filename should match',
+    )
+    assertEquals(loadedWorkspace.path, workspace.path, 'Workspace path should match')
+
+    // Compare JSON representation to verify deep equality
+    const originalJson = JSON.parse(await workspace.toJSON())
+    const loadedJson = JSON.parse(await loadedWorkspace.toJSON())
+
+    // Compare essential properties
+    assertEquals(loadedJson.id, originalJson.id, 'JSON ID should match')
+    assertEquals(loadedJson.name, originalJson.name, 'JSON name should match')
+    assertEquals(
+      loadedJson.workspaceFiles.length,
+      originalJson.workspaceFiles.length,
+      'Should have same number of workspace files',
+    )
+    assertEquals(
+      loadedJson.templateFiles.length,
+      originalJson.templateFiles.length,
+      'Should have same number of template files',
+    )
+
+    // Verify that essential workspace operations can be performed on the loaded workspace
+    const testFilePath = 'loaded-workspace-test.txt'
+    const testContent = 'Testing writing to loaded workspace'
+
+    await loadedWorkspace.writeFile(testFilePath, testContent)
+    const readContent = await Deno.readTextFile(join(loadedWorkspace.path, testFilePath))
+    assertEquals(readContent, testContent, 'Should be able to write files to loaded workspace')
+  })
+
+  // Clean up test directories
+  try {
+    if (await isBannedDirectory(workspace.path)) {
+      throw new Error(`Workspace path is a banned directory: ${workspace.path}`)
+    }
+    await Deno.remove(workspace.path, { recursive: true })
+
+    if (await isBannedDirectory(templatesDir)) {
+      throw new Error(`Templates path is a banned directory: ${templatesDir}`)
+    }
+    await Deno.remove(templatesDir, { recursive: true })
+
+    // Also clean up the backup directory if it exists
+    if (workspace.backupsPath && !(await isBannedDirectory(workspace.backupsPath))) {
+      await Deno.remove(workspace.backupsPath, { recursive: true })
+    }
+  } catch (error) {
+    console.warn(`Failed to cleanup test directories: ${error}`)
+  }
+})
+
+// Add this test to test handling of JSONC workspace config files
+Deno.test('Workspace with JSONC config file', async (t) => {
+  // Create a templates directory with sample templates for testing
+  const templatesDir = await Deno.makeTempDir({ prefix: 'deno-kit-test-templates-' })
+
+  // Create a template file
+  const templateFile = join(templatesDir, 'README.md')
+  await Deno.writeTextFile(templateFile, '# {PROJECT_NAME}')
+
+  // Create a workspace with a .jsonc config file
+  const configFileName = 'workspace.jsonc'
+  const workspace = await create({
+    templatesPath: templatesDir,
+    configFileName: configFileName,
+    name: 'jsonc-workspace',
+  })
+
+  await t.step('create with .jsonc config file', () => {
+    assertEquals(
+      workspace.configFileName,
+      configFileName,
+      'Config filename should be preserved with .jsonc extension',
+    )
+
+    // Check that the config file exists with the correct extension
+    const configPath = join(workspace.path, configFileName)
+    assertExists(Deno.statSync(configPath), 'Config file with .jsonc extension should exist')
+  })
+
+  await t.step('save to .jsonc config file', async () => {
+    // Make a change to the workspace and save it
+    await workspace.writeFile('test.txt', 'Test content')
+    await workspace.save()
+
+    // Verify the config file still has .jsonc extension
+    const configPath = join(workspace.path, configFileName)
+    assertExists(
+      Deno.statSync(configPath),
+      'Config file with .jsonc extension should still exist after save',
+    )
+
+    // Verify the content is valid JSON
+    const content = await Deno.readTextFile(configPath)
+    const parsedConfig = JSON.parse(content)
+    assertEquals(
+      parsedConfig.name,
+      'jsonc-workspace',
+      'Config should contain correct workspace name',
+    )
+
+    // Verify the test.txt file is listed in workspaceFiles
+    const workspaceFiles = parsedConfig.workspaceFiles as string[]
+    assertEquals(
+      workspaceFiles.some((path) => path.endsWith('test.txt')),
+      true,
+      'Config should list the new test.txt file',
+    )
+  })
+
+  await t.step('load from .jsonc config file', async () => {
+    // Load the workspace from the .jsonc config file
+    const configPath = join(workspace.path, configFileName)
+    const loadedWorkspace = await load(configPath)
+
+    // Verify the loaded workspace has the same config filename
+    assertEquals(
+      loadedWorkspace.configFileName,
+      configFileName,
+      'Loaded workspace should preserve .jsonc extension',
+    )
+
+    // Make a change and save to verify it saves back to .jsonc
+    await loadedWorkspace.writeFile('another-test.txt', 'More test content')
+    await loadedWorkspace.save()
+
+    // Verify the config file still exists with .jsonc extension
+    assertExists(
+      Deno.statSync(configPath),
+      'Config file should still have .jsonc extension after saving loaded workspace',
+    )
+
+    // Verify the content includes the new file
+    const content = await Deno.readTextFile(configPath)
+    const parsedConfig = JSON.parse(content)
+    const workspaceFiles = parsedConfig.workspaceFiles as string[]
+    assertEquals(
+      workspaceFiles.some((path) => path.endsWith('another-test.txt')),
+      true,
+      'Config should list the new another-test.txt file',
+    )
   })
 
   // Clean up test directories

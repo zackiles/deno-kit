@@ -1,0 +1,66 @@
+{
+  "scriptId": "389",
+  "url": "file:///Users/zacharyiles/dev/deno-kit/src/utils/package-info.ts",
+  "functions": [
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 0, "endOffset": 3573, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "getPackageForPath",
+      "ranges": [
+        { "startOffset": 739, "endOffset": 1644, "count": 15 },
+        { "startOffset": 843, "endOffset": 866, "count": 13 },
+        { "startOffset": 924, "endOffset": 939, "count": 2 },
+        { "startOffset": 940, "endOffset": 979, "count": 13 },
+        { "startOffset": 1054, "endOffset": 1184, "count": 2 },
+        { "startOffset": 1129, "endOffset": 1149, "count": 1 },
+        { "startOffset": 1151, "endOffset": 1180, "count": 0 },
+        { "startOffset": 1268, "endOffset": 1629, "count": 52 },
+        { "startOffset": 1344, "endOffset": 1513, "count": 169 },
+        { "startOffset": 1491, "endOffset": 1507, "count": 13 },
+        { "startOffset": 1513, "endOffset": 1591, "count": 39 },
+        { "startOffset": 1591, "endOffset": 1597, "count": 2 },
+        { "startOffset": 1597, "endOffset": 1629, "count": 37 },
+        { "startOffset": 1629, "endOffset": 1643, "count": 2 }
+      ],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 1105, "endOffset": 1113, "count": 1 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 1445, "endOffset": 1453, "count": 13 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "",
+      "ranges": [{ "startOffset": 1461, "endOffset": 1470, "count": 156 }],
+      "isBlockCoverage": true
+    },
+    {
+      "functionName": "getPackageInfo",
+      "ranges": [{ "startOffset": 1847, "endOffset": 2398, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "isValidPackageName",
+      "ranges": [{ "startOffset": 2614, "endOffset": 2714, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "extractScope",
+      "ranges": [{ "startOffset": 2918, "endOffset": 3054, "count": 0 }],
+      "isBlockCoverage": false
+    },
+    {
+      "functionName": "extractProjectName",
+      "ranges": [{ "startOffset": 3297, "endOffset": 3448, "count": 0 }],
+      "isBlockCoverage": false
+    }
+  ]
+}

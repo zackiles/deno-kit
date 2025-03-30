@@ -6,7 +6,7 @@ interface Config {
   kitDir: string
   kitArgs: string[]
   projectArgs: string[]
-  projectDir: string
+  workspaceDir: string
   env: Record<string, string>
   templatesDir: string
   backupsDir: string
@@ -97,7 +97,7 @@ class ConfigSingleton {
         kitDir,
         kitArgs,
         projectArgs,
-        projectDir,
+        workspaceDir,
         templatesDir,
         backupsDir,
         env,
@@ -116,7 +116,6 @@ class ConfigSingleton {
   }
 }
 
-// An async function that returns the initialized config
 async function getConfig(): Promise<Config> {
   const instance = ConfigSingleton.getInstance()
   await instance.init()
