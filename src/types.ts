@@ -4,16 +4,12 @@
  */
 
 import type { Args, ParseOptions } from '@std/cli'
-import type { Workspace } from './workspace.ts'
-
 /**
  * Arguments passed to a command's execution function
  */
-type CommandArgs = {
+type CommandOptions = {
   /** CLI arguments parsed by std/cli */
   args: Args
-  /** Optional workspace context */
-  workspace?: Workspace
   /** Complete list of available command routes */
   routes: CommandDefinition[]
 }
@@ -23,7 +19,7 @@ type CommandArgs = {
  */
 type CommandDefinition = {
   name: string
-  command: (params: CommandArgs) => Promise<void> | void
+  command: (params: CommandOptions) => Promise<void> | void
   description: string
   options?: ParseOptions
 }
@@ -82,5 +78,5 @@ interface TemplateValues {
   [key: string]: string
 }
 
-export type { CommandArgs, CommandDefinition, TemplateValues }
+export type { CommandDefinition, CommandOptions, TemplateValues }
 export { isCommandDefinition }

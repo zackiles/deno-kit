@@ -170,10 +170,12 @@ class Workspace {
     configFileName?: string
   } = {}): Promise<Workspace> {
     const currentDir = join(fromFileUrl(import.meta.url), '..')
+    // Ensure the user-supplied workspace configFileName ends with .json
+    configFileName = configFileName.endsWith('.json') ? configFileName : `${configFileName}.json`
 
     // Validate workspace path of fallback to temporary directory to create paths
     const validWorkspacePath = workspacePath
-      ? await Workspace.#validateWorkspacePath(workspacePath)
+      ? await Workspace.#validateWorkspacePath(workspacePath, false)
       : await Deno.makeTempDir({ prefix: DEFAULT_TEMP_PREFIX })
 
     // Validate templates path of fallback to templates directory in same folder as this code file
@@ -188,6 +190,16 @@ class Workspace {
     ])
 
     const id = await Workspace.#createIdFromPath(validWorkspacePath)
+
+    // Check if a workspace config file already exists
+    const hasConfigFile = Array.from(workspaceFiles.keys()).some((path) =>
+      basename(path) === configFileName
+    )
+    if (hasConfigFile) {
+      throw new Error(
+        `Can't create workspace ${name || id}. Workspace already exists at ${validWorkspacePath}`,
+      )
+    }
 
     // Initialize empty workspace if needed
     if (workspaceFiles.size === 0) {
@@ -219,7 +231,8 @@ class Workspace {
   }
 
   /**
-   * Initialize an empty workspace with configuration
+   * Initialize an empty workspace directory with configuration.
+   * Simply generates and saves a workspace config file at the provided path.
    *
    * @param params Parameters for initializing the workspace
    * @private
@@ -241,7 +254,11 @@ class Workspace {
     configFileName: string
     workspaceFiles: Map<string, string>
   }): Promise<void> {
+    // packageConfigPath is the path of the package config file for the process or package currently executing this module.
     const packageConfigPath = await getPackageForPath()
+    // Ensure the user-supplied workspace configFileName ends with .json
+    configFileName = configFileName.endsWith('.json') ? configFileName : `${configFileName}.json`
+
     if (!packageConfigPath) {
       throw new Error(
         'Workspace.initializeEmptyWorkspace: Missing package config file for this process. Looking for: deno.json, deno.jsonc, package.json, package.jsonc, jsr.json',
@@ -259,11 +276,6 @@ class Workspace {
       )
     }
 
-    // Allow both .json and .jsonc extensions for workspace config files
-    const configName = configFileName.endsWith('.json') || configFileName.endsWith('.jsonc')
-      ? configFileName
-      : `${configFileName}.json`
-
     const templateFileList = Array.from(templateFiles.keys())
 
     const workspaceConfig = {
@@ -274,10 +286,10 @@ class Workspace {
       backupFiles: [],
       ...(name && { name }),
       ...(templatesValues && { templateValues: templatesValues }),
-      ...(configName && { configName }),
+      ...(configFileName && { configFileName }),
     }
 
-    const workspaceConfigFilePath = join(workspacePath, configName)
+    const workspaceConfigFilePath = join(workspacePath, configFileName)
     const workspaceConfigFileJSON = JSON.stringify(workspaceConfig, null, 2)
 
     await Deno.writeTextFile(workspaceConfigFilePath, workspaceConfigFileJSON)
@@ -359,7 +371,7 @@ class Workspace {
       })
       if (!packageConfigPath) {
         throw new Error(
-          `Workspace.initializeEmptyWorkspace: Cannot find package configuration. Looking for: ${
+          `Workspace.#validateWorkspacePath: Cannot find package configuration. Looking for: ${
             PACKAGE_CONFIG_FILES.join(', ')
           }`,
         )
@@ -450,10 +462,13 @@ class Workspace {
       [...this.#templates.keys()].map((path) => basename(path)),
     )
 
-    // Process files that aren't template files
+    // Get the full path of the config file
+    const configFilePath = join(this.path, this.configFileName)
+
+    // Process files that aren't template files or the config file
     const backupFiles = new Map<string, string>()
     const backupOperations = [...this.#files.entries()]
-      .filter(([path]) => !templateFilenames.has(basename(path)))
+      .filter(([path]) => !templateFilenames.has(basename(path)) && path !== configFilePath)
       .map(async ([path, content]) => {
         const backupPath = path.replace(this.path, backupBasePath)
         const parentDir = backupPath.substring(0, backupPath.lastIndexOf('/'))
@@ -490,7 +505,6 @@ class Workspace {
    * Preserves the original file extension (.json or .jsonc).
    */
   async save(): Promise<void> {
-    // Ensure we preserve the file extension (.json or .jsonc)
     const configFilePath = this.configFileName
     await this.writeFile(configFilePath, await this.toJSON())
   }
@@ -702,7 +716,7 @@ class Workspace {
       }
 
       const workspaceSpecification: WorkspaceConfigFile = {
-        [`${packageConfig.name}-version`]: packageConfig.version,
+        [packageConfig.name]: packageConfig.version,
         id: this.id,
         name: this.name,
         workspaceFiles: Array.from(this.#files.keys()),
@@ -755,7 +769,7 @@ class Workspace {
 
       // Validate the config structure
       if (!Workspace.isConfigFile(parsedConfig)) {
-        throw new Error('Invalid workspace configuration file structure')
+        throw new Error(`Workspace configuration file ${configFilePath} is not valid.`)
       }
 
       // Extract the config file name
@@ -822,6 +836,55 @@ class Workspace {
         `Failed to load workspace from configuration file '${configFilePath}': ${
           error instanceof Error ? error.message : String(error)
         }`,
+      )
+    }
+  }
+
+  /**
+   * Reset the workspace by copying files from the backup directory to the workspace directory.
+   * After copying all files, the backup directory is emptied but preserved.
+   *
+   * @returns A Promise that resolves when the reset operation is complete
+   * @throws Error if the backup path doesn't exist or is a banned directory
+   * @throws Error if copying files fails
+   */
+  async reset(): Promise<void> {
+    const copyOperations = [...this.#backups.entries()].map(async ([backupPath, _]) => {
+      try {
+        // Get the relative path from the backup directory to create the same structure in workspace
+        const relativePath = backupPath.substring(this.backupsPath.length)
+        // Create a clean, platform-independent path by using join
+        const workspacePath = join(this.path, relativePath.replace(/^\//, ''))
+        // Ensure parent directory exists
+        await ensureDir(join(workspacePath, '..'))
+        // Copy the file with timestamps preserved
+        await copy(backupPath, workspacePath, { preserveTimestamps: true, overwrite: true })
+      } catch (error) {
+        throw new Error(
+          `Failed to reset file ${backupPath}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        )
+      }
+    })
+
+    try {
+      // Execute all copy operations in parallel
+      await Promise.all(copyOperations)
+
+      // Empty the backup directory by removing each file but keeping the directory
+      for (const backupPath of this.#backups.keys()) {
+        await Deno.remove(backupPath)
+      }
+
+      this.#backups = new Map()
+      this.#files = await readFilesRecursively(this.path)
+
+      // Save the updated workspace configuration
+      await this.save()
+    } catch (error) {
+      throw new Error(
+        `Reset operation failed: ${error instanceof Error ? error.message : String(error)}`,
       )
     }
   }

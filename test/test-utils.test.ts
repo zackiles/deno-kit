@@ -10,7 +10,7 @@ import {
   setupTestProject,
   verifyUpdateResults,
 } from './test-utils.ts'
-import { TEMPLATE_MAPPINGS } from '../src/commands/setup-old.ts'
+import { TEMPLATE_MAPPINGS } from '../src/commands/setup-old.disabled.ts'
 
 Deno.test('getExpectedFiles returns the correct list of files', async () => {
   const expectedFiles = await getExpectedFiles()

@@ -2,7 +2,7 @@
 
 import { dirname, join } from '@std/path'
 import { ensureDir } from '@std/fs'
-import { getConfig } from '../config.ts'
+import { getConfig } from '../config-old.ts'
 
 // Get configuration to access kitDir and backupsDir
 const config = await getConfig()
@@ -56,9 +56,7 @@ async function reset(): Promise<void> {
       const relativePath = backupPath.slice(config.backupsDir.length + 1)
       // Remove the .backup extension
       const originalPath = relativePath.slice(0, -7)
-      const targetPath = workspaceDir
-        ? join(workspaceDir, originalPath)
-        : `./${originalPath}`
+      const targetPath = workspaceDir ? join(workspaceDir, originalPath) : `./${originalPath}`
 
       try {
         // Ensure target directory exists

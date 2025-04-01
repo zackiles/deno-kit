@@ -72,9 +72,8 @@ class GracefulShutdown {
 
       try {
         Deno.addSignalListener(signal, handler)
-        logger.debug(`Registered signal handler for ${signal}`)
       } catch (error) {
-        logger.warn(
+        logger.debug(
           `Failed to add signal listener for ${signal}: ${
             error instanceof Error ? error.message : String(error)
           }`,
@@ -93,7 +92,7 @@ class GracefulShutdown {
     if (this.isShuttingDown) return
     this.isShuttingDown = true
 
-    logger.info(`Received ${signal} signal, shutting down gracefully...`)
+    logger.debug(`Received ${signal} signal, shutting down gracefully...`)
 
     // Execute all shutdown handlers
     for (const handler of this.shutdownHandlers) {
@@ -139,7 +138,7 @@ class GracefulShutdown {
    * Trigger a manual shutdown (useful for error handlers)
    */
   public triggerShutdown(reason: string): void {
-    logger.info(`Manual shutdown triggered: ${reason}`)
+    logger.error(reason)
     this.handleShutdown('SIGTERM')
   }
 }

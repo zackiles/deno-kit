@@ -1,6 +1,6 @@
 #!/usr/bin/env -S deno run -A
-import { parseArgs } from '@std/cli'
-import type { CommandArgs, CommandDefinition } from '../types.ts'
+import { type Args, parseArgs } from '@std/cli'
+import type { CommandDefinition, CommandOptions } from '../types.ts'
 import printHelpMenu from '../utils/print-help-menu.ts'
 
 const CLI_NAME = 'Deno-Kit'
@@ -12,7 +12,7 @@ const commandDefinition: CommandDefinition = {
   options: {},
 }
 
-function displayHelp({ routes = [] }: CommandArgs): void {
+function displayHelp({ routes = [] }: CommandOptions): void {
   const formattedCliName = CLI_NAME.split(' ')
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ')
@@ -41,7 +41,7 @@ function displayHelp({ routes = [] }: CommandArgs): void {
 }
 
 if (import.meta.main) {
-  const args = parseArgs(Deno.args, commandDefinition.options)
+  const args: Args = parseArgs(Deno.args, commandDefinition.options)
   await commandDefinition.command({ args, routes: [commandDefinition] })
 }
 

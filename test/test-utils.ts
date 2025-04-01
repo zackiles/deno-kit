@@ -1,6 +1,6 @@
 import { dirname, join } from '@std/path'
 import { assertEquals, assertExists } from '@std/assert'
-import { TEMPLATE_MAPPINGS } from '../src/commands/setup-old.ts'
+import { TEMPLATE_MAPPINGS } from '../src/commands/setup-old.disabled.ts'
 
 /**
  * Dynamically generate expected files from TEMPLATE_MAPPINGS

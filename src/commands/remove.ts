@@ -1,13 +1,14 @@
 #!/usr/bin/env -S deno run -A
 import { type Args, parseArgs } from '@std/cli'
-import { create as createWorkspace, type Workspace } from '../workspace.ts'
+import { load as loadWorkspace, type Workspace } from '../workspace.ts'
 import type { CommandDefinition, CommandOptions } from '../types.ts'
-import resolveResourcePath from '../utils/resource-path.ts'
+import { getPackageForPath } from '../utils/package-info.ts'
 import logger from '../utils/logger.ts'
+
 const commandDefinition: CommandDefinition = {
-  name: 'test',
+  name: 'remove',
   command: command,
-  description: 'Test the Deno-Kit CLI',
+  description: 'Remove Deno-Kit from the current workspace and restore original files',
   options: {
     string: ['workspace'],
     //default: { 'workspace': Deno.cwd() },
@@ -16,15 +17,15 @@ const commandDefinition: CommandDefinition = {
 }
 
 async function command({ args }: CommandOptions): Promise<void> {
-  logger.debug(`Installing Deno-Kit in workspace: ${args.workspace}`)
+  logger.debug(`Removing Deno-Kit and restoring original files in workspace: ${args.workspace}`)
 
-  const workspace: Workspace = await createWorkspace({
-    workspacePath: args.workspace,
-    templatesPath: await resolveResourcePath('templates'),
-    configFileName: 'kit.json',
+  const packageInfo = await getPackageForPath(args.workspace, {
+    packageConfigFiles: ['kit.json'],
   })
 
-  logger.info('Deno-Kit installed!', await workspace.toJSON())
+  const workspace: Workspace = await loadWorkspace(packageInfo)
+
+  logger.info('Deno-Kit removed!', await workspace.toJSON())
 }
 
 if (import.meta.main) {
