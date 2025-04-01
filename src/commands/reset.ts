@@ -1,13 +1,14 @@
 #!/usr/bin/env -S deno run -A
 import { type Args, parseArgs } from '@std/cli'
+import { load as loadWorkspace, type Workspace } from '../workspace.ts'
 import type { CommandDefinition, CommandOptions } from '../types.ts'
 import { getPackageForPath } from '../utils/package-info.ts'
 import logger from '../utils/logger.ts'
 
 const commandDefinition: CommandDefinition = {
-  name: 'remove',
+  name: 'reset',
   command: command,
-  description: 'Remove Deno-Kit from the current workspace',
+  description: 'Reset the current workspace and restore original files',
   options: {
     string: ['workspace'],
     //default: { 'workspace': Deno.cwd() },
@@ -16,23 +17,20 @@ const commandDefinition: CommandDefinition = {
 }
 
 async function command({ args }: CommandOptions): Promise<void> {
-  logger.debug(`Removing Deno-Kit from workspace: ${args.workspace}`)
+  logger.debug(`Resetting and restoring backup files for workspace: ${args.workspace}`)
 
   const packageInfo = await getPackageForPath(args.workspace, {
     packageConfigFiles: ['kit.json'],
   })
 
-  if (packageInfo) {
-    await Deno.remove(packageInfo)
-    logger.info(`Removed Deno-Kit from workspace: ${args.workspace}`)
-  } else {
-    throw new Error(`Deno-Kit not found in workspace: ${args.workspace}`)
-  }
+  const workspace: Workspace = await loadWorkspace(packageInfo)
+  await workspace.reset()
+
+  logger.info(`Reset workspace: ${workspace.path}`)
 }
 
 if (import.meta.main) {
   const args: Args = parseArgs(Deno.args, commandDefinition.options)
   await commandDefinition.command({ args, routes: [commandDefinition] })
 }
-
 export default commandDefinition

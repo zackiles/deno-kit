@@ -4,10 +4,12 @@ import { create as createWorkspace, type Workspace } from '../workspace.ts'
 import type { CommandDefinition, CommandOptions } from '../types.ts'
 import resolveResourcePath from '../utils/resource-path.ts'
 import logger from '../utils/logger.ts'
+import { ensureDir } from '@std/fs'
+import getTemplateValues from '../template-values.ts'
 const commandDefinition: CommandDefinition = {
-  name: 'test',
+  name: 'init',
   command: command,
-  description: 'Test the Deno-Kit CLI',
+  description: 'Create a new Deno-Kit project in the current or specified path',
   options: {
     string: ['workspace'],
     //default: { 'workspace': Deno.cwd() },
@@ -16,7 +18,8 @@ const commandDefinition: CommandDefinition = {
 }
 
 async function command({ args }: CommandOptions): Promise<void> {
-  logger.debug(`Installing Deno-Kit in workspace: ${args.workspace}`)
+  logger.debug(`Setting up project in workspace: ${args.workspace}`)
+  await ensureDir(args.workspace)
 
   const workspace: Workspace = await createWorkspace({
     workspacePath: args.workspace,
@@ -24,7 +27,15 @@ async function command({ args }: CommandOptions): Promise<void> {
     configFileName: 'kit.json',
   })
 
-  logger.info('Deno-Kit installed!', await workspace.toJSON())
+  const templateValues = await getTemplateValues({
+    gitName: await workspace.getGitUserName(),
+    gitEmail: await workspace.getGitUserEmail(),
+  })
+
+  await workspace.compileAndWriteTemplates(templateValues)
+  await workspace.save()
+
+  logger.info(`Setup project in workspace: ${workspace.path}`)
 }
 
 if (import.meta.main) {

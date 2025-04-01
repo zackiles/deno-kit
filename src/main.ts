@@ -8,10 +8,8 @@
  */
 import { parseArgs } from '@std/cli/parse-args'
 import { walk } from '@std/fs'
-import { basename, join } from '@std/path'
+import { dirname, fromFileUrl, join } from '@std/path'
 import type { Args } from '@std/cli'
-
-import resolveResourcePath from './utils/resource-path.ts'
 import logger from './utils/logger.ts'
 import gracefulShutdown from './utils/graceful-shutdown.ts'
 import { type CommandDefinition, type CommandOptions, isCommandDefinition } from './types.ts'
@@ -31,23 +29,17 @@ async function loadCommands(defaultCommand: string): Promise<{
 
   try {
     // Load and process command modules
-    const commandsDir = join(new URL(import.meta.url).pathname, '..', 'commands')
+    const commandsDir = join(dirname(fromFileUrl(import.meta.url)), 'commands')
     for await (
       const entry of walk(commandsDir, {
         includeDirs: false,
         exts: ['.ts'],
-        skip: [/\.disabled$/],
+        skip: [/\.disabled\.ts$/, /\.disabled$/],
       })
     ) {
       try {
-        // Try importing the command with fallback
-        const commandModule = await (async () => {
-          try {
-            return await import(`./commands/${basename(entry.path)}`)
-          } catch {
-            return await import(await resolveResourcePath(`src/commands/${basename(entry.path)}`))
-          }
-        })()
+        // Import the command directly using its full path
+        const commandModule = await import(entry.path)
 
         // Add valid command to routes
         if (commandModule.default && isCommandDefinition(commandModule.default)) {

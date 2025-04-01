@@ -21,55 +21,9 @@ import {
   getPackageForPath,
   isValidPackageName,
 } from '../utils/package-info.ts'
-import { create, isConfigFile, load, type WorkspaceConfigFile } from '../workspace.ts'
+import { create } from '../workspace.ts'
 import type { TemplateValues } from '../types.ts'
 import resolveResourcePath from '../utils/resource-path.ts'
-
-interface CommandOptions {
-  /** Workspace directory to operate in */
-  workspace: string
-}
-
-/**
- * Gets the git user name from git config
- *
- * @returns {Promise<string>} The git user name or empty string if not found
- */
-async function getGitUserName(): Promise<string> {
-  try {
-    const command = new Deno.Command('git', {
-      args: ['config', 'user.name'],
-      stdout: 'piped',
-    })
-
-    const { stdout } = await command.output()
-    const decoder = new TextDecoder()
-    return decoder.decode(stdout).trim()
-  } catch (_error) {
-    return ''
-  }
-}
-
-/**
- * Gets the git user email from git config
- *
- * @returns {Promise<string>} The git user email or empty string if not found
- */
-async function getGitUserEmail(): Promise<string> {
-  try {
-    const command = new Deno.Command('git', {
-      args: ['config', 'user.email'],
-      stdout: 'piped',
-    })
-
-    const { stdout } = await command.output()
-    const decoder = new TextDecoder()
-    return decoder.decode(stdout).trim()
-  } catch (_error) {
-    return ''
-  }
-}
-
 /**
  * Prompts the user for input with a default value
  *
