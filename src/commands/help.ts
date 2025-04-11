@@ -2,7 +2,9 @@
 import { type Args, parseArgs } from '@std/cli'
 import type { CommandDefinition, CommandOptions } from '../types.ts'
 import printHelpMenu from '../utils/print-help-menu.ts'
+import loadConfig from '../config.ts'
 
+const config = await loadConfig()
 const CLI_NAME = 'Deno-Kit'
 
 const commandDefinition: CommandDefinition = {
@@ -37,6 +39,7 @@ function displayHelp({ routes = [] }: CommandOptions): void {
 
   printHelpMenu({
     note: { text: `If no command is provided, the "help" command will be executed.` },
+    workspace: { text: config.DENO_KIT_WORKSPACE || Deno.cwd() },
   })
 }
 

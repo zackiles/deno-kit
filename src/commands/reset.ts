@@ -4,6 +4,9 @@ import { load as loadWorkspace, type Workspace } from '../workspace.ts'
 import type { CommandDefinition, CommandOptions } from '../types.ts'
 import { getPackageForPath } from '../utils/package-info.ts'
 import logger from '../utils/logger.ts'
+import loadConfig from '../config.ts'
+
+const config = await loadConfig()
 
 const commandDefinition: CommandDefinition = {
   name: 'reset',
@@ -11,8 +14,7 @@ const commandDefinition: CommandDefinition = {
   description: 'Reset the current workspace and restore original files',
   options: {
     string: ['workspace'],
-    //default: { 'workspace': Deno.cwd() },
-    default: { 'workspace': '/Users/zacharyiles/dev/temp' },
+    default: { 'workspace': config.DENO_KIT_WORKSPACE || Deno.cwd() },
   },
 }
 

@@ -2,6 +2,7 @@ import { bold, dim, green } from '@std/fmt/colors'
 import logger from './logger.ts'
 
 function printHelpMenu(config: {
+  workspace?: { text: string }
   title?: { text: string }
   usage?: { text: string }
   section?: { text: string }
@@ -21,6 +22,9 @@ function printHelpMenu(config: {
     const { command, description, padding } = config.command
     const paddingSpaces = ' '.repeat(padding - command.length + 2)
     logger.print(`  ${bold(green(command))}${paddingSpaces}${dim(description)}`)
+  }
+  if (config.workspace) {
+    logger.print(`\n${bold(`Workspace: ${dim(config.workspace.text)}`)}`)
   }
   if (config.note) {
     logger.print(`\n${dim(config.note.text)}`)
