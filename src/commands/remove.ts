@@ -3,6 +3,9 @@ import { type Args, parseArgs } from '@std/cli'
 import type { CommandDefinition, CommandOptions } from '../types.ts'
 import { getPackageForPath } from '../utils/package-info.ts'
 import logger from '../utils/logger.ts'
+import loadConfig from '../config.ts'
+
+const config = await loadConfig()
 
 const commandDefinition: CommandDefinition = {
   name: 'remove',
@@ -10,8 +13,7 @@ const commandDefinition: CommandDefinition = {
   description: 'Remove Deno-Kit from the current workspace',
   options: {
     string: ['workspace'],
-    //default: { 'workspace': Deno.cwd() },
-    default: { 'workspace': '/Users/zacharyiles/dev/temp' },
+    default: { 'workspace': config.DENO_KIT_WORKSPACE || Deno.cwd() },
   },
 }
 

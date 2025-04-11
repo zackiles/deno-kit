@@ -6,15 +6,17 @@
  * @see {@link https://jsr.io/@std/cli/doc/parse-args/~/Args}
  * @see {@link https://jsr.io/@std/cli/doc/~/ParseOptions}
  */
-import { parseArgs } from '@std/cli/parse-args'
 import { walk } from '@std/fs'
 import { dirname, fromFileUrl, join } from '@std/path'
-import type { Args } from '@std/cli'
+import { type Args, parseArgs } from '@std/cli'
 import logger from './utils/logger.ts'
+import loadConfig from './config.ts'
 import gracefulShutdown from './utils/graceful-shutdown.ts'
 import { type CommandDefinition, type CommandOptions, isCommandDefinition } from './types.ts'
 
 const CLI_NAME = 'Deno-Kit'
+const config = await loadConfig()
+console.log(config)
 
 /**
  * Loads and manages command definitions from the commands directory.
