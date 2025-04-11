@@ -31,7 +31,7 @@ async function updateReadmeVersion() {
     // Update version in README.md
     readmeContent = readmeContent.replace(
       /https:\/\/jsr\.io\/@deno-kit\/kit\/[0-9]+\.[0-9]+\.[0-9]+\//g,
-      `https://jsr.io/@deno-kit/kit/${version}/`
+      `https://jsr.io/@deno-kit/kit/${version}/`,
     )
 
     // Write updated README.md

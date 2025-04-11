@@ -6,34 +6,34 @@
  */
 
 import { join } from '@std/path'
-import getConfig from '../src/config-oldd.ts'
+import loadConfig from '../src/config.ts'
 
 async function build() {
   console.log('Building kit executable...')
 
   try {
     // Get project configuration
-    const config = await getConfig()
+    const config = await loadConfig()
 
     // Define the source file (kit.ts)
-    const sourceFile = join(config.kitDir, 'kit.ts')
+    const sourceFile = join(config.DENO_KIT_DIR, 'kit.ts')
 
     // Define the output file path
-    const outputFile = join(config.workspaceDir, 'kit')
+    const outputFile = join(config.DENO_KIT_WORKSPACE, 'kit')
 
     // Define the config file path
-    const configFile = join(config.kitDir, 'deno.jsonc')
+    const configFile = join(config.DENO_KIT_DIR, 'deno.jsonc')
 
     console.log(`Source: ${sourceFile}`)
     console.log(`Output: ${outputFile}`)
     console.log(`Config: ${configFile}`)
 
     // First, create a temporary version of kit.ts with absolute paths
-    const tempKitPath = join(config.kitDir, 'kit.temp.ts')
+    const tempKitPath = join(config.DENO_KIT_DIR, 'kit.temp.ts')
     const kitContent = await Deno.readTextFile(sourceFile)
 
     // Replace the relative path with an absolute path to main.ts
-    const mainTsPath = join(config.kitDir, 'main.ts')
+    const mainTsPath = join(config.DENO_KIT_DIR, 'main.ts')
     const modifiedContent = kitContent.replace(
       "'.deno-kit/main.ts'",
       `'${mainTsPath}'`,
