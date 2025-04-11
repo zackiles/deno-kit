@@ -5,7 +5,7 @@ This document describes the process for building and releasing new versions of t
 ## Prerequisites
 
 - Access to the GitHub repository with push permissions
-- JSR publish token (for manual publishing)
+- JSR publish token (for manual publishing only)
 - Deno 2.0 or newer installed
 
 ## Release Process
@@ -31,21 +31,16 @@ This document describes the process for building and releasing new versions of t
      - MINOR (0.x.0) for backwards-compatible new features
      - MAJOR (x.0.0) for backwards-incompatible changes
    
-2. Run the version bump script to update version references in documentation:
+2. Commit the version change:
    ```bash
-   deno task bump-version
-   ```
-
-3. Commit the version changes:
-   ```bash
-   git add deno.jsonc README.md
+   git add deno.jsonc
    git commit -m "chore: bump version to X.Y.Z"
    git push origin main
    ```
 
 ### 3. Build (if needed)
 
-If you need to build the executable for distribution:
+If you need to build the executable for local testing:
 
 ```bash
 deno run -A scripts/build.ts
@@ -55,27 +50,44 @@ This will create the `kit` executable in the project workspace.
 
 ### 4. Publish to JSR
 
-#### Automated Publishing (Recommended)
+#### Automated Publishing via GitHub Actions (Recommended)
 
-The GitHub Action workflow will automatically publish to JSR when a new tag is pushed:
+The project uses a GitHub Actions workflow that automatically publishes to JSR when a new tag is pushed.
 
-```bash
-git tag vX.Y.Z
-git push origin vX.Y.Z
-```
+1. Create and push a new tag matching the semver pattern:
+   ```bash
+   git tag vX.Y.Z
+   git push origin vX.Y.Z
+   ```
 
-The GitHub Actions workflow (`jsr-publish.yml`) will handle the publishing process.
+2. The workflow will:
+   - Check out the repository
+   - Set up Deno
+   - Run the bump-version task to update version references in README.md
+   - Commit and push the README.md changes back to the main branch
+   - Publish the package to JSR using `npx jsr publish`
+
+You can monitor the progress in the "Actions" tab of the GitHub repository.
 
 #### Manual Publishing
 
-If needed, you can publish manually:
+If you need to publish manually:
 
 1. Ensure you have a JSR token:
    ```bash
    deno login
    ```
 
-2. Publish to JSR:
+2. Run the version bump script:
+   ```bash
+   deno task bump-version
+   ```
+
+3. Publish to JSR:
+   ```bash
+   npx jsr publish
+   ```
+   or
    ```bash
    deno publish
    ```
@@ -97,10 +109,17 @@ If needed, you can publish manually:
 
 If you encounter publishing errors:
 
-1. Verify your JSR token is valid
+1. Verify your JSR token is valid (for manual publishing)
 2. Check that the version in `deno.jsonc` hasn't already been published
 3. Ensure the `publish` section in `deno.jsonc` includes all necessary files
 4. Check the GitHub Actions logs for detailed error information
+
+### GitHub Actions Issues
+
+If the GitHub Actions workflow fails:
+1. Check the workflow logs in the "Actions" tab
+2. Ensure the tag format matches the expected pattern `v[0-9]+.[0-9]+.[0-9]+`
+3. Verify that the workflow has the necessary permissions to push changes and publish
 
 ### Build Issues
 
