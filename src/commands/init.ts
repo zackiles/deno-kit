@@ -4,6 +4,7 @@ import { create as createWorkspace, type Workspace } from '../workspace.ts'
 import type { CommandDefinition, CommandOptions } from '../types.ts'
 import resolveResourcePath from '../utils/resource-path.ts'
 import logger from '../utils/logger.ts'
+import { setupOrUpdateCursorConfig } from '../utils/cursor-config.ts'
 import { ensureDir } from '@std/fs'
 import getTemplateValues from '../template-values.ts'
 import loadConfig from '../config.ts'
@@ -39,6 +40,7 @@ async function command({ args }: CommandOptions): Promise<void> {
   await workspace.compileAndWriteTemplates(templateValues)
   await workspace.save()
 
+  await setupOrUpdateCursorConfig(workspace.path)
   logger.info(`Setup project in workspace: ${workspace.path}`)
 }
 

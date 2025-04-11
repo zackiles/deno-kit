@@ -1,4 +1,23 @@
+/**
+ * @module cursor-config
+ *
+ * Utility module for setting up and updating Cursor AI configuration.
+ * This module provides functionality to fetch and execute the setup script
+ * from the cursor-config repository.
+ *
+ * @example
+ * ```ts
+ * import { setupOrUpdateCursorConfig } from "./utils/cursor-config.ts"
+ *
+ * // Set up Cursor AI config in current directory
+ * await setupOrUpdateCursorConfig()
+ *
+ * // Or specify a custom workspace directory
+ * await setupOrUpdateCursorConfig("/path/to/project")
+ * ```
+ */
 import { join, resolve } from '@std/path'
+import logger from './logger.ts'
 
 /**
  * Executes the remote cursor config setup script from GitHub
@@ -10,7 +29,7 @@ import { join, resolve } from '@std/path'
  * @returns {Promise<boolean>} - True if successful, false otherwise
  */
 async function setupOrUpdateCursorConfig(workspaceDir?: string): Promise<boolean> {
-  console.log('🔄 Setting up Cursor AI configuration...')
+  logger.log('🔄 Setting up Cursor AI configuration...')
 
   // Get the absolute path of the workspace directory
   const targetDir = resolve(workspaceDir || Deno.cwd())
@@ -18,7 +37,7 @@ async function setupOrUpdateCursorConfig(workspaceDir?: string): Promise<boolean
 
   try {
     // Fetch the script content
-    console.log('🔄 Fetching cursor-config installation script...')
+    logger.log('🔄 Fetching cursor-config installation script...')
     const response = await fetch(
       'https://raw.githubusercontent.com/zackiles/cursor-config/main/install.sh',
     )
@@ -38,7 +57,7 @@ async function setupOrUpdateCursorConfig(workspaceDir?: string): Promise<boolean
     }
 
     // Execute the script
-    console.log(`🔄 Executing cursor-config installation script in ${targetDir}...`)
+    logger.log(`🔄 Executing cursor-config installation script in ${targetDir}...`)
 
     const command = new Deno.Command(
       Deno.build.os === 'windows' ? 'bash' : 'sh',
@@ -53,18 +72,18 @@ async function setupOrUpdateCursorConfig(workspaceDir?: string): Promise<boolean
     const output = await command.output()
 
     const textDecoder = new TextDecoder()
-    console.log(textDecoder.decode(output.stdout))
+    logger.log(textDecoder.decode(output.stdout))
 
     const stderrOutput = textDecoder.decode(output.stderr)
     if (stderrOutput && !output.success) {
-      console.error(stderrOutput)
+      logger.error(stderrOutput)
       return false
     }
 
-    console.log('✅ Cursor AI configuration setup completed successfully')
+    logger.log('✅ Cursor AI configuration setup completed successfully')
     return true
   } catch (error) {
-    console.warn(
+    logger.warn(
       '⚠️ Failed to set up Cursor AI configuration:',
       error instanceof Error ? error.message : String(error),
     )
@@ -75,7 +94,7 @@ async function setupOrUpdateCursorConfig(workspaceDir?: string): Promise<boolean
       const fileInfo = await Deno.stat(scriptPath)
       if (fileInfo.isFile) {
         await Deno.remove(scriptPath)
-        console.log('🧹 Cleaned up temporary installation script')
+        logger.log('🧹 Cleaned up temporary installation script')
       }
     } catch {
       // Ignore errors if file doesn't exist or can't be removed
