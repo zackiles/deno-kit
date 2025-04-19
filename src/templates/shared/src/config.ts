@@ -13,8 +13,7 @@
  * - Direct access to environment variables as properties
  * - A workspace property that returns the workspace path based on:
  *   1. Command line args (--workspace or -w)
- *   2. DENO_KIT_WORKSPACE environment variable
- *   3. Current working directory (fallback)
+ *   2. Current working directory (fallback)
  * - DENO_ENV will default to "development" if not set
  *
  * @example
@@ -36,10 +35,7 @@ let parsedArgs: Record<string, unknown> = {}
 
 const getWorkspace = (): string => {
   const { workspace: workspaceArg, w } = parsedArgs
-  return (workspaceArg as string) ??
-    (w as string) ??
-    values.DENO_KIT_WORKSPACE ??
-    Deno.cwd()
+  return (workspaceArg as string) ?? (w as string) ?? Deno.cwd()
 }
 
 /**
@@ -60,7 +56,7 @@ const filterEmptyValues = (
 ): Record<string, string> =>
   Object.fromEntries(
     Object.entries(config)
-      .filter(([_, value]) => value !== null && value !== undefined && value !== ''),
+      .filter(([, value]) => value !== null && value !== undefined && value !== ''),
   ) as Record<string, string>
 
 /**
@@ -72,7 +68,7 @@ const createConfigProxy = (): Record<string, string> => {
     configProxy = new Proxy(values, {
       get: (target, prop) => {
         if (prop === 'workspace') return getWorkspace()
-        return typeof prop === 'string' ? (target[prop] || undefined) : undefined
+        return typeof prop === 'string' ? target[prop] ?? undefined : undefined
       },
     })
   }
@@ -99,12 +95,10 @@ async function loadConfig(): Promise<Record<string, string>> {
   values = filterEmptyValues(await loadEnv({ envPath, export: false }))
 
   // Set default DENO_ENV to development if not already set
-  if (!values.DENO_ENV) {
-    values.DENO_ENV = 'development'
-  }
+  values.DENO_ENV ??= 'development'
 
   if (hasConfigArg) {
-    const filteredArgs = Deno.args.filter((arg) =>
+    const filteredArgs = Deno.args.filter(arg =>
       !arg.startsWith('config=') && !arg.startsWith('-c=')
     )
     patchDenoArgs(filteredArgs)

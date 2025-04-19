@@ -1,22 +1,21 @@
 {
   // Schema deno.jsonc: @https://github.com/denoland/deno/blob/main/cli/schemas/config-file.v1.json
-  "name": "@deno-kit/kit",
-  "version": "0.0.13",
-  "description": "The modern, unopinionated, and AI-native way to quickly scaffold and maintain Deno projects.",
+  "name": "{PACKAGE_NAME}",
+  "version": "{PACKAGE_VERSION}",
+  "description": "{PACKAGE_DESCRIPTION}",
   "license": "MIT",
-  "author": "Zachary Iles <zack.iles@gmail.com>",
-  "homepage": "https://github.com/zackiles/deno-kit",
+  "author": "{PACKAGE_AUTHOR_NAME} <{PACKAGE_AUTHOR_EMAIL}>",
+  "homepage": "https://github.com/{PACKAGE_GITHUB_USER}/{PROJECT_NAME}",
   "repository": {
     "type": "git",
-    "url": "https://github.com/zackiles/deno-kit.git"
+    "url": "https://github.com/{PACKAGE_GITHUB_USER}/{PROJECT_NAME}.git"
   },
   "tasks": {
-    "tests": "deno test -A",
-    "kit": "deno run -A src/main.ts",
+    "dev": "deno run -A @deno-kit/kit --watch src/main.ts",
+    "test": "deno test -A",
     "pre-publish": "deno fmt && deno check -r src/ && deno lint",
-    "bump-version": "deno run -A scripts/bump-version.ts",
-    // Ideally ran from the Github action workflow
-    "release": "deno run -A scripts/release.ts"
+    "kit:help": "deno run -A jsr:@deno-kit/kit help",
+    "kit": "deno run -A jsr:@deno-kit/kit"
   },
   // Import maps. Prefer import "@scope/package" syntax in code.
   // NOTE: uses the import maps standard see https://github.com/WICG/import-maps
@@ -38,6 +37,7 @@
     "@std/jsonc": "jsr:@std/jsonc@1",
     "@std/net": "jsr:@std/net@1",
     "@std/testing": "jsr:@std/testing@1",
+    "@deno-kit/kit": "jsr:@deno-kit/kit@0",
     "@deno-kit/module-to-cli": "jsr:@deno-kit/module-to-cli@0"
     // </@deno-kit IMPORTS END>
   },
@@ -47,7 +47,12 @@
     "http",
     "fs",
     "ffi",
-    "otel"
+    "cron",
+    "temporal",
+    "webgpu",
+    "unsafe-proto",
+    "otel",
+    "webgpu"
   ],
   "lock": true,
   "nodeModulesDir": "none",
@@ -60,28 +65,28 @@
     "proseWrap": "preserve",
     "include": [
       "src/**",
-      "docs/**",
       "scripts/**",
       "test/**",
       "README.md",
-      "CONTRIBUTING.md"
+      "CONTRIBUTING.md",
+      "CHANGELOG.md"
     ],
     "exclude": [
-      "src/templates/**",
-      ".cursor/**",
+      "bin/**",
       "test/mocks/**",
       "test/fixtures/**"
     ]
   },
   // Schema for lint rules: @https://github.com/denoland/deno/blob/main/cli/schemas/lint-rules.v1.json
   "lint": {
+    "enabled": true,
     "rules": {
       // Possible tags: "fresh", "jsr", "jsx", "react", "recommended"
       "tags": [
         "recommended"
       ],
       "exclude": [
-        // LLMs don't play well with require-await.
+        // LLMs don't play well with this rule, you should patch them manually.
         "require-await"
       ]
     },
@@ -90,12 +95,11 @@
       "scripts/**",
       "test/**",
       "README.md",
-      "CONTRIBUTING.md"
+      "CONTRIBUTING.md",
+      "CHANGELOG.md"
     ],
     "exclude": [
-      "src/templates/**",
-      "docs/**",
-      ".cursor/**",
+      "bin/**",
       "test/mocks/**",
       "test/fixtures/**"
     ],
@@ -119,22 +123,17 @@
   // See jsr publishing: @https://docs.deno.com/runtime/reference/cli/publish/
   "publish": {
     "include": [
+      "src/**",
       "bin/**",
       "scripts/**",
-      "src/**/*.ts",
-      "src/templates/**",
       "README.md",
-      "LICENSE"
+      "LICENSE",
+      "CHANGELOG.md"
     ],
-    "exclude": [
-      "docs/**",
-      ".cursor/**",
-      "test/mocks/**",
-      "test/fixtures/**"
-    ]
+    "exclude": []
   },
   // The main entry point for the library to be published
   "exports": {
-    ".": "./src/main.ts"
+    ".": "./src/mod.ts"
   }
 }
