@@ -27,10 +27,10 @@ async function loadCommands(defaultCommand: string): Promise<{
   getOptions: (route: CommandDefinition) => Args
 }> {
   const routes: CommandDefinition[] = []
+  const commandsDir = join(dirname(fromFileUrl(import.meta.url)), 'commands')
 
   try {
     // Load and process command modules
-    const commandsDir = join(dirname(fromFileUrl(import.meta.url)), 'commands')
     for await (
       const entry of walk(commandsDir, {
         includeDirs: false,
