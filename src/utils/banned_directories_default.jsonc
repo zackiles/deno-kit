@@ -1,0 +1,95 @@
+{
+  "windows": [
+    // Regex pattern matching Windows root drive folders - prevents folder removal/renaming
+    "C:/[A-Za-z0-9 \\(\\)]*/$",
+    // Critical Windows system folder containing volume metadata
+    "C:/System Volume Information/",
+    // AppData directory structures - prevents removal of these folders
+    // (files inside can still be modified by applications)
+    "C:/Users/*/AppData/Local/",
+    "C:/Users/*/AppData/Roaming/",
+    "C:/Users/*/AppData/LocalLow/",
+    // Windows Recycle Bin directory
+    "C:/$Recycle.Bin/",
+    // System profile directories
+    "C:/Users/Default/",
+    "C:/Users/Public/",
+    "C:/Users/All Users/"
+  ],
+  "darwin": [
+    // Regex pattern matching macOS root directories - prevents root folder removal
+    "/[A-Za-z0-9]*/$",
+    // Application bundles - prevents modification of app folder structures
+    "/Applications/*.app/",
+    // System private folder
+    "/private/",
+    // Package manager installation directories
+    "/opt/homebrew/",
+    "/opt/local/",
+    // User Library folders - prevents removal of these system folder structures
+    // (individual settings files inside can still be edited by applications)
+    "/Users/*/Library/Preferences/",
+    "/Users/*/Library/Application Support/",
+    "/Users/*/Library/Caches/",
+    // macOS system hidden directories (should never be manually modified)
+    "/.Spotlight-*/",
+    "/.Trashes/",
+    "/.fseventsd/",
+    "/.DocumentRevisions-V100/",
+    "/.TemporaryItems/",
+    "/.Trash/",
+    "/.vol/",
+    "/home/*/Library/",
+    // macOS volume directories
+    "/Volumes/Macintosh HD/",
+    "/Volumes/Recovery/",
+    // System crash dump location
+    "/cores/",
+    // Network mount points
+    "/net/",
+    "/Network/",
+    // macOS Install Data directory
+    "/macOS Install Data/",
+    // System binary and library directories (managed by OS)
+    "/usr/bin/",
+    "/usr/sbin/",
+    "/usr/lib/",
+    "/usr/share/",
+    "/usr/local/bin/",
+    "/usr/local/sbin/",
+    "/usr/local/lib/",
+    "/usr/local/share/"
+  ],
+  "linux": [
+    // Regex pattern matching Linux root directories - prevents root folder removal
+    "/[A-Za-z0-9]*/$",
+    // System configuration directories
+    "/home/*/.config/systemd/",
+    "/home/*/.config/dconf/",
+    "/home/*/.config/pulse/",
+    "/home/*/.config/gnome-session/",
+    // Cache directory structure (files inside can be modified)
+    "/home/*/.cache/",
+    // Security and credential storage directories
+    "/home/*/.local/share/keyrings/",
+    "/home/*/.local/share/applications/",
+    "/home/*/.gnupg/",
+    "/home/*/.ssh/",
+    "/home/*/.dbus/",
+    // Security-Enhanced Linux configuration directory
+    "/selinux/",
+    // System binary and library directories (managed by package manager)
+    "/usr/bin/",
+    "/usr/sbin/",
+    "/usr/lib/",
+    "/usr/share/",
+    // Critical Linux system directories
+    "/boot/",
+    "/etc/",
+    "/proc/",
+    "/run/",
+    "/sys/",
+    "/tmp/",
+    "/var/"
+  ]
+}

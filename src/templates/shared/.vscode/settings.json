@@ -2,7 +2,6 @@
   "deno.enable": true,
   "deno.config": "./deno.jsonc",
   "deno.importMap": "./deno.jsonc",
-  "deno.disablePaths": ["src/templates/**/*.ts"],
   "deno.unstable": [
     "kv",
     "net",
@@ -34,7 +33,7 @@
   },
   "[markdown][typescript][javascript]": {
     "editor.defaultFormatter": "denoland.vscode-deno",
-    "editor.formatOnSave": true,
+    "editor.formatOnSave": true
   },
   "search.exclude": {
     "**/.cursor": true
@@ -67,5 +66,5 @@
     "dockerenv",
     "fseventsd",
     "modelcontextprotocol"
-  ],
+  ]
 }

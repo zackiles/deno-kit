@@ -6,34 +6,34 @@
  */
 
 import { join } from '@std/path'
-import getConfig from '../src/config.ts'
+import loadConfig from '../src/config.ts'
 
 async function build() {
   console.log('Building kit executable...')
 
   try {
     // Get project configuration
-    const config = await getConfig()
+    const config = await loadConfig()
 
     // Define the source file (kit.ts)
-    const sourceFile = join(config.kitDir, 'kit.ts')
+    const sourceFile = join(config.DENO_KIT_DIR, 'kit.ts')
 
     // Define the output file path
-    const outputFile = join(config.projectDir, 'kit')
+    const outputFile = join(config.DENO_KIT_WORKSPACE, 'kit')
 
     // Define the config file path
-    const configFile = join(config.kitDir, 'deno.jsonc')
+    const configFile = join(config.DENO_KIT_DIR, 'deno.jsonc')
 
     console.log(`Source: ${sourceFile}`)
     console.log(`Output: ${outputFile}`)
     console.log(`Config: ${configFile}`)
 
     // First, create a temporary version of kit.ts with absolute paths
-    const tempKitPath = join(config.kitDir, 'kit.temp.ts')
+    const tempKitPath = join(config.DENO_KIT_DIR, 'kit.temp.ts')
     const kitContent = await Deno.readTextFile(sourceFile)
 
     // Replace the relative path with an absolute path to main.ts
-    const mainTsPath = join(config.kitDir, 'main.ts')
+    const mainTsPath = join(config.DENO_KIT_DIR, 'main.ts')
     const modifiedContent = kitContent.replace(
       "'.deno-kit/main.ts'",
       `'${mainTsPath}'`,
@@ -48,15 +48,11 @@ async function build() {
     const arch = Deno.build.arch
 
     if (os === 'darwin') {
-      target = arch === 'aarch64'
-        ? 'aarch64-apple-darwin'
-        : 'x86_64-apple-darwin'
+      target = arch === 'aarch64' ? 'aarch64-apple-darwin' : 'x86_64-apple-darwin'
     } else if (os === 'windows') {
       target = 'x86_64-pc-windows-msvc'
     } else if (os === 'linux') {
-      target = arch === 'aarch64'
-        ? 'aarch64-unknown-linux-gnu'
-        : 'x86_64-unknown-linux-gnu'
+      target = arch === 'aarch64' ? 'aarch64-unknown-linux-gnu' : 'x86_64-unknown-linux-gnu'
     } else {
       throw new Error(`Unsupported OS: ${os}`)
     }
@@ -67,11 +63,7 @@ async function build() {
     const command = new Deno.Command(Deno.execPath(), {
       args: [
         'compile',
-        '--allow-read',
-        '--allow-write',
-        '--allow-env',
-        '--allow-run',
-        '--allow-net',
+        '-A',
         '--config',
         configFile,
         '--target',

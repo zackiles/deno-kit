@@ -1,91 +1,50 @@
-#!/usr/bin/env -S deno run --allow-all
+#!/usr/bin/env -S deno run -A
+import { type Args, parseArgs } from '@std/cli'
+import type { CommandDefinition } from '../types.ts'
+import { getMainExportPath } from '../utils/package-info.ts'
+import logger from '../utils/logger.ts'
+import loadConfig from '../config.ts'
 
-/**
- * @module run-cli
- * @description Command-line interface for the Deno starter kit that uses @deno-kit/module-to-cli
- * to automatically generate a CLI based on the exported module.
- *
- * The CLI provides an interface to the core library functionality by leveraging the module-to-cli
- * library which dynamically creates a CLI from your module exports.
- *
- * @example
- * ```bash
- * # Run with no arguments to see the help menu
- * deno task kit cli
- *
- * # Or run with specific commands and arguments
- * deno task kit cli create --firstName="John" --lastName="Doe"
- * ```
- *
- * For full documentation on the starter kit and its features, see the README.md
- */
-import { join } from '@std/path'
-import { Logger } from '../logger.ts'
-import { parseArgs } from '@std/cli'
+const config = await loadConfig()
 
-const logger = Logger.get('cli')
+const commandDefinition: CommandDefinition = {
+  name: 'run-cli',
+  command: command,
+  description: 'Runs the library for your project as a CLI',
+  options: {
+    boolean: ['help', 'h'],
+    alias: { h: 'help' },
+  },
+}
 
-/**
- * Main CLI function. Uses @deno-kit/module-to-cli to dynamically generate a CLI
- * based on the exported module in src/mod.ts.
- */
-async function runCLI(): Promise<void> {
-  const modulePath = join('src', 'mod.ts')
+async function command(): Promise<void> {
+  logger.debug(`Running your library through a CLI in the workspace: ${config.workspace}`)
 
-  // Handle different execution contexts (deno task, npx, direct)
-  const firstArg = Deno.args[0] || ''
-  const isDenoTask = firstArg.startsWith('task:')
-  const isNpxRun = firstArg.includes('npx')
-  const adjustedArgs = isDenoTask || isNpxRun ? Deno.args.slice(1) : Deno.args
+  try {
+    const mainExportPath = await getMainExportPath(config.workspace)
+    const moduleToCLIArgs = Deno.args.slice(Deno.args.indexOf(commandDefinition.name) + 1)
+    logger.info(mainExportPath, moduleToCLIArgs)
 
-  // Parse CLI arguments
-  const parsedArgs = parseArgs(adjustedArgs)
-  const showHelp = parsedArgs._.length === 0 || parsedArgs.help
-
-  // Command to run the module-to-cli
-  const baseCommand = [
-    'deno',
-    'run',
-    '-A',
-    'jsr:@deno-kit/module-to-cli',
-    modulePath,
-  ]
-
-  // If no arguments provided or help flag, show the help menu
-  if (showHelp) {
-    const command = new Deno.Command(baseCommand[0], {
-      args: [...baseCommand.slice(1), '--help'],
+    const command = new Deno.Command('deno', {
+      args: [
+        'run',
+        '-A',
+        'jsr:@deno-kit/module-to-cli',
+        mainExportPath,
+        ...moduleToCLIArgs,
+      ],
+      stdin: 'inherit',
+      stdout: 'inherit',
+      stderr: 'inherit',
     })
-
-    const { stdout, stderr } = await command.output()
-
-    if (stderr.length > 0) {
-      const errorMessage = new TextDecoder().decode(stderr)
-      logger.error(errorMessage)
-      Deno.exit(1)
-    }
-
-    logger.info(new TextDecoder().decode(stdout))
-  } else {
-    // Pass all arguments directly to module-to-cli
-    const command = new Deno.Command(baseCommand[0], {
-      args: [...baseCommand.slice(1), ...adjustedArgs],
-    })
-
-    const { stdout, stderr } = await command.output()
-
-    if (stderr.length > 0) {
-      const errorMessage = new TextDecoder().decode(stderr)
-      logger.error(errorMessage)
-      Deno.exit(1)
-    }
-
-    logger.info(new TextDecoder().decode(stdout))
+    await command.spawn().status
+  } catch (error) {
+    logger.error(error instanceof Error ? error.message : String(error))
   }
 }
 
 if (import.meta.main) {
-  runCLI()
+  const args: Args = parseArgs(Deno.args, commandDefinition.options)
+  await commandDefinition.command({ args, routes: [commandDefinition] })
 }
-
-export { runCLI }
+export default commandDefinition
