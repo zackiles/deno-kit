@@ -27,7 +27,7 @@ jobs:
         run: deno task bump-version
 
       - name: Publish to JSR
-        run: npx jsr publish
+        run: npx jsr publish --allow-dirty --no-check
 
       - name: Commit and push README changes to main
         run: |

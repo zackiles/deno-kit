@@ -28,7 +28,9 @@ async function loadCommands(): Promise<CommandDefinition[]> {
       skip: [/\.disabled\.ts$/, /\.disabled$/],
     })) {
       try {
-        const commandModule = await import(entry.path)
+        // Convert the path to a file URL for import to avoid import map issues
+        const fileUrl = `file://${entry.path}`
+        const commandModule = await import(fileUrl)
 
         if (commandModule.default &&
             typeof commandModule.default === 'object' &&
