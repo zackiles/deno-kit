@@ -19,7 +19,7 @@ Deno-Kit supports multiple project types including Libraries, CLIs, HTTP Servers
 Only one command is needed to get started. In a new folder for your project (or an existing project) run:
 
 ```sh
-deno run -A https://jsr.io/@deno-kit/kit/0.0.14/src/commands/setup.ts
+deno run -A https://jsr.io/@deno-kit/kit/0.0.17/src/commands/setup.ts
 ```
 
 This will:
