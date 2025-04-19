@@ -26,26 +26,21 @@ jobs:
       - name: Update version in README
         run: deno task bump-version
 
-      - name: Commit and push changes
+      - name: Publish to JSR
+        run: npx jsr publish
+
+      - name: Commit and push README changes to main
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
 
-          # Check if we're in detached HEAD state and handle accordingly
-          if git diff --quiet README.md; then
-            echo "No changes to README.md, skipping commit and push"
-          else
-            # Create a branch from the current detached HEAD
-            git branch temp-branch
-            git checkout temp-branch
-
-            # Add, commit, and push changes
+          # Only commit if README.md has changes
+          if ! git diff --quiet README.md; then
             git add README.md
             git commit -m "docs: update version in README to match deno.jsonc"
 
             # Push to main branch
-            git push origin temp-branch:main
+            git push https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:main
+          else
+            echo "No changes to README.md, skipping commit and push"
           fi
-
-      - name: Publish to JSR
-        run: npx jsr publish
