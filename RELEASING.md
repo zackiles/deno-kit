@@ -38,6 +38,17 @@ This document describes the process for building and releasing new versions of t
    ```bash
    git add deno.jsonc
    git commit -m "chore: bump version to X.Y.Z"
+   ```
+
+3. Rebase on the latest main branch to incorporate any recent changes:
+
+   ```bash
+   git pull --rebase origin main
+   ```
+
+4. Push the changes to the main branch:
+
+   ```bash
    git push origin main
    ```
 
