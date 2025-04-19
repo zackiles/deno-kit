@@ -61,6 +61,7 @@ async function loadCommands(defaultCommand: string): Promise<{
     logger.error(
       `Failed to scan commands directory: ${err instanceof Error ? err.message : String(err)}`,
     )
+    logger.error(`Commands directory: ${commandsDir}`)
   }
 
   // Return routes and helper functions for command handling

@@ -42,9 +42,9 @@ Write your first bit of code, and then try using the powerful auto-generated CLI
 
 ## **Features**
 
-**Guided Setup:** Quickly setup your next package with guided setup and intelligent defaults.
+🧭 **Guided Setup:** Quickly setup your next package with guided setup and intelligent defaults.
 
-**Multiple Project Types:** Support for Libraries, CLIs, HTTP Servers, WebSocket Servers, SSE Servers, and MCP Servers.
+🧩 **Multiple Project Types:** Support for Libraries, CLIs, HTTP Servers, WebSocket Servers, SSE Servers, and MCP Servers.
 
 🦖 **Modern Deno 2:** best practices such as safe defaults for lint/fmt/compile/publish and more, as well as out-of-the-box setup for the latest APIs such as OpenTelemetry.
 
