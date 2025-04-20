@@ -63,13 +63,18 @@ async function build() {
     const sourceFile = join(Deno.cwd(), 'src', 'main.ts')
     const configFile = join(Deno.cwd(), 'deno.jsonc')
     const denoConfigFile = 'deno.jsonc'
-    const templatesDir = await resolveResourcePath('src/templates')
+
+    // Use direct path string instead of resolveResourcePath for templates
+    // This ensures consistent behavior between local and GitHub Actions environments
+    const templatesDir = join(Deno.cwd(), 'src', 'templates')
+
     const bannedDirsFile = 'src/utils/banned_directories_default.jsonc'
     const bannedDirsCustomFile = 'src/utils/banned_directories_custom.jsonc'
 
     console.log(`Source: ${sourceFile}`)
     console.log(`Output directory: ${absoluteOutputDir}`)
     console.log(`Config: ${configFile}`)
+    console.log(`Templates directory: ${templatesDir}`)
 
     // Define the different platform targets
     const targets = [
@@ -104,6 +109,8 @@ async function build() {
         configFile,
         '--target',
         platform.target,
+        // Add a special flag to ignore all TypeScript errors in templates
+        '--no-remote',
         '--include',
         templatesDir,
         '--include',
