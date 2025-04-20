@@ -184,15 +184,21 @@ const isValidCommitMessage = (message: string): boolean => {
 }
 
 // User interface helpers
-const promptUser = async (promptText: string): Promise<string> => {
-  console.log(promptText)
+const promptUser = async (promptText: string, defaultValue?: string): Promise<string> => {
+  if (defaultValue) {
+    console.log(`${promptText} (Default: "${defaultValue}", press Enter to use default)`)
+  } else {
+    console.log(promptText)
+  }
 
   const inputBuffer = new Uint8Array(1024)
   const bytesRead = await Deno.stdin.read(inputBuffer)
 
-  return bytesRead === null
+  const input = bytesRead === null
     ? ''
     : new TextDecoder().decode(inputBuffer.subarray(0, bytesRead)).trim()
+
+  return input || defaultValue || ''
 }
 
 const log = {
@@ -209,7 +215,7 @@ const log = {
 }
 
 // Workflow steps
-const processWorkingDirectory = async (git: GitClient): Promise<boolean> => {
+const processWorkingDirectory = async (git: GitClient, tagValue: string): Promise<boolean> => {
   log.process('Checking git status...')
   const status = await git.getStatus()
 
@@ -222,10 +228,13 @@ const processWorkingDirectory = async (git: GitClient): Promise<boolean> => {
   await git.stageChanges()
   log.success('Changes staged.')
 
+  const defaultMessage = `chore: tag version ${tagValue}`
   let commitMessage = ''
+
   while (true) {
     commitMessage = await promptUser(
-      'Enter commit message (e.g., "chore: bump version to vX.Y.Z"):',
+      'Enter commit message:',
+      defaultMessage,
     )
 
     if (isValidCommitMessage(commitMessage)) break
@@ -330,7 +339,7 @@ const createTag = async (tagValue: string): Promise<void> => {
   const git = new GitClient()
 
   // Process workflow in sequence
-  const hasChanges = await processWorkingDirectory(git)
+  const hasChanges = await processWorkingDirectory(git, tagValue)
   await syncWithRemoteMain(git)
   await pushChangesToRemote(git)
   await fetchAndValidateExistingTags(git, tagValue)

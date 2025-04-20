@@ -113,7 +113,7 @@ async function build() {
         configFile,
         '--target',
         platform.target,
-        '--no-remote',
+        //'--no-remote',
         '--include',
         templatesDirRelativeInclude,
         '--include',
