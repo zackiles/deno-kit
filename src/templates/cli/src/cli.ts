@@ -47,7 +47,7 @@ async function loadCommands(): Promise<CommandDefinition[]> {
       }
     }
   } catch (err) {
-    logger.error(`Failed to scan commands directory: ${err instanceof Error ? err.message : String(err)}`)
+    throw new Error(`Failed to scan commands directory: ${err instanceof Error ? err.message : String(err)}`)
   }
 
   return commands
@@ -78,21 +78,17 @@ export async function run(): Promise<void> {
 
       await command.command(commandOptions)
     } catch (error) {
-      logger.error(`Error executing command: ${error instanceof Error ? error.message : String(error)}`)
-      Deno.exit(1)
+      throw new Error(`Error executing command: ${error instanceof Error ? error.message : String(error)}`)
     }
   } else if (commandName) {
-    logger.error(`Unknown command: ${commandName}`)
-    logger.error('Run with "help" to see available commands')
-    Deno.exit(1)
+    throw new Error(`Unknown command: ${commandName}. Run with "help" to see available commands.`)
   } else {
     // Default to help if no command specified
     const helpCommand = commands.find(cmd => cmd.name === 'help')
     if (helpCommand) {
       await helpCommand.command({ args: mainArgs, routes: commands })
     } else {
-      logger.error('No command specified and help command not found')
+      throw new Error('No command specified and help command not found')
     }
-    Deno.exit(0)
   }
 }

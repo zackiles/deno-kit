@@ -2,11 +2,11 @@
 import { type Args, parseArgs } from '@std/cli'
 import logger from '../utils/logger.ts'
 import loadConfig from '../config.ts'
-import type { CommandDefinition, CommandOptions } from '../types.ts'
+import type { CLIRouteDefinition, CLIRouteOptions } from '../types.ts'
 
 const config = await loadConfig()
 
-const commandDefinition: CommandDefinition = {
+const commandDefinition: CLIRouteDefinition = {
   name: 'template',
   command: command,
   description: 'An example command template',
@@ -16,7 +16,7 @@ const commandDefinition: CommandDefinition = {
   },
 }
 
-async function command({ args, routes }: CommandOptions): Promise<void> {
+async function command({ args, routes }: CLIRouteOptions): Promise<void> {
   logger.debug(`Command ${commandDefinition.name} executed in environment ${config.DENO_ENV}`, {
     args,
     config,

@@ -270,17 +270,7 @@ async function handleHttpRequest(request: Request): Promise<Response> {
               requestSpan.recordException(errorObj)
               requestSpan.setStatus({ code: 2 }) // ERROR status
 
-              httpLogger.error(`Error executing ${method}`, {
-                error: errorObj,
-              })
-
-              return new Response(
-                JSON.stringify({ error: errorObj.message }),
-                {
-                  status: 500,
-                  headers: { 'Content-Type': 'application/json' },
-                },
-              )
+              throw new Error(`Error executing ${method}: ${errorObj.message || String(errorObj)}`)
             }
           }
         }
@@ -305,17 +295,7 @@ async function handleHttpRequest(request: Request): Promise<Response> {
         requestSpan.setStatus({ code: 2 }) // ERROR status
         requestSpan.setAttribute('http.status_code', 500)
 
-        httpLogger.error('Unhandled server error', { error: errorObj })
-        return new Response(
-          JSON.stringify({
-            error: 'Internal Server Error',
-            details: errorObj.message,
-          }),
-          {
-            status: 500,
-            headers: { 'Content-Type': 'application/json' },
-          },
-        )
+        throw new Error(`Unhandled server error: ${errorObj.message || String(errorObj)}`)
       }
     })
   } finally {
@@ -336,8 +316,9 @@ async function parseRequestBody(
     return body as Record<string, unknown>
   } catch (parseError) {
     const error = parseError instanceof Error ? parseError : new Error(String(parseError))
-    httpLogger.error('Failed to parse JSON body', { error })
-    throw new Error('Invalid JSON body')
+    throw new Error(
+      `Failed to parse JSON body: ${error instanceof Error ? error.message : String(error)}`,
+    )
   }
 }
 
@@ -473,7 +454,9 @@ function handleWebSocket(request: Request): Response {
               data: stdError.message,
             }
 
-            wsLogger.error('Error executing request', { error: stdError })
+            throw new Error(
+              `Error executing WebSocket request: ${stdError.message || String(stdError)}`,
+            )
           }
         }
 
@@ -488,20 +471,9 @@ function handleWebSocket(request: Request): Response {
         messageSpan.setStatus({ code: 2 }) // ERROR status
         messageSpan.setAttribute('error.type', 'parse_error')
 
-        wsLogger.error('Failed to parse WebSocket message', {
-          error: errorObj,
-        })
-
-        const response: JsonRpcResponse = {
-          jsonrpc: '2.0',
-          id: null,
-          error: {
-            code: -32700,
-            message: 'Parse error',
-            data: errorObj.message,
-          },
-        }
-        socket.send(JSON.stringify(response))
+        throw new Error(
+          `Failed to parse WebSocket message: ${errorObj.message || String(errorObj)}`,
+        )
       } finally {
         // Always end the message span
         messageSpan.end()
@@ -524,7 +496,7 @@ function handleWebSocket(request: Request): Response {
 
       wsConnectionSpan.recordException(errorObj)
       wsConnectionSpan.setStatus({ code: 2 }) // ERROR status
-      wsLogger.error('WebSocket error', { error: errorObj })
+      throw new Error(`WebSocket error: ${errorObj.message || String(errorObj)}`)
     })
   }
 
@@ -601,20 +573,7 @@ function handler(request: Request): Response | Promise<Response> {
       // Log and record error
       const error = handlerError instanceof Error ? handlerError : new Error(String(handlerError))
 
-      httpLogger.error('Error handling request', {
-        error,
-        url: request.url,
-        method: request.method,
-      })
-
-      // Set error status on span
-      rootSpan.setStatus({
-        code: 2, // ERROR
-        message: error.message,
-      })
-
-      // Return appropriate error response
-      return new Response('Internal Server Error', { status: 500 })
+      throw new Error(`Error handling request: ${error.message || String(error)}`)
     } finally {
       // Always end the span
       rootSpan.end()
@@ -718,15 +677,7 @@ async function runServer(
     } catch (serverError) {
       const error = serverError instanceof Error ? serverError : new Error(String(serverError))
 
-      serverLogger.error('Server error', { error })
-
-      // Set error status on span
-      serverSpan.setStatus({
-        code: 2, // ERROR
-        message: error.message,
-      })
-
-      throw error
+      throw new Error(`Server error: ${error.message || String(error)}`)
     } finally {
       // Always end the server span
       serverSpan.end()
@@ -734,8 +685,7 @@ async function runServer(
   } catch (initError) {
     const error = initError instanceof Error ? initError : new Error(String(initError))
 
-    serverLogger.error('Failed to initialize server', { error })
-    throw error
+    throw new Error(`Failed to initialize server: ${error.message || String(error)}`)
   }
 }
 
@@ -743,8 +693,7 @@ async function runServer(
 if (import.meta.main) {
   runServer().catch((error) => {
     const formattedError = error instanceof Error ? error : new Error(String(error))
-    serverLogger.error('Failed to start server', { error: formattedError })
-    Deno.exit(1)
+    throw new Error(`Failed to start server: ${formattedError}`)
   })
 }
 

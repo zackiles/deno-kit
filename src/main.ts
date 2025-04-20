@@ -6,127 +6,58 @@
  * @see {@link https://jsr.io/@std/cli/doc/parse-args/~/Args}
  * @see {@link https://jsr.io/@std/cli/doc/~/ParseOptions}
  */
-import { walk } from '@std/fs'
-import { dirname, fromFileUrl, join } from '@std/path'
-import { type Args, parseArgs } from '@std/cli'
-import logger from './utils/logger.ts'
 import loadConfig from './config.ts'
+import logger from './utils/logger.ts'
 import gracefulShutdown from './utils/graceful-shutdown.ts'
-import { type CommandDefinition, type CommandOptions, isCommandDefinition } from './types.ts'
+import CLIRouter from './utils/cli-router.ts'
+import type { CLIRouteDefinition, CLIRouteOptions } from './types.ts'
 
 const CLI_NAME = 'Deno-Kit'
 await loadConfig()
 
 /**
- * Loads and manages command definitions from the commands directory.
- * Handles command loading, validation, and routing.
+ * Static mapping of commands
+ * We explicitly import all command modules using static imports.
+ * See commands/template.ts for an example command.
  */
-async function loadCommands(defaultCommand: string): Promise<{
-  routes: CommandDefinition[]
-  getRoute: (args: unknown[]) => CommandDefinition | undefined
-  getOptions: (route: CommandDefinition) => Args
-}> {
-  const routes: CommandDefinition[] = []
-  const commandsDir = join(dirname(fromFileUrl(import.meta.url)), 'commands')
-
-  try {
-    // Load and process command modules
-    for await (
-      const entry of walk(commandsDir, {
-        includeDirs: false,
-        exts: ['.ts'],
-        skip: [/\.disabled\.ts$/, /\.disabled$/],
-      })
-    ) {
-      try {
-        // Import the command directly using its full path
-        const commandModule = await import(entry.path)
-
-        // Add valid command to routes
-        if (commandModule.default && isCommandDefinition(commandModule.default)) {
-          routes.push({
-            ...commandModule.default,
-            options: commandModule.default.options || {},
-          })
-        }
-      } catch (err) {
-        logger.warn(
-          `Failed to load command from ${entry.path}: ${
-            err instanceof Error ? err.message : String(err)
-          }`,
-        )
-      }
-    }
-  } catch (err) {
-    logger.error(
-      `Failed to scan commands directory: ${err instanceof Error ? err.message : String(err)}`,
-    )
-    logger.error(`Commands directory: ${commandsDir}`)
-  }
-
-  // Return routes and helper functions for command handling
-  return {
-    routes,
-    getRoute: (args: unknown[]) => {
-      if (args.length > 0) {
-        const match = routes.find((r) => r.name === String(args[0])) ??
-          (args.length > 1 ? routes.find((r) => r.name === String(args[1])) : undefined)
-        if (match) return match
-      }
-      return routes.find((r) => r.name === defaultCommand)
-    },
-    getOptions: (route: CommandDefinition) => {
-      const idx = Deno.args.findIndex((arg) => arg === route.name)
-      return idx >= 0
-        ? parseArgs(Deno.args.slice(idx + 1), route.options)
-        : parseArgs([], route.options)
-    },
-  }
+const COMMANDS: Record<string, CLIRouteDefinition> = {
+  help: (await import('./commands/help.ts')).default,
+  init: (await import('./commands/init.ts')).default,
+  cli: (await import('./commands/cli.ts')).default,
+  version: (await import('./commands/version.ts')).default,
+  remove: (await import('./commands/remove.ts')).default,
+  reset: (await import('./commands/reset.ts')).default,
+  // Temporarily disabled
+  //server: (await import('./commands/reset.ts')).default,
 }
 
 /**
- * Main entry point for the Deno-Kit CLI.
+ * Loads and executes the appropriate command.
  *
  * @returns {Promise<void>}
  */
-async function main(defaultCommand = 'help'): Promise<void> {
-  const { routes, getRoute, getOptions } = await loadCommands(defaultCommand)
-  const parsedArgs = parseArgs(Deno.args, {
-    boolean: ['help', 'h'],
-    alias: { h: 'help' },
-  })
+async function main(): Promise<void> {
+  const router: CLIRouter = new CLIRouter(COMMANDS)
+  const route: CLIRouteDefinition = router.getRoute(Deno.args)
 
-  const route = getRoute(parsedArgs._)
-
-  if (!route) {
-    logger.error(
-      'Critical error: Default help command not found in routes.',
-    )
-    return Deno.exit(1)
-  }
-
-  try {
-    const commandArgs: CommandOptions = {
-      routes,
-      args: getOptions(route),
+  if (route) {
+    try {
+      const routeOptions: CLIRouteOptions = router.getOptions(route)
+      await route.command(routeOptions)
+    } catch (err) {
+      throw new Error(
+        `Failed to execute command "${route.name}". ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      )
     }
-    await route.command(commandArgs)
-  } catch (err) {
-    throw new Error(
-      `Failed to execute command: ${err instanceof Error ? err.message : String(err)}`,
-    )
+  } else {
+    throw new Error('Command not found and no help command available')
   }
 }
 
 if (import.meta.main) {
-  gracefulShutdown.start()
-
-  try {
-    await main()
-  } catch (error) {
-    gracefulShutdown.triggerShutdown(error instanceof Error ? error.message : String(error))
-    Deno.exit(1)
-  }
+  await gracefulShutdown.startAndWrap(main, logger)
 }
 
 export { CLI_NAME, main }

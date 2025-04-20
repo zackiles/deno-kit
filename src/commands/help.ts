@@ -1,19 +1,19 @@
 #!/usr/bin/env -S deno run -A
 import { type Args, parseArgs } from '@std/cli'
-import type { CommandDefinition, CommandOptions } from '../types.ts'
+import type { CLIRouteDefinition, CLIRouteOptions } from '../types.ts'
 import printHelpMenu from '../utils/print-help-menu.ts'
 import loadConfig from '../config.ts'
 
 const config = await loadConfig()
 const CLI_NAME = 'Deno-Kit'
 
-const commandDefinition: CommandDefinition = {
+const commandDefinition: CLIRouteDefinition = {
   name: 'help',
   command: displayHelp,
   description: 'Display this help message',
 }
 
-function displayHelp({ routes = [] }: CommandOptions): void {
+function displayHelp({ routes = [] }: CLIRouteOptions): void {
   const formattedCliName = CLI_NAME.split(' ')
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ')

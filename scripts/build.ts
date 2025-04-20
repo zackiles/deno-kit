@@ -68,6 +68,8 @@ async function build() {
         configFile,
         '--target',
         target,
+        '--include',
+        
         '--output',
         outputFile,
         tempKitPath,

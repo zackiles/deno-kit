@@ -4,16 +4,11 @@
  * Main entry point for the package.
  */
 import { run } from './cli.ts'
+import logger from './utils/logger.ts'
 import gracefulShutdown from './utils/graceful-shutdown.ts'
 
 if (import.meta.main) {
-  try {
-    gracefulShutdown.start()
-    await run()
-  } catch (error) {
-    gracefulShutdown.triggerShutdown(error instanceof Error ? error.message : String(error))
-    Deno.exit(1)
-  }
+  await gracefulShutdown.startAndWrap(run(), logger)
 }
 
 // Optionally publish the core library of the CLI

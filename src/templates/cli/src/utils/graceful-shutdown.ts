@@ -1,50 +1,54 @@
 /**
  * @module graceful-shutdown
- * @description Graceful shutdown handler that manages process signals and performs cleanup. Implemented as a singleton to ensure only one instance controls the signal handlers.
+ * @description Graceful shutdown handler that manages process signals and performs cleanup.
+ *
+ * Basic usage:
+ * - Import the default instance: `import gracefulShutdown`
+ * - (Optional) Add one or more custom shutdown/cleanup handlers: `addShutdownHandler(cleanupMethod)`
+ * - Choose ONE of the following to start listening and responding to signals:
+ *   - Either use `gracefulShutdown.start()` for simple initialization
+ *   - OR use `await gracefulShutdown.wrapAndStart(entrypointMethod)` to wrap an entry point
+ * - Done! Graceful shutdown will now respond to signals and perform the registered cleanup handlers.
+ *
+ * Note: (Optional)You can call panic(errorOrMessage) to trigger a custom shutdown and exit with a non-zero exit code.
  */
 
-import logger from '../utils/logger.ts'
+type ShutdownLogger = Record<
+  'debug' | 'info' | 'warn' | 'error' | 'log',
+  (message: string, ...args: unknown[]) => void
+>
 
-/**
- * Function that will be called during shutdown
- */
-type ShutdownHandler = () => void | Promise<void>
-
-/**
- * Singleton class for managing graceful shutdown
- */
 class GracefulShutdown {
   private static instance: GracefulShutdown
-  private signalHandlers = new Map<Deno.Signal, () => void>()
-  private shutdownHandlers: ShutdownHandler[] = []
-  private isShuttingDown = false
   private signals: Deno.Signal[] = []
+  private signalHandlers = new Map<Deno.Signal, () => void>()
+  private cleanupHandlers: (() => void | Promise<void>)[] = []
+  private isShuttingDown = false
+  private hasStarted = false
+  private logger: ShutdownLogger = console
 
   /**
    * Private constructor to prevent direct instantiation
    */
-  private constructor() {
-    // Define signals to handle based on platform
-    const isWindows = Deno.build.os === 'windows'
-
-    // Common signals across platforms
+  private constructor(logger?: ShutdownLogger) {
+    // Standard signals across platforms
     this.signals = ['SIGINT', 'SIGTERM']
-
-    // Add Unix-specific signals when not on Windows
-    if (!isWindows) {
-      this.signals.push('SIGHUP', 'SIGQUIT')
-    } else {
-      // Add Windows-specific signals
+    // Platform specific signals
+    if (Deno.build.os === 'windows') {
       this.signals.push('SIGBREAK')
+    } else {
+      this.signals.push('SIGHUP', 'SIGQUIT')
     }
+
+    if (logger) this.logger = logger
   }
 
   /**
    * Get the singleton instance
    */
-  public static getInstance(): GracefulShutdown {
+  public static getInstance(logger?: ShutdownLogger): GracefulShutdown {
     if (!GracefulShutdown.instance) {
-      GracefulShutdown.instance = new GracefulShutdown()
+      GracefulShutdown.instance = new GracefulShutdown(logger)
     }
     return GracefulShutdown.instance
   }
@@ -52,95 +56,115 @@ class GracefulShutdown {
   /**
    * Register handlers to execute during shutdown
    */
-  public register(handler: ShutdownHandler): void {
-    this.shutdownHandlers.push(handler)
+  public addShutdownHandler(handler: () => void | Promise<void>): void {
+    this.cleanupHandlers.push(handler)
+  }
+
+  /**
+   * Add a signal handler for a specific signal
+   */
+  private addSignalHandler(signal: Deno.Signal): void {
+    const signalHandler = () => {
+      this.logger.debug(`Received ${signal} signal. Exiting gracefully...`)
+      Deno.removeSignalListener(signal, signalHandler)
+      this.signalHandlers.delete(signal)
+      this.shutdown(false)
+    }
+
+    try {
+      this.signalHandlers.set(signal, signalHandler)
+      Deno.addSignalListener(signal, signalHandler)
+    } catch (error) {
+      this.logger.warn(
+        `Failed to add signal listener for ${signal}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      )
+    }
   }
 
   /**
    * Start listening for shutdown signals
    */
-  public start(): void {
-    // Create and add signal listeners
-    for (const signal of this.signals) {
-      // Create a handler function for this specific signal
-      const handler = () => this.handleShutdown(signal)
+  public start(logger?: ShutdownLogger): void {
+    if (logger) this.logger = logger
 
-      // Store the handler reference so we can remove it later
-      this.signalHandlers.set(signal, handler)
-
-      try {
-        Deno.addSignalListener(signal, handler)
-      } catch (error) {
-        logger.debug(
-          `Failed to add signal listener for ${signal}: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-        )
-      }
+    if (this.hasStarted) {
+      this.logger.warn('Graceful shutdown handlers already initialized')
+      return
     }
 
-    logger.debug('Graceful shutdown handlers initialized')
+    this.hasStarted = true
+    for (const signal of this.signals) {
+      this.addSignalHandler(signal)
+    }
+  }
+
+  /**
+   * Start listening for shutdown signals and wrap an entrypoint function
+   */
+  public async startAndWrap(
+    entrypoint: () => Promise<void>,
+    logger?: ShutdownLogger,
+  ): Promise<void> {
+    if (logger) this.logger = logger
+    if (this.hasStarted) {
+      this.logger.warn('Graceful shutdown wrap already called')
+      return
+    }
+
+    this.start()
+
+    if (entrypoint) {
+      try {
+        await entrypoint()
+        this.shutdown(false)
+      } catch (err) {
+        this.panic(err instanceof Error ? err : String(err))
+      }
+    }
   }
 
   /**
    * Execute a controlled shutdown sequence
    */
-  private async handleShutdown(signal: Deno.Signal): Promise<void> {
-    // Prevent multiple shutdown sequences
+  private async shutdown(isPanic = false): Promise<void> {
     if (this.isShuttingDown) return
     this.isShuttingDown = true
 
-    logger.debug(`Received ${signal} signal, shutting down gracefully...`)
-
-    // Execute all shutdown handlers
-    for (const handler of this.shutdownHandlers) {
+    const executeHandler = async (handler: () => void | Promise<void>, handlerType: string) => {
       try {
-        await Promise.resolve(handler())
-      } catch (error) {
-        logger.error(
-          `Error during shutdown: ${error instanceof Error ? error.message : String(error)}`,
+        await handler()
+      } catch (err) {
+        this.logger.warn(
+          `Error in ${handlerType} handler: ${err instanceof Error ? err.message : String(err)}`,
         )
       }
     }
 
-    // Exit with success code
-    Deno.exit(0)
-  }
-
-  /**
-   * Clean up signal handlers
-   */
-  public cleanup(): void {
-    if (this.isShuttingDown) return
-
-    // Remove all signal handlers
-    for (const signal of this.signals) {
-      const handler = this.signalHandlers.get(signal)
-      if (handler) {
-        try {
-          Deno.removeSignalListener(signal, handler)
-          logger.debug(`Removed signal handler for ${signal}`)
-        } catch {
-          // Ignore errors when removing listeners
-        }
-      }
+    for (const [signal, handler] of this.signalHandlers.entries()) {
+      Deno.removeSignalListener(signal, handler)
+      this.signalHandlers.delete(signal)
     }
 
-    // Clear all handlers
-    this.signalHandlers.clear()
-    this.shutdownHandlers = []
-    logger.debug('Graceful shutdown handlers cleaned up')
+    await Promise.all(
+      this.cleanupHandlers.map((handler) => executeHandler(handler, 'shutdown')),
+    )
+
+    Deno.exit(isPanic ? 1 : 0)
   }
 
   /**
-   * Trigger a manual shutdown (useful for error handlers)
+   * Handle an unexpected error and trigger a shutdown
    */
-  public triggerShutdown(reason: string): void {
-    logger.error(reason)
-    this.handleShutdown('SIGTERM')
+  public panic(errorOrMessage: Error | string, ...args: unknown[]): void {
+    this.logger.error(
+      errorOrMessage instanceof Error ? errorOrMessage.message : errorOrMessage,
+      ...args,
+    )
+    this.shutdown(true)
   }
 }
 
-// Export the singleton instance
 export const gracefulShutdown = GracefulShutdown.getInstance()
 export default gracefulShutdown

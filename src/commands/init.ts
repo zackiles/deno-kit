@@ -1,7 +1,7 @@
 #!/usr/bin/env -S deno run -A
 import { type Args, parseArgs } from '@std/cli'
 import { create as createWorkspace, type Workspace } from '../workspace.ts'
-import type { CommandDefinition } from '../types.ts'
+import type { CLIRouteDefinition } from '../types.ts'
 import resolveResourcePath from '../utils/resource-path.ts'
 import logger from '../utils/logger.ts'
 import { setupOrUpdateCursorConfig } from '../utils/cursor-config.ts'
@@ -12,7 +12,7 @@ import { join } from '@std/path'
 
 const config = await loadConfig()
 
-const commandDefinition: CommandDefinition = {
+const commandDefinition: CLIRouteDefinition = {
   name: 'init',
   command: command,
   description: 'Create a new Deno-Kit project in the current or specified path',
@@ -25,8 +25,7 @@ async function command(): Promise<void> {
   // Check if kit.json already exists in the workspace
   const configFilePath = join(config.workspace, 'kit.json')
   if (await exists(configFilePath)) {
-    logger.error(`A Deno-Kit project already exists in ${config.workspace}`)
-    return
+    throw new Error(`A Deno-Kit project already exists in ${config.workspace}`)
   }
 
   const templateValues = await getTemplateValues({

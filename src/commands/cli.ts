@@ -1,13 +1,13 @@
 #!/usr/bin/env -S deno run -A
 import { type Args, parseArgs } from '@std/cli'
-import type { CommandDefinition } from '../types.ts'
+import type { CLIRouteDefinition } from '../types.ts'
 import { getMainExportPath } from '../utils/package-info.ts'
 import logger from '../utils/logger.ts'
 import loadConfig from '../config.ts'
 
 const config = await loadConfig()
 
-const commandDefinition: CommandDefinition = {
+const commandDefinition: CLIRouteDefinition = {
   name: 'run-cli',
   command: command,
   description: 'Runs the library for your project as a CLI',
@@ -39,7 +39,7 @@ async function command(): Promise<void> {
     })
     await command.spawn().status
   } catch (error) {
-    logger.error(error instanceof Error ? error.message : String(error))
+    throw new Error(error instanceof Error ? error.message : String(error))
   }
 }
 
