@@ -98,6 +98,7 @@ async function build() {
       const args = [
         'compile',
         '-A',
+        '--no-check',
         '--lock',
         '--config',
         configFile,
