@@ -8,7 +8,7 @@ import logger from './utils/logger.ts'
 import gracefulShutdown from './utils/graceful-shutdown.ts'
 
 if (import.meta.main) {
-  await gracefulShutdown.startAndWrap(run(), logger)
+  await gracefulShutdown.startAndWrap(run, logger)
 }
 
 // Optionally publish the core library of the CLI

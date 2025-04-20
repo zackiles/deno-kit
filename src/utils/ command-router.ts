@@ -1,25 +1,44 @@
 /**
- * CLI Router for handling command routing and execution.
+ * CLI Command Router for handling command routing and execution.
  *
  * @module
  */
-import { parseArgs } from '@std/cli'
-import type { CLIRouteDefinition, CLIRouteOptions } from '../types.ts'
+import { type Args, parseArgs, type ParseOptions } from '@std/cli'
+
+/**
+ * Definition of a CLI command route
+ */
+type CommandRouteDefinition = {
+  name: string
+  command: (params: CommandRouteOptions) => Promise<void> | void
+  description: string
+  options?: ParseOptions
+}
+
+/**
+ * Arguments passed to a command's execution function
+ */
+type CommandRouteOptions = {
+  /** CLI arguments parsed by std/cli */
+  args: Args
+  /** Complete list of available command routes */
+  routes: CommandRouteDefinition[]
+}
 
 /**
  * Handles CLI command routing and option parsing
  */
-class CLIRouter {
-  private routes: CLIRouteDefinition[]
+class CommandRouter {
+  private routes: CommandRouteDefinition[]
   private defaultCommand: string
 
   /**
-   * Creates a new CLI router instance
+   * Creates a new CLI command router instance
    *
    * @param commands Object mapping command names to command definitions
    * @param defaultCommand The default command to use when no command is specified
    */
-  constructor(commands: Record<string, CLIRouteDefinition>, defaultCommand = 'help') {
+  constructor(commands: Record<string, CommandRouteDefinition>, defaultCommand = 'help') {
     this.routes = Object.values(commands)
     this.defaultCommand = defaultCommand
   }
@@ -27,7 +46,7 @@ class CLIRouter {
   /**
    * Gets all available command routes
    */
-  getRoutes(): CLIRouteDefinition[] {
+  getRoutes(): CommandRouteDefinition[] {
     return this.routes
   }
 
@@ -37,7 +56,7 @@ class CLIRouter {
    * @param args Command line arguments
    * @returns The matching command definition or the default command
    */
-  getRoute(args: string[]): CLIRouteDefinition {
+  getRoute(args: string[]): CommandRouteDefinition {
     // The '_' property contains positional arguments (non-flag values) from the command line
     // We pass these to getRoute to find the appropriate command definition
     const _args = parseArgs(args)._
@@ -47,7 +66,7 @@ class CLIRouter {
         (_args.length > 1 ? this.routes.find((r) => r.name === String(_args[1])) : undefined)
       if (match) return match
     }
-    return this.routes.find((r) => r.name === this.defaultCommand) as CLIRouteDefinition
+    return this.routes.find((r) => r.name === this.defaultCommand) as CommandRouteDefinition
   }
 
   /**
@@ -56,7 +75,7 @@ class CLIRouter {
    * @param route The command definition
    * @returns Command options containing parsed arguments and routes
    */
-  getOptions(route: CLIRouteDefinition): CLIRouteOptions {
+  getOptions(route: CommandRouteDefinition): CommandRouteOptions {
     const idx = Deno.args.findIndex((arg) => arg === route.name)
     const args = idx >= 0
       ? parseArgs(Deno.args.slice(idx + 1), route.options)
@@ -69,4 +88,5 @@ class CLIRouter {
   }
 }
 
-export default CLIRouter
+export default CommandRouter
+export type { CommandRouteDefinition, CommandRouteOptions }

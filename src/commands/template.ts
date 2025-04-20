@@ -2,11 +2,11 @@
 import { type Args, parseArgs } from '@std/cli'
 import logger from '../utils/logger.ts'
 import loadConfig from '../config.ts'
-import type { CLIRouteDefinition, CLIRouteOptions } from '../types.ts'
+import type { CommandRouteDefinition, CommandRouteOptions } from '../utils/ command-router.ts'
 
 const config = await loadConfig()
 
-const commandDefinition: CLIRouteDefinition = {
+const commandRoute: CommandRouteDefinition = {
   name: 'template',
   command: command,
   description: 'An example command template',
@@ -16,8 +16,8 @@ const commandDefinition: CLIRouteDefinition = {
   },
 }
 
-async function command({ args, routes }: CLIRouteOptions): Promise<void> {
-  logger.debug(`Command ${commandDefinition.name} executed in environment ${config.DENO_ENV}`, {
+async function command({ args, routes }: CommandRouteOptions): Promise<void> {
+  logger.debug(`Command ${commandRoute.name} executed in environment ${config.DENO_ENV}`, {
     args,
     config,
     routes,
@@ -25,7 +25,7 @@ async function command({ args, routes }: CLIRouteOptions): Promise<void> {
 }
 
 if (import.meta.main) {
-  const args: Args = parseArgs(Deno.args, commandDefinition.options)
-  await commandDefinition.command({ args, routes: [commandDefinition] })
+  const args: Args = parseArgs(Deno.args, commandRoute.options)
+  await commandRoute.command({ args, routes: [commandRoute] })
 }
-export default commandDefinition
+export default commandRoute

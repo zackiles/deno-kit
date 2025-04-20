@@ -7,88 +7,32 @@
  * @see {@link https://jsr.io/@std/cli/doc/parse-args/~/Args}
  * @see {@link https://jsr.io/@std/cli/doc/~/ParseOptions}
  */
-
-import { type Args, parseArgs } from '@std/cli'
-import { walk } from '@std/fs'
-import { dirname, fromFileUrl, join } from '@std/path'
-import type { CommandDefinition, CommandOptions } from './types.ts'
-import logger from './utils/logger.ts'
+import CommandRouter from './utils/command-router.ts'
+import type { CommandRouteDefinition, CommandRouteOptions } from './utils/command-router.ts'
 
 /**
- * Dynamically loads command modules from the commands directory
+ * Static mapping of commands
+ * We explicitly import all command modules using static imports.
  */
-async function loadCommands(): Promise<CommandDefinition[]> {
-  const commands: CommandDefinition[] = []
-  const commandsDir = join(dirname(fromFileUrl(import.meta.url)), 'commands')
-
-  try {
-    for await (const entry of walk(commandsDir, {
-      includeDirs: false,
-      exts: ['.ts'],
-      skip: [/\.disabled\.ts$/, /\.disabled$/],
-    })) {
-      try {
-        // Convert the path to a file URL for import to avoid import map issues
-        const fileUrl = `file://${entry.path}`
-        const commandModule = await import(fileUrl)
-
-        if (commandModule.default &&
-            typeof commandModule.default === 'object' &&
-            'name' in commandModule.default &&
-            'command' in commandModule.default &&
-            'description' in commandModule.default) {
-          commands.push({
-            ...commandModule.default,
-            options: commandModule.default.options || {},
-          })
-        }
-      } catch (err) {
-        logger.warn(`Failed to load command from ${entry.path}: ${err instanceof Error ? err.message : String(err)}`)
-      }
-    }
-  } catch (err) {
-    throw new Error(`Failed to scan commands directory: ${err instanceof Error ? err.message : String(err)}`)
-  }
-
-  return commands
+const COMMANDS: Record<string, CommandRouteDefinition> = {
+  help: (await import('./commands/help.ts')).default,
+  version: (await import('./commands/version.ts')).default,
+  // Add more commands if needed, a template for a command is in commands/example.disabled.ts
 }
 
 /**
  * Main entry point for the CLI
  */
-export async function run(): Promise<void> {
-  // Load all available commands
-  const commands = await loadCommands()
+async function run(): Promise<void> {
+  const router = new CommandRouter(COMMANDS)
+  const route = router.getRoute(Deno.args)
 
-  // Get command name from arguments
-  const mainArgs : Args = parseArgs(Deno.args)
-  const commandName = mainArgs._[0]?.toString()
-  const command = commands.find((cmd) => cmd.name === commandName)
-
-  if (command) {
-    try {
-      // Execute command with parsed arguments
-      const commandOptions: CommandOptions = {
-        args: parseArgs(
-          commandName ? Deno.args.slice(Deno.args.indexOf(commandName) + 1) : [],
-          command.options
-        ),
-        routes: commands
-      }
-
-      await command.command(commandOptions)
-    } catch (error) {
-      throw new Error(`Error executing command: ${error instanceof Error ? error.message : String(error)}`)
-    }
-  } else if (commandName) {
-    throw new Error(`Unknown command: ${commandName}. Run with "help" to see available commands.`)
-  } else {
-    // Default to help if no command specified
-    const helpCommand = commands.find(cmd => cmd.name === 'help')
-    if (helpCommand) {
-      await helpCommand.command({ args: mainArgs, routes: commands })
-    } else {
-      throw new Error('No command specified and help command not found')
-    }
+  try {
+    const routeOptions: CommandRouteOptions = router.getOptions(route)
+    await route.command(routeOptions)
+  } catch (err) {
+    throw new Error(`Error executing command: ${err instanceof Error ? err.message : String(err)}`)
   }
 }
+
+export { run }

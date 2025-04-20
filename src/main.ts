@@ -9,8 +9,8 @@
 import loadConfig from './config.ts'
 import logger from './utils/logger.ts'
 import gracefulShutdown from './utils/graceful-shutdown.ts'
-import CLIRouter from './utils/cli-router.ts'
-import type { CLIRouteDefinition, CLIRouteOptions } from './types.ts'
+import CommandRouter from './utils/ command-router.ts'
+import type { CommandRouteDefinition, CommandRouteOptions } from './utils/ command-router.ts'
 
 const CLI_NAME = 'Deno-Kit'
 await loadConfig()
@@ -20,7 +20,7 @@ await loadConfig()
  * We explicitly import all command modules using static imports.
  * See commands/template.ts for an example command.
  */
-const COMMANDS: Record<string, CLIRouteDefinition> = {
+const COMMANDS: Record<string, CommandRouteDefinition> = {
   help: (await import('./commands/help.ts')).default,
   init: (await import('./commands/init.ts')).default,
   cli: (await import('./commands/cli.ts')).default,
@@ -37,12 +37,12 @@ const COMMANDS: Record<string, CLIRouteDefinition> = {
  * @returns {Promise<void>}
  */
 async function main(): Promise<void> {
-  const router: CLIRouter = new CLIRouter(COMMANDS)
-  const route: CLIRouteDefinition = router.getRoute(Deno.args)
+  const router: CommandRouter = new CommandRouter(COMMANDS)
+  const route: CommandRouteDefinition = router.getRoute(Deno.args)
 
   if (route) {
     try {
-      const routeOptions: CLIRouteOptions = router.getOptions(route)
+      const routeOptions: CommandRouteOptions = router.getOptions(route)
       await route.command(routeOptions)
     } catch (err) {
       throw new Error(

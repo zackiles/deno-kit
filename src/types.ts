@@ -3,26 +3,8 @@
  * @description Core type definitions for the deno-kit library
  */
 
-import type { Args, ParseOptions } from '@std/cli'
-/**
- * Arguments passed to a command's execution function
- */
-type CLIRouteOptions = {
-  /** CLI arguments parsed by std/cli */
-  args: Args
-  /** Complete list of available command routes */
-  routes: CLIRouteDefinition[]
-}
-
-/**
- * Definition of a Deno-Kit CLI command
- */
-type CLIRouteDefinition = {
-  name: string
-  command: (params: CLIRouteOptions) => Promise<void> | void
-  description: string
-  options?: ParseOptions
-}
+import type { Args } from '@std/cli'
+import type { CommandRouteDefinition } from './utils/ command-router.ts'
 
 /**
  * Type guard to validate if a module exports a valid CommandDefinition.
@@ -30,16 +12,16 @@ type CLIRouteDefinition = {
  * @param value - The value to check, typically a module's default export
  * @returns True if the value matches the CommandDefinition interface
  */
-function isCommandDefinition(value: unknown): value is CLIRouteDefinition {
+function isCommandDefinition(value: unknown): value is CommandRouteDefinition {
   return (
     !!value &&
     typeof value === 'object' &&
     'name' in value &&
-    typeof (value as CLIRouteDefinition).name === 'string' &&
+    typeof (value as CommandRouteDefinition).name === 'string' &&
     'command' in value &&
-    typeof (value as CLIRouteDefinition).command === 'function' &&
+    typeof (value as CommandRouteDefinition).command === 'function' &&
     'description' in value &&
-    typeof (value as CLIRouteDefinition).description === 'string'
+    typeof (value as CommandRouteDefinition).description === 'string'
   )
 }
 
@@ -81,5 +63,5 @@ interface TemplateValues {
   [key: string]: string
 }
 
-export type { CLIRouteDefinition, CLIRouteOptions, TemplateValues }
+export type { TemplateValues }
 export { isCommandDefinition }

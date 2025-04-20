@@ -1,7 +1,7 @@
 #!/usr/bin/env -S deno run -A
 import { type Args, parseArgs } from '@std/cli'
 import { create as createWorkspace, type Workspace } from '../workspace.ts'
-import type { CLIRouteDefinition } from '../types.ts'
+import type { CommandRouteDefinition } from '../utils/ command-router.ts'
 import resolveResourcePath from '../utils/resource-path.ts'
 import logger from '../utils/logger.ts'
 import { setupOrUpdateCursorConfig } from '../utils/cursor-config.ts'
@@ -12,7 +12,7 @@ import { join } from '@std/path'
 
 const config = await loadConfig()
 
-const commandDefinition: CLIRouteDefinition = {
+const commandRoute: CommandRouteDefinition = {
   name: 'init',
   command: command,
   description: 'Create a new Deno-Kit project in the current or specified path',
@@ -106,7 +106,7 @@ async function getGitUserEmail(workspacePath: string): Promise<string> {
 }
 
 if (import.meta.main) {
-  const args: Args = parseArgs(Deno.args, commandDefinition.options)
-  await commandDefinition.command({ args, routes: [commandDefinition] })
+  const args: Args = parseArgs(Deno.args, commandRoute.options)
+  await commandRoute.command({ args, routes: [commandRoute] })
 }
-export default commandDefinition
+export default commandRoute

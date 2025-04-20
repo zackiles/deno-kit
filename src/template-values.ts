@@ -192,10 +192,10 @@ export async function getTemplateValues({ gitName = '', gitEmail = '' }): Promis
           { clear: true },
         )
         values[key] = result || prompt.defaultValue
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error)
-        const errorStack = error instanceof Error && error.stack
-          ? error.stack
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err)
+        const errorStack = err instanceof Error && err.stack
+          ? err.stack
           : 'No stack trace available'
         logger.error(`Error in select prompt: ${errorMessage}`, errorStack)
         values[key] = prompt.defaultValue

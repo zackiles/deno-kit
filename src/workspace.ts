@@ -43,6 +43,14 @@ const DEFAULT_BACKUPS_PREFIX = 'workspace-backups-'
 const DEFAULT_WORKSPACE_CONFIG_FILE_NAME = 'workspace.json'
 
 /**
+ * Logger interface for Workspace class to use for logging operations
+ */
+type WorkspaceLogger = Record<
+  'debug' | 'info' | 'warn' | 'error' | 'log',
+  (message: string, ...args: unknown[]) => void
+>
+
+/**
  * Specification for the workspace config file that defines the workspace configuration
  */
 interface WorkspaceConfigFile {
@@ -78,6 +86,17 @@ class Workspace {
   #backups = new Map<string, string>()
 
   /**
+   * Logger instance for the Workspace class
+   */
+  static logger: WorkspaceLogger = {
+    debug: console.debug,
+    info: console.info,
+    warn: console.warn,
+    error: console.error,
+    log: console.log,
+  }
+
+  /**
    * Create a new Workspace instance
    *
    * @param options Object containing workspace configuration
@@ -88,6 +107,7 @@ class Workspace {
    * @param options.backupFiles Optional map of backup file paths to file contents
    * @param options.templateValues Optional values to replace placeholders with in template files
    * @param options.configFileName The name of the workspace configuration file
+   * @param options.logger Optional logger instance to use for logging operations
    * @private
    */
   private constructor(
@@ -99,6 +119,7 @@ class Workspace {
       backupFiles,
       templateValues,
       configFileName,
+      logger,
     }: {
       id: string
       name?: string
@@ -107,6 +128,7 @@ class Workspace {
       backupFiles?: Map<string, string>
       templateValues?: { [key: string]: string }
       configFileName: string
+      logger?: WorkspaceLogger
     },
   ) {
     this.id = id
@@ -114,6 +136,11 @@ class Workspace {
     const workspaceFilePaths = Array.from(workspaceFiles.keys())
     const templateFilePaths = Array.from(templateFiles.keys())
     const backupFilePaths = backupFiles ? Array.from(backupFiles.keys()) : []
+
+    // Set the static logger if provided
+    if (logger) {
+      Workspace.logger = logger
+    }
 
     this.path = getCommonBasePath(workspaceFilePaths)
     this.templatesPath = getCommonBasePath(templateFilePaths)
@@ -152,6 +179,7 @@ class Workspace {
    * @param options.templatesValues Optional values to replace placeholders with in template files
    * @param options.name Optional name for the workspace
    * @param options.configFileName Optional name for the configuration file, defaults to 'workspace.json'
+   * @param options.logger Optional logger instance to use for logging operations
    * @returns A new Workspace instance with an initial backup created
    * @throws Error if templatesPath doesn't exist or has no files
    * @throws Error if provided workspacePath doesn't exist or doesn't have write access
@@ -162,13 +190,20 @@ class Workspace {
     templatesValues,
     name = 'default-workspace',
     configFileName = DEFAULT_WORKSPACE_CONFIG_FILE_NAME,
+    logger,
   }: {
     workspacePath?: string
     templatesPath?: string
     templatesValues?: { [key: string]: string }
     name?: string
     configFileName?: string
+    logger?: WorkspaceLogger
   } = {}): Promise<Workspace> {
+    // Set the static logger if provided
+    if (logger) {
+      Workspace.logger = logger
+    }
+
     const currentDir = join(fromFileUrl(import.meta.url), '..')
     // Ensure the user-supplied workspace configFileName ends with .json
     configFileName = configFileName.endsWith('.json') ? configFileName : `${configFileName}.json`
@@ -222,6 +257,7 @@ class Workspace {
       templateFiles,
       ...(templatesValues && { templateValues: templatesValues }),
       configFileName,
+      ...(logger && { logger }),
     })
 
     await workspace.save()
@@ -401,7 +437,7 @@ class Workspace {
           return workspaceConfig?.name === packageConfig?.name
         } catch (error) {
           if (!(error instanceof Deno.errors.NotFound)) {
-            console.warn(
+            Workspace.logger.warn(
               `Error validating workspace path: ${path}. Unable to read package config file: ${
                 error instanceof Error ? error.message : String(error)
               }`,
@@ -478,7 +514,7 @@ class Workspace {
           await copy(path, backupPath, { preserveTimestamps: true, overwrite: true })
           backupFiles.set(backupPath, content)
         } catch (error) {
-          console.warn(
+          Workspace.logger.warn(
             `Failed to backup file ${path}: ${
               error instanceof Error ? error.message : String(error)
             }`,
@@ -510,31 +546,43 @@ class Workspace {
   }
 
   /**
-   * Runs a shell command in the workspace directory
+   * Runs a shell command in the specified directory
    *
    * @param command The command to execute (e.g. 'git', 'npm')
    * @param args Command arguments (e.g. ['config', 'user.name'])
+   * @param options.useWorkspacePath If true, uses the workspace path; if false, uses current directory
    * @returns The trimmed stdout output of the command
    * @throws Error If the command fails to execute or produces stderr output
    * @example
    * ```ts
-   * const output = await workspace.runCommand('git', ['status'])
+   * // Instance usage (uses workspace.path)
+   * const output = await workspace.runCommand('git', ['status']);
+   *
+   * // Static usage (uses current directory)
+   * const output = await Workspace.runCommand('git', ['status']);
    * ```
    */
-  async runCommand(command: string, args: string[] = []): Promise<string> {
-    if (await isBannedDirectory(this.path)) {
-      throw new Error(`Cannot run command in banned directory: ${this.path}`)
+  static async runCommand(
+    command: string,
+    args: string[] = [],
+    options?: { useWorkspacePath?: boolean },
+  ): Promise<string> {
+    // biome-ignore lint/complexity/noThisInStatic: Required for dual static/instance functionality
+    const path = options?.useWorkspacePath ? (this as unknown as Workspace).path : Deno.cwd()
+
+    if (await isBannedDirectory(path)) {
+      throw new Error(`Cannot run command in banned directory: ${path}`)
     }
 
-    const options = {
+    const cmdOptions = {
       args,
       stdout: 'piped',
       stderr: 'piped',
-      cwd: this.path,
+      cwd: path,
     } as const
 
     try {
-      const { stdout, stderr } = await new Deno.Command(command, options).output()
+      const { stdout, stderr } = await new Deno.Command(command, cmdOptions).output()
       const decoder = new TextDecoder()
 
       const error = decoder.decode(stderr).trim()
@@ -545,34 +593,83 @@ class Workspace {
       const errorMessage = error instanceof Error
         ? `${error.message}${error.stack ? `\nStack trace: ${error.stack}` : ''}`
         : String(error)
-      throw new Error(`Failed to execute command in workspace '${command}': ${errorMessage}`)
+      throw new Error(
+        `Failed to execute command ${
+          options?.useWorkspacePath ? 'in workspace' : ''
+        } '${command}': ${errorMessage}`,
+      )
     }
+  }
+
+  // Instance method implementation
+  runCommand(command: string, args: string[] = []): Promise<string> {
+    return Workspace.runCommand.call(this, command, args, { useWorkspacePath: true })
   }
 
   /**
    * Gets the git user name from git config
    *
+   * @param options.useWorkspacePath If true, uses the workspace path; if false, uses current directory
    * @returns The git user name or empty string if not found
+   * @example
+   * ```ts
+   * // Instance usage (uses workspace.path)
+   * const name = await workspace.getGitUserName();
+   *
+   * // Static usage (uses current directory)
+   * const name = await Workspace.getGitUserName();
+   * ```
    */
-  getGitUserName = async (): Promise<string> => {
+  static async getGitUserName(options?: { useWorkspacePath?: boolean }): Promise<string> {
     try {
-      return await this.runCommand('git', ['config', 'user.name'])
+      return await Workspace.runCommand.call(
+        // biome-ignore lint/complexity/noThisInStatic: Required for dual static/instance functionality
+        this,
+        'git',
+        ['config', 'user.name'],
+        options,
+      )
     } catch (_) {
       return ''
     }
   }
 
+  // Instance method implementation
+  getGitUserName(): Promise<string> {
+    return Workspace.getGitUserName.call(this, { useWorkspacePath: true })
+  }
+
   /**
    * Gets the git user email from git config
    *
+   * @param options.useWorkspacePath If true, uses the workspace path; if false, uses current directory
    * @returns The git user email or empty string if not found
+   * @example
+   * ```ts
+   * // Instance usage (uses workspace.path)
+   * const email = await workspace.getGitUserEmail();
+   *
+   * // Static usage (uses current directory)
+   * const email = await Workspace.getGitUserEmail();
+   * ```
    */
-  getGitUserEmail = async (): Promise<string> => {
+  static async getGitUserEmail(options?: { useWorkspacePath?: boolean }): Promise<string> {
     try {
-      return await this.runCommand('git', ['config', 'user.email'])
+      return await Workspace.runCommand.call(
+        // biome-ignore lint/complexity/noThisInStatic: Required for dual static/instance functionality
+        this,
+        'git',
+        ['config', 'user.email'],
+        options,
+      )
     } catch (_) {
       return ''
     }
+  }
+
+  // Instance method implementation
+  getGitUserEmail(): Promise<string> {
+    return Workspace.getGitUserEmail.call(this, { useWorkspacePath: true })
   }
 
   /**
@@ -600,7 +697,7 @@ class Workspace {
 
     // Check if file exists when create=false
     if (!create && !await exists(absolutePath)) {
-      console.warn(`File does not exist and create=false: ${absolutePath}`)
+      Workspace.logger.warn(`File does not exist and create=false: ${absolutePath}`)
       return
     }
 
@@ -645,6 +742,12 @@ class Workspace {
     if (templatesMap.size === 0) {
       throw new Error(
         'No template files available to compile. Please provide template files or ensure the workspace has templates.',
+      )
+    }
+
+    if (templateValues && Object.keys(templateValues).length === 0) {
+      throw new Error(
+        'No template values provided. Please provide template values either during workspace creation or when calling compileAndWriteTemplates.',
       )
     }
 
@@ -802,7 +905,7 @@ class Workspace {
             const content = await Deno.readTextFile(path)
             workspaceFiles.set(path, content)
           } catch (error) {
-            console.warn(`Failed to read workspace file ${path}: ${error}`)
+            Workspace.logger.warn(`Failed to read workspace file ${path}: ${error}`)
           }
         }),
         // Load template files
@@ -811,7 +914,7 @@ class Workspace {
             const content = await Deno.readTextFile(path)
             templateFiles.set(path, content)
           } catch (error) {
-            console.warn(`Failed to read template file ${path}: ${error}`)
+            Workspace.logger.warn(`Failed to read template file ${path}: ${error}`)
           }
         }),
         // Load backup files
@@ -820,7 +923,7 @@ class Workspace {
             const content = await Deno.readTextFile(path)
             backupFiles.set(path, content)
           } catch (error) {
-            console.warn(`Failed to read backup file ${path}: ${error}`)
+            Workspace.logger.warn(`Failed to read backup file ${path}: ${error}`)
           }
         }),
       ])
@@ -905,4 +1008,4 @@ class Workspace {
 }
 
 export const { create, load, isConfigFile } = Workspace
-export type { Workspace, WorkspaceConfigFile }
+export type { Workspace, WorkspaceConfigFile, WorkspaceLogger }
