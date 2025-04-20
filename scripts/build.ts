@@ -9,7 +9,6 @@
 
 import { join } from '@std/path'
 import { Uint8ArrayReader, Uint8ArrayWriter, ZipWriter } from '@zip-js/zip-js'
-import resolveResourcePath from '../src/utils/resource-path.ts'
 
 /**
  * Creates a zip file from a binary file
@@ -71,6 +70,7 @@ async function build() {
     const bannedDirsFile = 'src/utils/banned_directories_default.jsonc'
     const bannedDirsCustomFile = 'src/utils/banned_directories_custom.jsonc'
 
+    console.log(`Current working directory: ${Deno.cwd()}`)
     console.log(`Source: ${sourceFile}`)
     console.log(`Output directory: ${absoluteOutputDir}`)
     console.log(`Config: ${configFile}`)
@@ -109,8 +109,6 @@ async function build() {
         configFile,
         '--target',
         platform.target,
-        // Add a special flag to ignore all TypeScript errors in templates
-        '--no-remote',
         '--include',
         templatesDir,
         '--include',
