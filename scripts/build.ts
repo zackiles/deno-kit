@@ -67,6 +67,9 @@ async function build() {
     // This ensures consistent behavior between local and GitHub Actions environments
     const templatesDir = join(Deno.cwd(), 'src', 'templates')
 
+    // Use a relative path specifically for the --include flag
+    const templatesDirRelativeInclude = 'src/templates'
+
     const bannedDirsFile = 'src/utils/banned_directories_default.jsonc'
     const bannedDirsCustomFile = 'src/utils/banned_directories_custom.jsonc'
 
@@ -74,7 +77,8 @@ async function build() {
     console.log(`Source: ${sourceFile}`)
     console.log(`Output directory: ${absoluteOutputDir}`)
     console.log(`Config: ${configFile}`)
-    console.log(`Templates directory: ${templatesDir}`)
+    console.log(`Templates directory (absolute): ${templatesDir}`)
+    console.log(`Templates directory (relative for include): ${templatesDirRelativeInclude}`)
 
     // Define the different platform targets
     const targets = [
@@ -109,8 +113,9 @@ async function build() {
         configFile,
         '--target',
         platform.target,
+        '--no-remote',
         '--include',
-        templatesDir,
+        templatesDirRelativeInclude,
         '--include',
         bannedDirsFile,
         '--include',
