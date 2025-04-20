@@ -80,6 +80,7 @@ async function build() {
     const templatesDir = join(Deno.cwd(), 'src', 'templates')
 
     // Use a relative path specifically for the --include flag
+    // Add a trailing slash to ensure it's treated as a directory resource
     const templatesDirRelativeInclude = './src/templates/'
 
     const bannedDirsFile = 'src/utils/banned_directories_default.jsonc'
@@ -135,15 +136,29 @@ async function build() {
       const args = [
         'compile',
         '-A',
+        '--unstable',
         '--no-check',
         '--lock',
         '--config',
         configFile,
         '--target',
         platform.target,
-        //'--no-remote',
+        // Including each template subdirectory separately
+        // This treats them more as data resources than code modules
         '--include',
-        templatesDirRelativeInclude,
+        './src/templates/shared/',
+        '--include',
+        './src/templates/cli/',
+        '--include',
+        './src/templates/sse-server/',
+        '--include',
+        './src/templates/websocket-server/',
+        '--include',
+        './src/templates/http-server/',
+        '--include',
+        './src/templates/library/',
+        '--include',
+        './src/templates/mcp-server/',
         '--include',
         bannedDirsFile,
         '--include',
