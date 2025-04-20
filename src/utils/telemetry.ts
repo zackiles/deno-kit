@@ -134,12 +134,8 @@ class Logger {
   ): void {
     if (!this.shouldLog(level)) return
 
-    const message = messageOrError instanceof Error
-      ? messageOrError.message
-      : messageOrError
-    const errorToLog = messageOrError instanceof Error
-      ? messageOrError
-      : data?.error
+    const message = messageOrError instanceof Error ? messageOrError.message : messageOrError
+    const errorToLog = messageOrError instanceof Error ? messageOrError : data?.error
 
     // Create a clean version of the data object without the Error instances
     const cleanData: Record<string, unknown> = {}
@@ -271,9 +267,7 @@ async function withSpan<T>(
         return result
       } catch (error) {
         // Record error details to the span
-        const errorObj = error instanceof Error
-          ? error
-          : new Error(String(error))
+        const errorObj = error instanceof Error ? error : new Error(String(error))
         span.recordException(errorObj)
         span.setStatus({ code: 2 }) // ERROR status
         logger.error(`Error in span ${name}`, {

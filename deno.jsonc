@@ -1,7 +1,7 @@
 {
   // Schema deno.jsonc: @https://github.com/denoland/deno/blob/main/cli/schemas/config-file.v1.json
   "name": "@deno-kit/kit",
-  "version": "0.0.17",
+  "version": "0.0.18",
   "description": "The modern, unopinionated, and AI-native way to quickly scaffold and maintain Deno projects.",
   "license": "MIT",
   "author": "Zachary Iles <zack.iles@gmail.com>",
@@ -13,8 +13,7 @@
   "tasks": {
     "tests": "deno test -A",
     "kit": "deno run -A src/main.ts",
-    "pre-publish": "deno fmt && deno check -r src/ && deno lint",
-    "bump-version": "deno run -A scripts/bump-version.ts",
+    "pre-publish": "deno run -A scripts/pre-publish.ts",
     "test:build": "deno test -A test/build.test.ts",
     "build": "deno run -A scripts/build.ts",
     // Ideally ran from the Github action workflow
@@ -40,7 +39,8 @@
     "@std/jsonc": "jsr:@std/jsonc@1",
     "@std/net": "jsr:@std/net@1",
     "@std/testing": "jsr:@std/testing@1",
-    "@deno-kit/module-to-cli": "jsr:@deno-kit/module-to-cli@0"
+    "@deno-kit/module-to-cli": "jsr:@deno-kit/module-to-cli@0",
+    "@zip-js/zip-js": "jsr:@zip-js/zip-js@2"
     // </@deno-kit IMPORTS END>
   },
   "unstable": [

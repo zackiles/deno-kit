@@ -2,8 +2,6 @@
  * @module types
  * @description Core type definitions for the deno-kit library
  */
-
-import type { Args } from '@std/cli'
 import type { CommandRouteDefinition } from './utils/ command-router.ts'
 
 /**

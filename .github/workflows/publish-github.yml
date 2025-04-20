@@ -1,0 +1,51 @@
+name: Publish to GitHub Releases
+
+on:
+  workflow_run:
+    workflows: ["Publish to JSR"]
+    types:
+      - completed
+    # We can't specify tags here, so we'll filter in the job
+    # using github.event.workflow_run.head_branch
+
+jobs:
+  build-release:
+    # Only run if the publish-jsr workflow succeeded and it was triggered by a tag
+    if: ${{ github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.head_branch, 'refs/tags/v') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Build binaries
+        run: deno run -A ./scripts/build.ts bin
+
+      - name: Get version from tag
+        id: get_version
+        run: |
+          # Extract the tag name from the triggering workflow
+          TAG_NAME=$(echo "${{ github.event.workflow_run.head_branch }}" | sed -e 's|^refs/tags/||')
+          echo "VERSION=${TAG_NAME}" >> $GITHUB_OUTPUT
+          echo "Using version: ${TAG_NAME}"
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Release ${{ steps.get_version.outputs.VERSION }}
+          draft: false
+          prerelease: false
+          files: bin/*.zip
+          token: ${{ secrets.GITHUB_TOKEN }}
+          generate_release_notes: true

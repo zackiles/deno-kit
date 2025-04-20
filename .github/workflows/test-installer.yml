@@ -1,0 +1,84 @@
+name: Test Installer
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.gitignore'
+
+jobs:
+  test-installer:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Fetch all history for build script or other tools that might need it
+          fetch-depth: 0
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Get tag name
+        id: get_tag
+        run: |
+          TAG_NAME=$(echo "${{ github.ref }}" | sed -e 's|^refs/tags/||')
+          echo "TAG=${TAG_NAME}" >> $GITHUB_OUTPUT
+          echo "Testing tag: ${TAG_NAME}"
+
+      - name: Build binaries for current tag
+        id: build
+        run: |
+          deno task build
+          # Determine the expected binary name for the runner
+          # Assuming runner is linux-x86_64 based on ubuntu-latest
+          BUILD_ARCHIVE="bin/deno-kit-linux-x86_64.zip"
+          if [ -f "$BUILD_ARCHIVE" ]; then
+            echo "BUILD_ARCHIVE=${BUILD_ARCHIVE}" >> $GITHUB_OUTPUT
+            echo "Build successful: $BUILD_ARCHIVE"
+          else
+            echo "::error::Expected build archive not found: $BUILD_ARCHIVE"
+            exit 1
+          fi
+
+      - name: Test installer with locally built artifact
+        run: |
+          echo "Testing installer with locally built artifact: ${{ steps.build.outputs.BUILD_ARCHIVE }}"
+          chmod +x install.sh
+
+          # Test installation using the built zip
+          ./install.sh --source-file=${{ steps.build.outputs.BUILD_ARCHIVE }} --path=/tmp/deno-kit-test-local
+
+          # Verify binary was installed
+          INSTALL_PATH="/tmp/deno-kit-test-local/deno-kit"
+          if [ -f "$INSTALL_PATH" ]; then
+            echo "✅ Installation successful: $INSTALL_PATH"
+            # Verify it runs and reports the correct version (matches tag)
+            chmod +x "$INSTALL_PATH"
+            INSTALLED_VERSION=$("$INSTALL_PATH" --version)
+            EXPECTED_VERSION="${{ steps.get_tag.outputs.TAG }}"
+            # Compare versions, removing potential 'v' prefix from tag for comparison
+            if [ "$(echo $INSTALLED_VERSION | sed 's/^v//')" = "$(echo $EXPECTED_VERSION | sed 's/^v//')" ]; then
+                echo "✅ Binary version matches tag: $INSTALLED_VERSION"
+            else
+                echo "❌ Binary version mismatch! Expected: $EXPECTED_VERSION, Got: $INSTALLED_VERSION"
+                exit 1
+            fi
+          else
+            echo "❌ Installation failed - binary not found at $INSTALL_PATH"
+            exit 1
+          fi
+
+          # Test uninstallation
+          ./install.sh --uninstall --path=/tmp/deno-kit-test-local
+          if [ ! -f "$INSTALL_PATH" ]; then
+            echo "✅ Uninstallation successful"
+          else
+            echo "❌ Uninstallation failed - binary still exists at $INSTALL_PATH"
+            exit 1
+          fi

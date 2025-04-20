@@ -12,10 +12,8 @@
   },
   "tasks": {
     "dev": "deno run -A scripts/dev.ts",
-    "test": "deno test -A",
-    "pre-publish": "deno fmt && deno check -r src/ && deno lint",
-    "kit:help": "deno run -A jsr:@deno-kit/kit help",
-    "kit": "deno run -A jsr:@deno-kit/kit"
+    "test": "deno test -A src/test",
+    "pre-publish": "deno fmt && deno check -r src/ && deno lint"
   },
   // Import maps. Prefer import "@scope/package" syntax in code.
   // NOTE: uses the import maps standard see https://github.com/WICG/import-maps

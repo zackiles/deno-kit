@@ -1,3 +1,4 @@
 docs
 deno.lock
 .vscode/**
+assets/**

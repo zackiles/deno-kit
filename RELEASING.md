@@ -1,151 +1,79 @@
-# Releasing @deno-kit/kit
+# Releasing Deno Kit
 
-This document describes the process for building and releasing new versions of the `@deno-kit/kit` library to JSR.
+This document describes the automated process for releasing new versions of Deno Kit, typically from the `main` branch. Releases are handled automatically via GitHub Actions when a version tag is pushed.
 
-## Prerequisites
+## Development Workflow
 
-- Access to the GitHub repository with push permissions
-- JSR publish token (for manual publishing only)
-- Deno 2.0 or newer installed
+Before releasing, the typical development workflow is:
 
-## Release Process
+1.  **Feature Branches:** Create branches off `main` for new features or fixes (e.g., `feat/my-feature`, `fix/my-bug`).
+2.  **Pull Requests:** Submit Pull Requests to merge completed feature/fix branches back into `main`.
+3.  **`main` Branch:** Keep the `main` branch stable and representing the code intended for the *next* release.
 
-### 1. Prepare for Release
+## Release Workflow (Triggered by Tag Push)
 
-1. Ensure all changes are committed and pushed to the main branch
-2. Make sure all tests pass:
+The release process is triggered **solely by pushing a Git tag** from your local machine to the remote repository. This tag should follow Semantic Versioning, be prefixed with `v` (e.g., `v1.0.0`, `v1.2.3`), and typically point to a commit on the `main` branch.
 
-   ```bash
-   deno task test
-   ```
+The tag push triggers the first workflow defined in `.github/workflows/test-installer.yml` (due to its `on: push: tags:` configuration). Subsequent workflows are triggered upon the successful completion of the previous one, using `on: workflow_run:` configurations in `.github/workflows/publish-jsr.yml` and `.github/workflows/publish-github.yml`.
 
-3. Check that the code passes linting and formatting:
+Here's the automated workflow sequence:
 
-   ```bash
-   deno lint
-   deno fmt --check
-   ```
+1.  **Push a Tag:** A developer pushes a new version tag (e.g., `git push origin vX.Y.Z`) pointing to the desired release commit on `main`.
+2.  **Trigger `Test Installer` Workflow (`test-installer.yml`):**
+    *   Checks out the code at the specific tag.
+    *   Builds the `deno-kit` binary for Linux x86_64 using `deno task build`.
+    *   Tests the `install.sh` script by running it with the `--source-file` flag pointing to the just-built binary archive.
+    *   Verifies that the installed binary executes and reports the correct version (matching the tag).
+    *   Tests the uninstallation using `install.sh --uninstall`.
+3.  **Trigger `Publish to JSR` Workflow (`publish-jsr.yml`):**
+    *   Runs *only if* the `Test Installer` workflow succeeds.
+    *   Checks out the code at the specific tag.
+    *   Publishes the package to JSR using `npx jsr publish --no-check`.
+        *   **Note:** `--no-check` bypasses local Deno/JSR checks (lint, fmt, etc.). Ensure these pass locally before tagging.
+4.  **Trigger `Publish to GitHub Releases` Workflow (`publish-github.yml`):**
+    *   Runs *only if* the `Publish to JSR` workflow succeeds.
+    *   Checks out the code at the specific tag.
+    *   Builds binaries for all supported platforms (macOS, Windows, Linux) using `deno task build`.
+    *   Creates a new GitHub Release named after the tag (e.g., "Release vX.Y.Z").
+    *   Attaches the built binary `.zip` archives to the GitHub Release.
+    *   Automatically generates release notes based on commit messages between the new tag and the previous tag.
 
-### 2. Bump Version
+## How to Release a New Version
 
-1. Update the version in `deno.jsonc`:
-   - Increment according to [semver](https://semver.org/) rules:
-     - PATCH (0.0.x) for backwards-compatible bug fixes
-     - MINOR (0.x.0) for backwards-compatible new features
-     - MAJOR (x.0.0) for backwards-incompatible changes
-2. Commit the version change:
+1.  **Ensure `main` is Stable:** Make sure the `main` branch is up-to-date and contains all changes intended for the release. Pull the latest changes (`git checkout main && git pull origin main`).
+2.  **Run Local Checks:** Verify tests, linting, formatting, and type-checking pass locally on the `main` branch using the defined Deno tasks:
+    ```bash
+    # Run linters, formatters, and type checks
+    deno task pre-publish
 
-   ```bash
-   git add deno.jsonc
-   git commit -m "chore: bump version to X.Y.Z"
-   ```
+    # Run all tests
+    deno task tests
+    ```
+3.  **Update Version (if necessary):** Although not strictly enforced by the automation itself (JSR uses the version from `deno.jsonc`), it's crucial to update the `version` field in `deno.jsonc` according to [SemVer](https://semver.org/) rules *before* tagging.
+    ```bash
+    # Example: Update deno.jsonc manually or using a tool
+    git add deno.jsonc
+    git commit -m "chore: bump version to X.Y.Z"
+    git push origin main
+    ```
+4.  **Create and Push Tag:** Create an annotated tag (recommended) or a lightweight tag for the desired version on the commit you want to release (usually the latest commit on `main`).
+    ```bash
+    # Ensure your local main branch is up-to-date
+    git checkout main
+    git pull origin main
 
-3. Rebase on the latest main branch to incorporate any recent changes:
+    # Create the tag (use the version from deno.jsonc)
+    git tag vX.Y.Z
 
-   ```bash
-   git pull --rebase origin main
-   ```
+    # Push the tag to trigger the release workflows
+    git push origin vX.Y.Z
+    ```
+5.  **Monitor Workflows:** Check the "Actions" tab in the GitHub repository to monitor the progress of the `Test Installer`, `Publish to JSR`, and `Publish to GitHub Releases` workflows. Address any failures.
 
-4. Push the changes to the main branch:
+## Important Considerations
 
-   ```bash
-   git push origin main
-   ```
-
-### 3. Build (if needed)
-
-If you need to build the executable for local testing:
-
-```bash
-deno run -A scripts/build.ts
-```
-
-This will create the `kit` executable in the project workspace.
-
-### 4. Publish to JSR
-
-#### Automated Publishing via GitHub Actions (Recommended)
-
-The project uses a GitHub Actions workflow that automatically publishes to JSR when a new tag is pushed.
-
-1. Create and push a new tag matching the semver pattern:
-
-   ```bash
-   git tag vX.Y.Z
-   git push origin vX.Y.Z
-   ```
-
-2. The workflow will:
-   - Check out the repository
-   - Set up Deno
-   - Run the bump-version task to update version references in README.md
-   - Commit and push the README.md changes back to the main branch
-   - Publish the package to JSR using `npx jsr publish`
-
-You can monitor the progress in the "Actions" tab of the GitHub repository.
-
-#### Manual Publishing
-
-If you need to publish manually:
-
-1. Ensure you have a JSR token:
-
-   ```bash
-   deno login
-   ```
-
-2. Run the version bump script:
-
-   ```bash
-   deno task bump-version
-   ```
-
-3. Publish to JSR:
-
-   ```bash
-   npx jsr publish
-   ```
-
-   or
-
-   ```bash
-   deno publish
-   ```
-
-### 5. Post-Release
-
-1. Create a GitHub release:
-   - Go to the repository's "Releases" section
-   - Click "Draft a new release"
-   - Select the tag you just pushed
-   - Add release notes describing the changes
-   - Attach any built binaries if applicable
-
-2. Announce the release in appropriate channels
-
-## Troubleshooting
-
-### Publishing Issues
-
-If you encounter publishing errors:
-
-1. Verify your JSR token is valid (for manual publishing)
-2. Check that the version in `deno.jsonc` hasn't already been published
-3. Ensure the `publish` section in `deno.jsonc` includes all necessary files
-4. Check the GitHub Actions logs for detailed error information
-
-### GitHub Actions Issues
-
-If the GitHub Actions workflow fails:
-
-1. Check the workflow logs in the "Actions" tab
-2. Ensure the tag format matches the expected pattern `v[0-9]+.[0-9]+.[0-9]+`
-3. Verify that the workflow has the necessary permissions to push changes and publish
-
-### Build Issues
-
-If the build script fails:
-
-1. Check Deno permissions
-2. Verify the project structure matches what the build script expects
-3. Check for OS compatibility (the script supports macOS, Windows, and Linux).
+*   **Tag Format:** Tags MUST start with `v` followed by a valid SemVer string (e.g., `v1.0.0`).
+*   **`jsr publish --no-check`:** The JSR publish step currently skips local checks. It's **essential** to run these checks (`deno task test`, `deno task lint`, `deno task fmt`) *before* pushing the tag.
+*   **Commit Messages:** Use conventional commit messages (e.g., `feat: ...`, `fix: ...`, `chore: ...`) for meaningful auto-generated GitHub Release notes.
+*   **Build Script:** The release process relies on `./scripts/build.ts` running correctly and producing the expected zipped binaries in the `bin/` directory.
+*   **Manual Intervention:** Do not manually publish to JSR or create GitHub Releases for versions intended to go through this automated flow, as it can interfere with the process or lead to inconsistencies. If a workflow fails, investigate the cause and potentially re-run the failed jobs or push a corrected tag if necessary.

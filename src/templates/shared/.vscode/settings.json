@@ -67,6 +67,7 @@
     "fseventsd",
     "modelcontextprotocol",
     "rwxr",
-    "pids"
+    "pids",
+    "USERPROFILE"
   ]
 }

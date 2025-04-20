@@ -8,7 +8,7 @@ import loadConfig from '../config.ts'
 const config = await loadConfig()
 
 const commandRoute: CommandRouteDefinition = {
-  name: 'run-cli',
+  name: 'cli',
   command: command,
   description: 'Runs the library for your project as a CLI',
   options: {

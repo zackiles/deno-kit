@@ -19,7 +19,7 @@ The `bin/` directory is used to store compiled binaries, vendored files, and exe
 ## **How Files In this Directory are Used**
 
 - Store binaries and executables that don't require or benefit from Deno tooling.
-- House compiled output from `deno compile` operations.
+- Store compiled output from `deno compile` operations.
 - Contain vendored dependencies or tools that should remain unmodified.
 - Store executables that are called from {PROJECT_NAME} source files using Deno.command().
 - Maintain compiled release builds of {PROJECT_NAME} for distribution.
