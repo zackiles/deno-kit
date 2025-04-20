@@ -1,12 +1,12 @@
-# **{{PACKAGE_NAME}}**
+# **{PACKAGE_NAME}**
 
-[![JSR Score](https://jsr.io/badges/{{PACKAGE_NAME}}/score)](https://jsr.io/{{PACKAGE_NAME}})
-[![JSR](https://jsr.io/badges/{{PACKAGE_SCOPE}}/1.%20Clone%20this%20repository)](https://jsr.io/{{PACKAGE_NAME}})
-[![JSR Scope](https://jsr.io/badges/{{PACKAGE_SCOPE}})](https://jsr.io/{{PACKAGE_SCOPE}})
-[![ci](https://github.com/{{PACKAGE_GITHUB_USER}}/{{PROJECT_NAME}}/actions/workflows/ci.yml/badge.svg)](https://github.com/{{PACKAGE_GITHUB_USER}}/{{PROJECT_NAME}}/actions/workflows/ci.yml)
-[![license](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/{{PACKAGE_GITHUB_USER}}/{{PROJECT_NAME}}/blob/main/LICENSE)
+[![JSR Score](https://jsr.io/badges/{PACKAGE_NAME}/score)](https://jsr.io/{PACKAGE_NAME})
+[![JSR](https://jsr.io/badges/{PACKAGE_SCOPE}/1.%20Clone%20this%20repository)](https://jsr.io/{PACKAGE_NAME})
+[![JSR Scope](https://jsr.io/badges/{PACKAGE_SCOPE}})](https://jsr.io/{PACKAGE_SCOPE}})
+[![ci](https://github.com/{PACKAGE_GITHUB_USER}/{PROJECT_NAME}/actions/workflows/ci.yml/badge.svg)](https://github.com/{PACKAGE_GITHUB_USER}/{PROJECT_NAME}/actions/workflows/ci.yml)
+[![license](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/{PACKAGE_GITHUB_USER}/{PROJECT_NAME}/blob/main/LICENSE)
 
-{{PACKAGE_DESCRIPTION}}
+{PACKAGE_DESCRIPTION}
 
 > [!NOTE]  
 > This is a **new** project and the documentation is unlikely to be comprehensive or accurate.
@@ -16,17 +16,17 @@
 ```bash
 
 # Install globally
-deno install -A --global {{PROJECT_NAME}}
+deno install -A --global {PACKAGE_NAME}
 
 # Run directly with Deno
-deno run -A {{PROJECT_NAME}} [command] [options]
+deno run -A {PACKAGE_NAME} [command] [options]
 
 # Then use the CLI
-{{PROJECT_NAME}} --help
-{{PROJECT_NAME}} --version
+{PACKAGE_NAME} --help
+{PACKAGE_NAME} --version
 ```
 
-An example template of a command you can use can be found in `commands/example.disabled.ts`
+An example template of a command you can use can be found in `src/commands/example.disabled.ts`
 
 ## Features
 

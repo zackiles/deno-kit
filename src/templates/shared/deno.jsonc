@@ -11,7 +11,7 @@
     "url": "https://github.com/{PACKAGE_GITHUB_USER}/{PROJECT_NAME}.git"
   },
   "tasks": {
-    "dev": "deno run -A @deno-kit/kit --watch src/main.ts",
+    "dev": "deno run -A scripts/dev.ts",
     "test": "deno test -A",
     "pre-publish": "deno fmt && deno check -r src/ && deno lint",
     "kit:help": "deno run -A jsr:@deno-kit/kit help",

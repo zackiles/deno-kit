@@ -10,7 +10,7 @@ const commandDefinition: CommandDefinition = {
 }
 
 async function command(): Promise<void> {
-  logger.print("{{PACKAGE_VERSION}}")
+  logger.print("{PACKAGE_VERSION}")
 }
 
 if (import.meta.main) {

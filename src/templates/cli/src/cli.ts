@@ -35,4 +35,4 @@ async function run(): Promise<void> {
   }
 }
 
-export { run }
+export default run
