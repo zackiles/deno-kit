@@ -5,7 +5,7 @@
 .env
 .deno-kit/templates/*.backup
 coverage
-build
+bin
 
 .vscode-test
 .DS_Store
