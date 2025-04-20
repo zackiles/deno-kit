@@ -6,41 +6,35 @@
  */
 
 import { join } from '@std/path'
-import loadConfig from '../src/config.ts'
+import resolveResourcePath from '../src/utils/resource-path.ts'
 
 async function build() {
-  console.log('Building kit executable...')
+  console.log('Cleaning Deno cache...')
+  const cleanCommand = new Deno.Command(Deno.execPath(), {
+    args: ['cache', '--reload'],
+    stdout: 'inherit',
+    stderr: 'inherit',
+  })
+  await cleanCommand.spawn().status
+
+  console.log('Starting build process...')
 
   try {
-    // Get project configuration
-    const config = await loadConfig()
+    // Add an argument for the output directory
+    const outputDir = Deno.args[0] || 'build'
 
     // Define the source file (kit.ts)
-    const sourceFile = join(config.DENO_KIT_DIR, 'kit.ts')
+    const sourceFile = join(Deno.cwd(), 'src', 'main.ts')
 
-    // Define the output file path
-    const outputFile = join(config.DENO_KIT_WORKSPACE, 'kit')
+    // Use Deno.args[0] directly if it exists
+    const outputFile = Deno.args[0] ? join(Deno.args[0], 'kit') : join(Deno.cwd(), outputDir, 'kit')
 
     // Define the config file path
-    const configFile = join(config.DENO_KIT_DIR, 'deno.jsonc')
+    const configFile = join(Deno.cwd(), 'deno.jsonc')
 
     console.log(`Source: ${sourceFile}`)
     console.log(`Output: ${outputFile}`)
     console.log(`Config: ${configFile}`)
-
-    // First, create a temporary version of kit.ts with absolute paths
-    const tempKitPath = join(config.DENO_KIT_DIR, 'kit.temp.ts')
-    const kitContent = await Deno.readTextFile(sourceFile)
-
-    // Replace the relative path with an absolute path to main.ts
-    const mainTsPath = join(config.DENO_KIT_DIR, 'main.ts')
-    const modifiedContent = kitContent.replace(
-      "'.deno-kit/main.ts'",
-      `'${mainTsPath}'`,
-    )
-
-    await Deno.writeTextFile(tempKitPath, modifiedContent)
-    console.log('✅ Created temporary kit file with absolute paths')
 
     // Determine the target based on the OS
     let target = ''
@@ -59,20 +53,37 @@ async function build() {
 
     console.log(`Using target: ${target}`)
 
-    // Compile the temporary kit.ts file
+    // Resolve the path to the templates directory
+    const templatesDir = await resolveResourcePath('src/templates')
+
+    // Resolve the path to the banned directories file
+    const bannedDirsFile = 'src/utils/banned_directories_default.jsonc'
+    const bannedDirsCustomFile = 'src/utils/banned_directories_custom.jsonc'
+
+    // Define the deno config file path
+    const denoConfigFile = 'deno.jsonc'
+
+    // Compile the source file into a binary
     const command = new Deno.Command(Deno.execPath(), {
       args: [
         'compile',
-        '-A',
+        '--allow-all',
+        '--no-check',
         '--config',
         configFile,
         '--target',
         target,
         '--include',
-        
+        templatesDir,
+        '--include',
+        bannedDirsFile,
+        '--include',
+        bannedDirsCustomFile,
+        '--include',
+        denoConfigFile,
         '--output',
         outputFile,
-        tempKitPath,
+        sourceFile,
       ],
       stdout: 'inherit',
       stderr: 'inherit',
@@ -81,14 +92,6 @@ async function build() {
     // Spawn the process and wait for it to complete
     const process = command.spawn()
     const status = await process.status
-
-    // Clean up the temporary file
-    try {
-      await Deno.remove(tempKitPath)
-      console.log('✅ Cleaned up temporary files')
-    } catch (error) {
-      console.warn('Warning: Failed to clean up temporary file:', error)
-    }
 
     if (status.success) {
       console.log('✅ Build completed successfully!')

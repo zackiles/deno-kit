@@ -65,6 +65,8 @@
     "dbus",
     "dockerenv",
     "fseventsd",
-    "modelcontextprotocol"
+    "modelcontextprotocol",
+    "rwxr",
+    "pids"
   ]
 }
