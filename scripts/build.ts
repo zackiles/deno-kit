@@ -40,6 +40,18 @@ async function createZipFile(sourcePath: string, targetPath: string): Promise<vo
 async function build() {
   console.log('Starting build process...')
 
+  // Function to recursively list all files in a directory
+  async function listFilesRecursively(dir: string, indent = '') {
+    for await (const entry of Deno.readDir(dir)) {
+      const entryPath = join(dir, entry.name)
+      console.log(`${indent}${entry.isDirectory ? '📁' : '📄'} ${entry.name}`)
+
+      if (entry.isDirectory) {
+        await listFilesRecursively(entryPath, `${indent}  `)
+      }
+    }
+  }
+
   try {
     const outputDir = Deno.args[0] || 'bin'
 
@@ -79,6 +91,22 @@ async function build() {
     console.log(`Config: ${configFile}`)
     console.log(`Templates directory (absolute): ${templatesDir}`)
     console.log(`Templates directory (relative for include): ${templatesDirRelativeInclude}`)
+
+    // Debug: List all files in the templates directory
+    console.log('\nVerifying files in templates directory...')
+    try {
+      const templatesAbsolutePath = join(Deno.cwd(), templatesDirRelativeInclude)
+      console.log(`Templates absolute path: ${templatesAbsolutePath}`)
+
+      await listFilesRecursively(templatesAbsolutePath)
+      console.log('\nFinished listing template files\n')
+    } catch (error) {
+      console.error(
+        `Error listing templates directory: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      )
+    }
 
     // Define the different platform targets
     const targets = [
