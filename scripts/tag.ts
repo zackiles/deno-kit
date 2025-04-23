@@ -8,7 +8,7 @@
  *
  * @example
  * ```bash
- * deno run -A scripts/tag.ts v1.2.3
+ * deno task tag v1.2.3
  * ```
  */
 

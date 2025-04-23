@@ -71,7 +71,7 @@
       "CONTRIBUTING.md"
     ],
     "exclude": [
-      "src/templates/**",
+      "templates/**",
       ".cursor/**",
       "test/mocks/**",
       "test/fixtures/**"
@@ -97,7 +97,7 @@
       "CONTRIBUTING.md"
     ],
     "exclude": [
-      "src/templates/**",
+      "templates/**",
       "docs/**",
       ".cursor/**",
       "test/mocks/**",
@@ -126,7 +126,7 @@
       "bin/**",
       "scripts/**",
       "src/**/*.ts",
-      "src/templates/**",
+      "templates/**",
       "README.md",
       "LICENSE"
     ],

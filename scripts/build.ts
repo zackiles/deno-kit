@@ -5,10 +5,50 @@
  * This script builds binaries for multiple platforms and creates zip archives.
  *
  * @module scripts/build
+ * @see {@link https://docs.deno.com/runtime/reference/cli/compile} - Deno compile command
  */
 
-import { join } from '@std/path'
+// Remote imports
 import { Uint8ArrayReader, Uint8ArrayWriter, ZipWriter } from '@zip-js/zip-js'
+
+// Local imports
+import { join, dirname, fromFileUrl } from '@std/path'
+import { exists } from '@std/fs'
+import { resolveResourcePath } from '../src/utils/resource-path.ts'
+
+// Project configuration
+const PROJECT_ROOT = dirname(dirname(fromFileUrl(import.meta.url)))
+
+const RESOURCES = {
+  source: './src/main.ts',
+  denoConfig: { file: './deno.jsonc' },
+  resourcePaths: {
+    templates: './templates',
+    bannedDirsDefault: './src/utils/banned_directories_default.jsonc',
+    bannedDirsCustom: './src/utils/banned_directories_custom.jsonc',
+  },
+  assets: { windowsIcon: './assets/deno-kit.ico' }
+} as const
+
+/**
+ * Custom resource path resolver that can handle both files and directories
+ *
+ * @param path - Relative path to the resource from project root
+ * @param isDirectory - Whether the resource is a directory
+ * @returns Resolved absolute path
+ */
+async function resolveResource(path: string, isDirectory = true): Promise<string> {
+  const absolutePath = join(PROJECT_ROOT, path)
+
+  try {
+    return isDirectory
+      ? await resolveResourcePath(absolutePath)
+      : (await exists(absolutePath) ? absolutePath : null)
+  } catch (error) {
+    console.warn(`Warning: Could not resolve path ${path}: ${error}`)
+    return join(PROJECT_ROOT, path)
+  }
+}
 
 /**
  * Creates a zip file from a binary file
@@ -18,19 +58,30 @@ import { Uint8ArrayReader, Uint8ArrayWriter, ZipWriter } from '@zip-js/zip-js'
  * @returns Promise that resolves when the zip file has been created
  */
 async function createZipFile(sourcePath: string, targetPath: string): Promise<void> {
-  // Read the file
-  const fileData = await Deno.readFile(sourcePath)
+  const [fileData, fileName] = await Promise.all([
+    Deno.readFile(sourcePath),
+    Promise.resolve(sourcePath.split('/').pop() || 'binary')
+  ])
 
-  // Get the filename without path
-  const fileName = sourcePath.split('/').pop() || 'binary'
-
-  // Create a zip writer and add the file
   const zipWriter = new ZipWriter(new Uint8ArrayWriter())
   await zipWriter.add(fileName, new Uint8ArrayReader(fileData))
 
-  // Close the writer and write the zip file
   const zipData = await zipWriter.close()
   await Deno.writeFile(targetPath, zipData)
+}
+
+/**
+ * Lists all files in a directory recursively
+ */
+async function listFilesRecursively(dir: string, indent = '') {
+  for await (const entry of Deno.readDir(dir)) {
+    const entryPath = join(dir, entry.name)
+    console.log(`${indent}${entry.isDirectory ? '📁' : '📄'} ${entry.name}`)
+
+    if (entry.isDirectory) {
+      await listFilesRecursively(entryPath, `${indent}  `)
+    }
+  }
 }
 
 /**
@@ -40,76 +91,50 @@ async function createZipFile(sourcePath: string, targetPath: string): Promise<vo
 async function build() {
   console.log('Starting build process...')
 
-  // Function to recursively list all files in a directory
-  async function listFilesRecursively(dir: string, indent = '') {
-    for await (const entry of Deno.readDir(dir)) {
-      const entryPath = join(dir, entry.name)
-      console.log(`${indent}${entry.isDirectory ? '📁' : '📄'} ${entry.name}`)
-
-      if (entry.isDirectory) {
-        await listFilesRecursively(entryPath, `${indent}  `)
-      }
-    }
-  }
-
   try {
-    const outputDir = Deno.args[0] || 'bin'
+    // Resolve all resource paths
+    console.log('Resolving resource paths...')
+    const resolvedPaths = {
+      templates: await resolveResource(RESOURCES.resourcePaths.templates, true),
+      bannedDirsDefault: await resolveResource(RESOURCES.resourcePaths.bannedDirsDefault, false),
+      bannedDirsCustom: await resolveResource(RESOURCES.resourcePaths.bannedDirsCustom, false),
+      windowsIcon: await resolveResource(RESOURCES.assets.windowsIcon, false),
+      source: await resolveResource(RESOURCES.source, false),
+      denoConfig: await resolveResource(RESOURCES.denoConfig.file, false),
+    }
 
-    // Handle absolute vs relative paths properly
+    const outputDir = Deno.args[0] || 'bin'
     const isAbsolutePath = outputDir.startsWith('/') ||
       (Deno.build.os === 'windows' && /^[A-Z]:[\\\/]/.test(outputDir))
-
     const absoluteOutputDir = isAbsolutePath ? outputDir : join(Deno.cwd(), outputDir)
 
-    // Create output directory if it doesn't exist
     try {
       await Deno.mkdir(absoluteOutputDir, { recursive: true })
     } catch (err) {
-      if (!(err instanceof Deno.errors.AlreadyExists)) {
-        throw err
-      }
+      if (!(err instanceof Deno.errors.AlreadyExists)) throw err
     }
 
-    // Define paths
-    const sourceFile = join(Deno.cwd(), 'src', 'main.ts')
-    const configFile = join(Deno.cwd(), 'deno.jsonc')
-    const denoConfigFile = 'deno.jsonc'
-
-    // Use direct path string instead of resolveResourcePath for templates
-    // This ensures consistent behavior between local and GitHub Actions environments
-    const templatesDir = join(Deno.cwd(), 'src', 'templates')
-
-    // Use a relative path specifically for the --include flag
-    // Add a trailing slash to ensure it's treated as a directory resource
-    const templatesDirRelativeInclude = './src/templates/'
-
-    const bannedDirsFile = 'src/utils/banned_directories_default.jsonc'
-    const bannedDirsCustomFile = 'src/utils/banned_directories_custom.jsonc'
-
-    console.log(`Current working directory: ${Deno.cwd()}`)
-    console.log(`Source: ${sourceFile}`)
-    console.log(`Output directory: ${absoluteOutputDir}`)
-    console.log(`Config: ${configFile}`)
-    console.log(`Templates directory (absolute): ${templatesDir}`)
-    console.log(`Templates directory (relative for include): ${templatesDirRelativeInclude}`)
+    // Log configuration
+    const config = {
+      cwd: Deno.cwd(),
+      source: resolvedPaths.source,
+      outputDir: absoluteOutputDir,
+      denoConfig: resolvedPaths.denoConfig,
+      templates: resolvedPaths.templates,
+      bannedDirsDefault: resolvedPaths.bannedDirsDefault,
+      bannedDirsCustom: resolvedPaths.bannedDirsCustom,
+      windowsIcon: resolvedPaths.windowsIcon,
+    }
+    for (const [key, value] of Object.entries(config)) {
+      console.log(`${key}: ${value}`)
+    }
 
     // Debug: List all files in the templates directory
     console.log('\nVerifying files in templates directory...')
-    try {
-      const templatesAbsolutePath = join(Deno.cwd(), templatesDirRelativeInclude)
-      console.log(`Templates absolute path: ${templatesAbsolutePath}`)
+    await listFilesRecursively(resolvedPaths.templates)
+    console.log('\nFinished listing template files\n')
 
-      await listFilesRecursively(templatesAbsolutePath)
-      console.log('\nFinished listing template files\n')
-    } catch (error) {
-      console.error(
-        `Error listing templates directory: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      )
-    }
-
-    // Define the different platform targets
+    // Define platform targets
     const targets = [
       { name: 'windows-x86_64', target: 'x86_64-pc-windows-msvc' },
       { name: 'macos-x86_64', target: 'x86_64-apple-darwin' },
@@ -121,18 +146,11 @@ async function build() {
     // Build for each target
     const outputs = []
     for (const [index, platform] of targets.entries()) {
-      let outputFileName = `deno-kit-${platform.name}`
-
-      // Add .exe extension for Windows platforms
-      if (platform.name.includes('windows')) {
-        outputFileName += '.exe'
-      }
-
+      const outputFileName = `deno-kit-${platform.name}${platform.name.includes('windows') ? '.exe' : ''}`
       const outputPath = join(absoluteOutputDir, outputFileName)
 
       console.log(`Building for ${platform.name} (${platform.target})...`)
 
-      // Prepare compile arguments
       const args = [
         'compile',
         '-A',
@@ -140,67 +158,40 @@ async function build() {
         '--no-check',
         '--lock',
         '--config',
-        configFile,
+        resolvedPaths.denoConfig,
         '--target',
         platform.target,
-        // Including each template subdirectory separately
-        // This treats them more as data resources than code modules
         '--include',
-        './src/templates/shared/',
+        RESOURCES.resourcePaths.templates,
         '--include',
-        './src/templates/cli/',
+        RESOURCES.resourcePaths.bannedDirsDefault,
         '--include',
-        './src/templates/sse-server/',
+        RESOURCES.resourcePaths.bannedDirsCustom,
         '--include',
-        './src/templates/websocket-server/',
-        '--include',
-        './src/templates/http-server/',
-        '--include',
-        './src/templates/library/',
-        '--include',
-        './src/templates/mcp-server/',
-        '--include',
-        bannedDirsFile,
-        '--include',
-        bannedDirsCustomFile,
-        '--include',
-        denoConfigFile,
+        RESOURCES.denoConfig.file,
         '--output',
         outputPath,
       ]
 
-      // Only add --reload for the first platform
-      if (index === 0) {
-        args.splice(2, 0, '--reload')
-      }
+      if (index === 0) args.splice(2, 0, '--reload')
+      if (platform.name.includes('windows')) args.push('--icon', resolvedPaths.windowsIcon)
+      args.push(resolvedPaths.source)
 
-      // Add icon for Windows platforms
-      if (platform.name.includes('windows')) {
-        args.push('--icon', 'assets/deno-kit.ico')
-      }
-
-      // Add the source file as the last argument
-      args.push(sourceFile)
-
-      // Run the compile command
       const command = new Deno.Command(Deno.execPath(), {
         args,
         stdout: 'inherit',
         stderr: 'inherit',
       })
 
-      const process = command.spawn()
-      const status = await process.status
+      const { success } = await command.spawn().status
 
-      if (status.success) {
+      if (success) {
         console.log(`✅ Build completed for ${platform.name}`)
 
-        // Set executable permissions for non-Windows platforms
         if (!platform.name.includes('windows')) {
           await Deno.chmod(outputPath, 0o755)
         }
 
-        // Create and store the zip archive
         const zipFileName = `deno-kit-${platform.name}.zip`
         const zipFilePath = join(absoluteOutputDir, zipFileName)
 
@@ -208,28 +199,21 @@ async function build() {
         await createZipFile(outputPath, zipFilePath)
         console.log(`✅ Created zip archive: ${zipFilePath}`)
 
-        outputs.push({
-          platform: platform.name,
-          binaryPath: outputPath,
-          zipPath: zipFilePath,
-        })
-
-        // Remove the unzipped binary to save space
+        outputs.push({ platform: platform.name, binaryPath: outputPath, zipPath: zipFilePath })
         await Deno.remove(outputPath)
       } else {
-        console.error(`❌ Build failed for ${platform.name} with exit code:`, status.code)
+        console.error(`❌ Build failed for ${platform.name}`)
       }
     }
 
     if (outputs.length > 0) {
       console.log('\n✅ Build process completed successfully!')
       console.log('\nCreated the following archives:')
-      for (const output of outputs) {
-        console.log(`- ${output.zipPath} (${output.platform})`)
+      for (const { platform, zipPath } of outputs) {
+        console.log(`- ${zipPath} (${platform})`)
       }
     } else {
-      console.error('❌ No builds were successful.')
-      Deno.exit(1)
+      throw new Error('No builds were successful.')
     }
   } catch (error) {
     console.error('Error during build:', error)

@@ -11,10 +11,10 @@
  * import { resolveResourcePath } from "./utils/resource-path.ts"
  *
  * // Get templates directory
- * const templatesDir = await resolveResourcePath("src/templates")
+ * const templatesDir = await resolveResourcePath("templates")
  *
  * // Get commands directory
- * const commandsDir = await resolveResourcePath("src/commands")
+ * const commandsDir = await resolveResourcePath("commands")
  *
  * // Now use the directories with fs operations
  * ```
@@ -108,7 +108,7 @@ const formatAttemptedPaths = (attempts: ResourcePathResult[]): string =>
  * Resolves the path to a resource directory regardless of how the code is executed
  * (JSR registry URL, local development, or compiled binary).
  *
- * @param projectPath The relative path to the resource folder from the project root (e.g. "src/templates")
+ * @param projectPath The relative path to the resource folder from the project root (e.g. "templates")
  * @param options Options for resolving the resource path
  * @param options.envVarPrefix Prefix for environment variable to check
  * @returns The absolute path to the resource directory
@@ -117,7 +117,7 @@ const formatAttemptedPaths = (attempts: ResourcePathResult[]): string =>
  * @example
  * ```ts
  * // Get templates directory
- * const templatesDir = await resolveResourcePath("src/templates");
+ * const templatesDir = await resolveResourcePath("templates");
  *
  * // With custom environment variable prefix
  * const customDir = await resolveResourcePath("assets/icons", { envVarPrefix: "MY_APP" });
