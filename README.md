@@ -1,4 +1,4 @@
-# Deno-Kit
+# <img src="assets/deno-kit.ico" width="20" height="20" style="vertical-align: middle"> Deno-Kit
 
 [![Deno](https://img.shields.io/badge/Deno-000?logo=deno&logoColor=fff)](https://jsr.io/@deno-kit/kit) [![JSR Score](https://jsr.io/badges/@deno-kit/kit/score)](https://jsr.io/@deno-kit/kit) [![JSR](https://jsr.io/badges/@deno-kit/kit)](https://jsr.io/@deno-kit/kit) [![JSR Scope](https://jsr.io/badges/@deno-kit)](https://jsr.io/@deno-kit) [![cd](https://github.com/zackiles/deno-kit/actions/workflows/publish-github.yml/badge.svg)](https://github.com/zackiles/deno-kit/actions/workflows/publish-github.yml) [![license](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/zackiles/deno-kit/blob/main/LICENSE)
 
