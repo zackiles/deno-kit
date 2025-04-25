@@ -1007,5 +1007,6 @@ class Workspace {
   }
 }
 
-export const { create, load, isConfigFile } = Workspace
-export type { Workspace, WorkspaceConfigFile, WorkspaceLogger }
+export { Workspace }
+export type { WorkspaceConfigFile, WorkspaceLogger }
+export const { create, load, isConfigFile, getGitUserName, getGitUserEmail } = Workspace

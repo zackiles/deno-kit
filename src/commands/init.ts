@@ -1,6 +1,6 @@
 #!/usr/bin/env -S deno run -A
 import { type Args, parseArgs } from '@std/cli'
-import { create as createWorkspace, type Workspace } from '../workspace.ts'
+import { create as createWorkspace, getGitUserEmail, getGitUserName } from '../workspace.ts'
 import type { CommandRouteDefinition } from '../utils/command-router.ts'
 import resolveResourcePath from '../utils/resource-path.ts'
 import logger from '../utils/logger.ts'
@@ -11,8 +11,6 @@ import { Uint8ArrayReader, Uint8ArrayWriter, ZipReader } from '@zip-js/zip-js/da
 import getTemplateValues from '../template-values.ts'
 import loadConfig from '../config.ts'
 import { dirname, fromFileUrl, join } from '@std/path'
-
-const config = await loadConfig()
 
 const commandRoute: CommandRouteDefinition = {
   name: 'init',
@@ -85,8 +83,8 @@ async function command({ args }: { args: Args }): Promise<void> {
   }
 
   const templateValues = await getTemplateValues({
-    gitName: await getGitUserName(updatedConfig.workspace),
-    gitEmail: await getGitUserEmail(updatedConfig.workspace),
+    gitName: await getGitUserName(),
+    gitEmail: await getGitUserEmail(),
   })
 
   // Create a temporary directory to combine templates
@@ -126,7 +124,7 @@ async function command({ args }: { args: Args }): Promise<void> {
       logger.warn(`Project-specific templates directory not found: ${projectTypeTemplatesDir}`)
     }
 
-    const workspace: Workspace = await createWorkspace({
+    const workspace = await createWorkspace({
       name: templateValues.PACKAGE_NAME,
       workspacePath: updatedConfig.workspace,
       templatesPath: tempTemplatesDir,
@@ -147,35 +145,6 @@ async function command({ args }: { args: Args }): Promise<void> {
   } finally {
     // Clean up the temporary directory
     await Deno.remove(tempDir, { recursive: true })
-  }
-}
-
-// Helper functions to get git information without requiring a workspace instance
-async function getGitUserName(workspacePath: string): Promise<string> {
-  try {
-    const process = new Deno.Command('git', {
-      args: ['config', 'user.name'],
-      cwd: workspacePath,
-      stdout: 'piped',
-    })
-    const output = await process.output()
-    return new TextDecoder().decode(output.stdout).trim()
-  } catch {
-    return ''
-  }
-}
-
-async function getGitUserEmail(workspacePath: string): Promise<string> {
-  try {
-    const process = new Deno.Command('git', {
-      args: ['config', 'user.email'],
-      cwd: workspacePath,
-      stdout: 'piped',
-    })
-    const output = await process.output()
-    return new TextDecoder().decode(output.stdout).trim()
-  } catch {
-    return ''
   }
 }
 
