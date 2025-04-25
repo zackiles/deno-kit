@@ -112,9 +112,6 @@ async function build() {
       }
     }
 
-    await createDirectoryZip(RESOLVED_PATHS.templates, RESOLVED_PATHS.templatesZip)
-    console.log(`Created templates zip at: ${RESOURCES.templatesZip}`)
-
     // Always use bin directory relative to project root
     const outputDir = join(PROJECT_ROOT, 'bin')
     try {
@@ -122,6 +119,9 @@ async function build() {
     } catch (err) {
       if (!(err instanceof Deno.errors.AlreadyExists)) throw err
     }
+
+    await createDirectoryZip(RESOLVED_PATHS.templates, RESOLVED_PATHS.templatesZip)
+    console.log(`Created templates zip at: ${RESOURCES.templatesZip}`)
 
     const config = {
       cwd: PROJECT_ROOT,
