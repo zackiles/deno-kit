@@ -5,14 +5,13 @@ on:
     workflows: ["Test Installer"]
     types:
       - completed
-    # We can't specify tags here, so we'll filter in the job
-    # using github.event.workflow_run.head_branch
 
 jobs:
   # This job relies on the test-installer job in the test-install.yml workflow
   publish-jsr:
-    # Only run if the test-installer workflow succeeded and it was triggered by a tag
-    if: ${{ github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.head_branch, 'refs/tags/v') }}
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      contains(github.event.workflow_run.head_commit.message, 'chore: tag version v')
     runs-on: ubuntu-latest
     permissions:
       contents: write

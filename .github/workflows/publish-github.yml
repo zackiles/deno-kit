@@ -5,13 +5,12 @@ on:
     workflows: ["Publish to JSR"]
     types:
       - completed
-    # We can't specify tags here, so we'll filter in the job
-    # using github.event.workflow_run.head_branch
 
 jobs:
   build-release:
-    # Only run if the publish-jsr workflow succeeded and it was triggered by a tag
-    if: ${{ github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.head_branch, 'refs/tags/v') }}
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      contains(github.event.workflow_run.head_commit.message, 'chore: tag version v')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -34,13 +33,12 @@ jobs:
       - name: Get version from tag
         id: get_version
         run: |
-          # Extract the tag name from the triggering workflow
-          TAG_NAME=$(echo "${{ github.event.workflow_run.head_branch }}" | sed -e 's|^refs/tags/||')
+          # Get the latest tag
+          TAG_NAME=$(git describe --tags --abbrev=0)
           echo "VERSION=${TAG_NAME}" >> $GITHUB_OUTPUT
           echo "Using version: ${TAG_NAME}"
 
       - name: Create GitHub Release
-        id: create_release
         uses: softprops/action-gh-release@v2
         with:
           name: Release ${{ steps.get_version.outputs.VERSION }}
@@ -49,3 +47,4 @@ jobs:
           files: bin/*.zip
           token: ${{ secrets.GITHUB_TOKEN }}
           generate_release_notes: true
+          tag_name: ${{ steps.get_version.outputs.VERSION }}
