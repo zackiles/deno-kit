@@ -13,14 +13,14 @@ export default {
   log: (msg: string, ...args: unknown[]) =>
     console.log(`${bold(green(`[${PACKAGE_NAME}]`))} ${msg}`, ...args),
   info: (msg: string, ...args: unknown[]) =>
-    config.DENO_ENV === 'development' &&
+    config.DENO_ENV !== 'production' &&
     console.log(`${bold(blue(`[${PACKAGE_NAME}]`))} ${msg}`, ...args),
   error: (msg: string, ...args: unknown[]) =>
     console.error(`${bold(red(`[${PACKAGE_NAME}] ❌`))} ${msg}`, ...args),
   debug: (msg: string, ...args: unknown[]) =>
-    config.DENO_ENV === 'development' &&
+    config.DENO_ENV !== 'production' &&
     console.debug(`${bold(dim(`[${PACKAGE_NAME}]`))} ${dim(msg)}`, ...args),
   warn: (msg: string, ...args: unknown[]) =>
-    config.DENO_ENV === 'development' &&
+    config.DENO_ENV !== 'production' &&
     console.warn(`${bold(yellow(`[${PACKAGE_NAME}] ⚠`))} ${msg}`, ...args),
 }

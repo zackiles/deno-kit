@@ -1,6 +1,6 @@
 #!/usr/bin/env -S deno run -A
 import { type Args, parseArgs } from '@std/cli'
-import type { CommandRouteDefinition, CommandRouteOptions } from '../utils/ command-router.ts'
+import type { CommandRouteDefinition, CommandRouteOptions } from '../utils/command-router.ts'
 import printHelpMenu from '../utils/print-help-menu.ts'
 import loadConfig from '../config.ts'
 
@@ -18,7 +18,7 @@ function displayHelp({ routes = [] }: CommandRouteOptions): void {
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ')
 
-  const maxCommandLength = Math.max(...routes.map((cmd) => cmd.name.length))
+  const maxCommandLength = Math.max(...routes.map((cmd: CommandRouteDefinition) => cmd.name.length))
 
   printHelpMenu({
     title: { text: `${formattedCliName} - Usage:` },

@@ -4,74 +4,87 @@
  * Build script for compiling the kit.ts file into an executable.
  * This script builds binaries for multiple platforms and creates zip archives.
  *
+ * Features:
+ * - Multi-platform compilation (Windows, macOS, Linux)
+ * - Resource bundling (templates, configs)
+ * - Production environment configuration
+ * - Automatic cleanup of temporary files
+ *
  * @module scripts/build
  * @see {@link https://docs.deno.com/runtime/reference/cli/compile} - Deno compile command
  */
 
-// Remote imports
-import { Uint8ArrayReader, Uint8ArrayWriter, ZipWriter } from '@zip-js/zip-js'
-
-// Local imports
-import { join, dirname, fromFileUrl } from '@std/path'
+import { Uint8ArrayReader, Uint8ArrayWriter, ZipWriter } from '@zip-js/zip-js/data-uri'
+import { dirname, fromFileUrl, join, relative } from '@std/path'
 import { exists } from '@std/fs'
-import { resolveResourcePath } from '../src/utils/resource-path.ts'
 
-// Project configuration
+// Get the absolute path to the project root directory
 const PROJECT_ROOT = dirname(dirname(fromFileUrl(import.meta.url)))
 
+// Define resource paths relative to project root
 const RESOURCES = {
-  source: './src/main.ts',
-  denoConfig: { file: './deno.jsonc' },
-  resourcePaths: {
-    templates: './templates',
-    bannedDirsDefault: './src/utils/banned_directories_default.jsonc',
-    bannedDirsCustom: './src/utils/banned_directories_custom.jsonc',
-  },
-  assets: { windowsIcon: './assets/deno-kit.ico' }
+  source: 'src/main.ts',
+  denoConfig: 'deno.jsonc',
+  templates: 'templates',
+  bannedDirsDefault: 'src/utils/banned_directories_default.jsonc',
+  bannedDirsCustom: 'src/utils/banned_directories_custom.jsonc',
+  windowsIcon: 'assets/deno-kit.ico',
+  templatesZip: 'bin/templates.zip',
 } as const
 
-/**
- * Custom resource path resolver that can handle both files and directories
- *
- * @param path - Relative path to the resource from project root
- * @param isDirectory - Whether the resource is a directory
- * @returns Resolved absolute path
- */
-async function resolveResource(path: string, isDirectory = true): Promise<string> {
-  const absolutePath = join(PROJECT_ROOT, path)
-
-  try {
-    return isDirectory
-      ? await resolveResourcePath(absolutePath)
-      : (await exists(absolutePath) ? absolutePath : null)
-  } catch (error) {
-    console.warn(`Warning: Could not resolve path ${path}: ${error}`)
-    return join(PROJECT_ROOT, path)
-  }
-}
+// Convert paths relative to project root into fully resolved paths for file operations
+const RESOLVED_PATHS = Object.fromEntries(
+  Object.entries(RESOURCES).map(([key, path]) => [key, join(PROJECT_ROOT, path)]),
+) as Record<keyof typeof RESOURCES, string>
 
 /**
- * Creates a zip file from a binary file
- *
- * @param sourcePath - Path to the binary file to zip
- * @param targetPath - Path where the zip file should be saved
- * @returns Promise that resolves when the zip file has been created
+ * Creates a zip file containing the binary and environment file
  */
 async function createZipFile(sourcePath: string, targetPath: string): Promise<void> {
   const [fileData, fileName] = await Promise.all([
     Deno.readFile(sourcePath),
-    Promise.resolve(sourcePath.split('/').pop() || 'binary')
+    Promise.resolve(sourcePath.split('/').pop() || 'binary'),
   ])
 
   const zipWriter = new ZipWriter(new Uint8ArrayWriter())
   await zipWriter.add(fileName, new Uint8ArrayReader(fileData))
+
+  // Add the .env file to the zip
+  const envContent = 'DENO_ENV=production'
+  const envData = new TextEncoder().encode(envContent)
+  await zipWriter.add('.env', new Uint8ArrayReader(envData))
 
   const zipData = await zipWriter.close()
   await Deno.writeFile(targetPath, zipData)
 }
 
 /**
- * Lists all files in a directory recursively
+ * Creates a zip file from a directory while preserving structure
+ */
+async function createDirectoryZip(sourceDir: string, targetPath: string): Promise<void> {
+  const zipWriter = new ZipWriter(new Uint8ArrayWriter())
+
+  async function addFilesToZip(dir: string, baseDir: string) {
+    for await (const entry of Deno.readDir(dir)) {
+      const entryPath = join(dir, entry.name)
+      const relativePath = entryPath.slice(baseDir.length + 1)
+
+      if (entry.isDirectory) {
+        await addFilesToZip(entryPath, baseDir)
+      } else {
+        const fileData = await Deno.readFile(entryPath)
+        await zipWriter.add(relativePath, new Uint8ArrayReader(fileData))
+      }
+    }
+  }
+
+  await addFilesToZip(sourceDir, sourceDir)
+  const zipData = await zipWriter.close()
+  await Deno.writeFile(targetPath, zipData)
+}
+
+/**
+ * Lists directory contents recursively for verification
  */
 async function listFilesRecursively(dir: string, indent = '') {
   for await (const entry of Deno.readDir(dir)) {
@@ -86,55 +99,48 @@ async function listFilesRecursively(dir: string, indent = '') {
 
 /**
  * Main build function that compiles the source for multiple platforms
- * and packages the binaries into zip archives
  */
 async function build() {
   console.log('Starting build process...')
 
   try {
-    // Resolve all resource paths
-    console.log('Resolving resource paths...')
-    const resolvedPaths = {
-      templates: await resolveResource(RESOURCES.resourcePaths.templates, true),
-      bannedDirsDefault: await resolveResource(RESOURCES.resourcePaths.bannedDirsDefault, false),
-      bannedDirsCustom: await resolveResource(RESOURCES.resourcePaths.bannedDirsCustom, false),
-      windowsIcon: await resolveResource(RESOURCES.assets.windowsIcon, false),
-      source: await resolveResource(RESOURCES.source, false),
-      denoConfig: await resolveResource(RESOURCES.denoConfig.file, false),
+    // Verify all required resources exist
+    for (const [name, path] of Object.entries(RESOLVED_PATHS)) {
+      if (name === 'templatesZip') continue // Skip checking templates.zip as it will be created
+      if (!await exists(path)) {
+        throw new Error(`Required resource not found: ${name} at ${path}`)
+      }
     }
 
-    const outputDir = Deno.args[0] || 'bin'
-    const isAbsolutePath = outputDir.startsWith('/') ||
-      (Deno.build.os === 'windows' && /^[A-Z]:[\\\/]/.test(outputDir))
-    const absoluteOutputDir = isAbsolutePath ? outputDir : join(Deno.cwd(), outputDir)
+    await createDirectoryZip(RESOLVED_PATHS.templates, RESOLVED_PATHS.templatesZip)
+    console.log(`Created templates zip at: ${RESOURCES.templatesZip}`)
 
+    // Always use bin directory relative to project root
+    const outputDir = join(PROJECT_ROOT, 'bin')
     try {
-      await Deno.mkdir(absoluteOutputDir, { recursive: true })
+      await Deno.mkdir(outputDir, { recursive: true })
     } catch (err) {
       if (!(err instanceof Deno.errors.AlreadyExists)) throw err
     }
 
-    // Log configuration
     const config = {
-      cwd: Deno.cwd(),
-      source: resolvedPaths.source,
-      outputDir: absoluteOutputDir,
-      denoConfig: resolvedPaths.denoConfig,
-      templates: resolvedPaths.templates,
-      bannedDirsDefault: resolvedPaths.bannedDirsDefault,
-      bannedDirsCustom: resolvedPaths.bannedDirsCustom,
-      windowsIcon: resolvedPaths.windowsIcon,
+      cwd: PROJECT_ROOT,
+      source: RESOURCES.source,
+      outputDir,
+      denoConfig: RESOURCES.denoConfig,
+      templates: RESOLVED_PATHS.templatesZip,
+      bannedDirsDefault: RESOURCES.bannedDirsDefault,
+      bannedDirsCustom: RESOURCES.bannedDirsCustom,
+      windowsIcon: RESOURCES.windowsIcon,
     }
+    console.log('\nBuild configuration:')
     for (const [key, value] of Object.entries(config)) {
       console.log(`${key}: ${value}`)
     }
 
-    // Debug: List all files in the templates directory
-    console.log('\nVerifying files in templates directory...')
-    await listFilesRecursively(resolvedPaths.templates)
-    console.log('\nFinished listing template files\n')
+    console.log('\nVerifying template files...')
+    await listFilesRecursively(RESOLVED_PATHS.templates)
 
-    // Define platform targets
     const targets = [
       { name: 'windows-x86_64', target: 'x86_64-pc-windows-msvc' },
       { name: 'macos-x86_64', target: 'x86_64-apple-darwin' },
@@ -143,44 +149,53 @@ async function build() {
       { name: 'linux-aarch64', target: 'aarch64-unknown-linux-gnu' },
     ]
 
-    // Build for each target
     const outputs = []
     for (const [index, platform] of targets.entries()) {
-      const outputFileName = `deno-kit-${platform.name}${platform.name.includes('windows') ? '.exe' : ''}`
-      const outputPath = join(absoluteOutputDir, outputFileName)
+      const outputFileName = `deno-kit-${platform.name}${
+        platform.name.includes('windows') ? '.exe' : ''
+      }`
+      const outputPath = join(outputDir, outputFileName)
 
-      console.log(`Building for ${platform.name} (${platform.target})...`)
+      console.log(`\nBuilding for ${platform.name} (${platform.target}) to ${outputPath}...`)
 
+      // Use relative paths for all --include arguments
       const args = [
         'compile',
         '-A',
         '--unstable',
-        '--no-check',
         '--lock',
+        '--no-check',
         '--config',
-        resolvedPaths.denoConfig,
+        relative(PROJECT_ROOT, RESOLVED_PATHS.denoConfig),
         '--target',
         platform.target,
-        //'--include',
-        //resolvedPaths.templates,
-        '--include',
-        resolvedPaths.bannedDirsDefault,
-        '--include',
-        resolvedPaths.bannedDirsCustom,
-        '--include',
-        resolvedPaths.denoConfig,
         '--output',
         outputPath,
+        '--include',
+        relative(PROJECT_ROOT, RESOLVED_PATHS.templatesZip),
+        '--include',
+        relative(PROJECT_ROOT, RESOLVED_PATHS.bannedDirsDefault),
+        '--include',
+        relative(PROJECT_ROOT, RESOLVED_PATHS.bannedDirsCustom),
+        '--include',
+        relative(PROJECT_ROOT, RESOLVED_PATHS.denoConfig),
       ]
 
       if (index === 0) args.splice(2, 0, '--reload')
-      if (platform.name.includes('windows')) args.push('--icon', resolvedPaths.windowsIcon)
-      args.push(resolvedPaths.source)
+      if (platform.name.includes('windows')) {
+        args.push('--icon', relative(PROJECT_ROOT, RESOLVED_PATHS.windowsIcon))
+      }
+
+      args.push(relative(PROJECT_ROOT, RESOLVED_PATHS.source))
+
+      console.log(`\nCompile command for ${platform.name}:`)
+      console.log(args.join(' '))
 
       const command = new Deno.Command(Deno.execPath(), {
         args,
         stdout: 'inherit',
         stderr: 'inherit',
+        cwd: PROJECT_ROOT, // Ensure we run from project root
       })
 
       const { success } = await command.spawn().status
@@ -188,14 +203,17 @@ async function build() {
       if (success) {
         console.log(`✅ Build completed for ${platform.name}`)
 
+        if (!await exists(outputPath)) {
+          throw new Error(`Build succeeded but output file not found at: ${outputPath}`)
+        }
+
         if (!platform.name.includes('windows')) {
           await Deno.chmod(outputPath, 0o755)
         }
 
         const zipFileName = `deno-kit-${platform.name}.zip`
-        const zipFilePath = join(absoluteOutputDir, zipFileName)
+        const zipFilePath = join(outputDir, zipFileName)
 
-        console.log(`Creating zip archive: ${zipFilePath}`)
         await createZipFile(outputPath, zipFilePath)
         console.log(`✅ Created zip archive: ${zipFilePath}`)
 
@@ -208,18 +226,50 @@ async function build() {
 
     if (outputs.length > 0) {
       console.log('\n✅ Build process completed successfully!')
-      console.log('\nCreated the following archives:')
+      console.log('\nCreated archives:')
       for (const { platform, zipPath } of outputs) {
         console.log(`- ${zipPath} (${platform})`)
+      }
+
+      // Clean up temporary files
+      const cleanupFiles = [
+        RESOLVED_PATHS.templatesZip,
+        join(dirname(RESOLVED_PATHS.templatesZip), '.env'),
+      ]
+
+      for (const file of cleanupFiles) {
+        try {
+          if (await exists(file)) {
+            await Deno.remove(file)
+            console.log(`\nCleaned up temporary file: ${relative(PROJECT_ROOT, file)}`)
+          }
+        } catch (error) {
+          console.error(`Error cleaning up file ${relative(PROJECT_ROOT, file)}:`, error)
+        }
       }
     } else {
       throw new Error('No builds were successful.')
     }
   } catch (error) {
     console.error('Error during build:', error)
+    // Clean up temporary files even if build fails
+    const cleanupFiles = [
+      RESOLVED_PATHS.templatesZip,
+      join(dirname(RESOLVED_PATHS.templatesZip), '.env'),
+    ]
+
+    for (const file of cleanupFiles) {
+      try {
+        if (await exists(file)) {
+          await Deno.remove(file)
+          console.log(`\nCleaned up temporary file: ${relative(PROJECT_ROOT, file)}`)
+        }
+      } catch (_) {
+        // Ignore cleanup errors on build failure
+      }
+    }
     Deno.exit(1)
   }
 }
 
-// Run the build function
 await build()

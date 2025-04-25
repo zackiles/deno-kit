@@ -1,5 +1,5 @@
 import { assert } from '@std/assert'
-import { join } from '@std/path'
+import { dirname, fromFileUrl, join } from '@std/path'
 import { exists } from '@std/fs'
 import { Uint8ArrayReader, Uint8ArrayWriter, ZipReader } from '@zip-js/zip-js'
 import type { Entry } from '@zip-js/zip-js'
@@ -52,20 +52,22 @@ async function runWithOutput(
 }
 
 Deno.test('Build and run kit binary', async () => {
-  // Create a temp directory for the binary
-  const tempBinaryDir = await Deno.makeTempDir()
-  // Create a separate temp directory for the workspace
+  // Get project root directory
+  const __dirname = dirname(fromFileUrl(import.meta.url))
+  const projectRoot = join(__dirname, '..')
+  const binDir = join(projectRoot, 'bin')
+
+  // Create temp directories for workspace and binary testing
   const tempWorkspaceDir = await Deno.makeTempDir()
-  // Create a temp directory for extracting the zip
-  const tempExtractDir = await Deno.makeTempDir()
+  const tempBinaryDir = await Deno.makeTempDir()
 
   try {
-    // Build the binary with the temporary directory as the output
-    // This overrides the default 'bin' directory in the build script
+    // Build the binary (will use bin/ directory by default now)
     const buildProcess = new Deno.Command(Deno.execPath(), {
-      args: ['run', '-A', './scripts/build.ts', tempBinaryDir],
+      args: ['run', '-A', './scripts/build.ts'],
       stdout: 'piped',
       stderr: 'piped',
+      cwd: projectRoot,
     }).spawn()
 
     // Run the process and stream its output
@@ -97,16 +99,16 @@ Deno.test('Build and run kit binary', async () => {
       currentPlatform = 'macos-x86_64'
     }
 
-    // Verify all zip files exist
+    // Verify all zip files exist in bin/
     for (const platform of expectedPlatforms) {
-      const zipPath = join(tempBinaryDir, `${binaryName}-${platform}.zip`)
+      const zipPath = join(binDir, `${binaryName}-${platform}.zip`)
       const zipExists = await exists(zipPath)
       assert(zipExists, `Zip file not found at ${zipPath}`)
     }
 
-    // Find the zip file for the current platform and extract it
-    const currentZipPath = join(tempBinaryDir, `${binaryName}-${currentPlatform}.zip`)
-    logger.log(`Extracting zip for current platform: ${currentZipPath}`)
+    // Find the zip file for the current platform
+    const currentZipPath = join(binDir, `${binaryName}-${currentPlatform}.zip`)
+    logger.log(`Using zip for current platform: ${currentZipPath}`)
 
     // Extract the zip file
     const zipData = await Deno.readFile(currentZipPath)
@@ -117,30 +119,64 @@ Deno.test('Build and run kit binary', async () => {
       throw new Error(`No entries found in zip file: ${currentZipPath}`)
     }
 
-    // Extract the first entry (should be the binary)
-    const entry = entries[0] as Entry
+    // Check for .env file in zip entries
+    const envEntry = entries.find((entry) => entry.filename === '.env')
+    assert(envEntry, '.env file should exist in zip archive')
 
-    if (!entry || typeof entry.getData !== 'function') {
-      throw new Error(`Invalid entry in zip file: ${currentZipPath}`)
+    // Verify .env file contents
+    if (envEntry && typeof envEntry.getData === 'function') {
+      const envData = await envEntry.getData(new Uint8ArrayWriter())
+      const envContent = new TextDecoder().decode(envData)
+      assert(
+        envContent === 'DENO_ENV=production',
+        `.env file should contain production environment setting, got: ${envContent}`,
+      )
     }
 
-    const binaryData = await entry.getData(new Uint8ArrayWriter())
-    const extractedBinaryPath = join(tempExtractDir, entry.filename)
+    // Extract the binary (should be the non-.env entry)
+    const binaryEntry = entries.find((entry) => entry.filename !== '.env') as Entry
+    if (!binaryEntry || typeof binaryEntry.getData !== 'function') {
+      throw new Error(`Invalid binary entry in zip file: ${currentZipPath}`)
+    }
+
+    // Extract binary to temp directory
+    const binaryData = await binaryEntry.getData(new Uint8ArrayWriter())
+    const binaryFileName = `${binaryName}-${currentPlatform}${
+      currentPlatform.includes('windows') ? '.exe' : ''
+    }`
+    const extractedBinaryPath = join(tempBinaryDir, binaryFileName)
     await Deno.writeFile(extractedBinaryPath, binaryData)
 
-    // Make sure it's executable
+    // Extract .env file to same directory as binary
+    if (envEntry && typeof envEntry.getData === 'function') {
+      const envData = await envEntry.getData(new Uint8ArrayWriter())
+      const extractedEnvPath = join(tempBinaryDir, '.env')
+      await Deno.writeFile(extractedEnvPath, envData)
+    }
+
+    // Make sure binary is executable
     if (Deno.build.os !== 'windows') {
       await Deno.chmod(extractedBinaryPath, 0o755)
     }
 
-    logger.log(`Extracted binary to: ${extractedBinaryPath}`)
+    logger.log('\n=== Debug: Checking binary directory contents ===')
+    for await (const entry of Deno.readDir(tempBinaryDir)) {
+      const filePath = join(tempBinaryDir, entry.name)
+      const fileInfo = await Deno.stat(filePath)
+      logger.log(`- ${entry.name} (${fileInfo.size} bytes)`)
+    }
+    logger.log('=== End Debug ===\n')
 
-    // Run the init command with workspace flag
+    // Verify .env file exists in binary directory
+    const envExists = await exists(join(tempBinaryDir, '.env'))
+    assert(envExists, '.env file should exist in binary directory')
+
+    // Run the init command with workspace flag from the temp binary directory
     const initProcess = new Deno.Command(extractedBinaryPath, {
       args: ['init', '--workspace', tempWorkspaceDir],
       stdout: 'piped',
       stderr: 'piped',
-      cwd: tempExtractDir,
+      cwd: tempBinaryDir, // Run from the directory containing both binary and .env
       env: {
         DENO_KIT_ENV: 'test',
         DENO_KIT_PACKAGE_NAME: '@test/project',
@@ -166,11 +202,10 @@ Deno.test('Build and run kit binary', async () => {
     const srcDirExists = await exists(join(tempWorkspaceDir, 'src'))
     assert(srcDirExists, 'src directory should exist in workspace')
   } finally {
-    // Clean up all temp directories
+    // Clean up the temp directories
     try {
-      await Deno.remove(tempBinaryDir, { recursive: true })
       await Deno.remove(tempWorkspaceDir, { recursive: true })
-      await Deno.remove(tempExtractDir, { recursive: true })
+      await Deno.remove(tempBinaryDir, { recursive: true })
     } catch (error) {
       logger.warn(`Failed to clean up temporary directories: ${error}`)
     }

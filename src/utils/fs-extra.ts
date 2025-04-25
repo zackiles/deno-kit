@@ -1,6 +1,7 @@
 import { dirname, join, resolve } from '@std/path'
 import { getPackageForPath, PACKAGE_CONFIG_FILES } from './package-info.ts'
 import { walk } from '@std/fs/walk'
+import logger from './logger.ts'
 
 /**
  * Checks if a directory has write access permission
@@ -188,7 +189,7 @@ async function readFilesRecursively(
         const content = await Deno.readTextFile(entry.path)
         files.set(entry.path, content)
       } catch (error) {
-        console.warn(
+        logger.warn(
           `Failed to read file ${entry.path}: ${
             error instanceof Error ? error.message : String(error)
           }`,
@@ -196,7 +197,7 @@ async function readFilesRecursively(
       }
     }
   } catch (error) {
-    console.warn(
+    logger.warn(
       `Failed to read directory ${absolutePath}: ${
         error instanceof Error ? error.message : String(error)
       }`,
