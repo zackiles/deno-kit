@@ -18,6 +18,13 @@ const commandRoute: CommandRouteDefinition = {
   name: 'init',
   command: command,
   description: 'Create a new Deno-Kit project in the current or specified path',
+  options: {
+    string: ['workspace', 'w'],
+    alias: { w: 'workspace' },
+    unknown: () => {
+      return true
+    },
+  },
 }
 
 /**
@@ -56,19 +63,30 @@ async function extractProductionTemplates(): Promise<string> {
   }
 }
 
-async function command(): Promise<void> {
-  logger.debug(`Setting up project in workspace: ${config.workspace}`)
-  await ensureDir(config.workspace)
+async function command({ args }: { args: Args }): Promise<void> {
+  // Check for positional argument after "init"
+  const workspacePath = args._.length > 0 ? String(args._[0]) : undefined
+
+  // If a positional argument was provided, set it as the workspace path
+  if (workspacePath) {
+    // This will be picked up by loadConfig() later
+    Deno.env.set('DENO_KIT_WORKSPACE', workspacePath)
+  }
+
+  // Reload config to pick up any workspace changes
+  const updatedConfig = await loadConfig()
+  logger.debug(`Setting up project in workspace: ${updatedConfig.workspace}`)
+  await ensureDir(updatedConfig.workspace)
 
   // Check if kit.json already exists in the workspace
-  const configFilePath = join(config.workspace, 'kit.json')
+  const configFilePath = join(updatedConfig.workspace, 'kit.json')
   if (await exists(configFilePath)) {
-    throw new Error(`A Deno-Kit project already exists in ${config.workspace}`)
+    throw new Error(`A Deno-Kit project already exists in ${updatedConfig.workspace}`)
   }
 
   const templateValues = await getTemplateValues({
-    gitName: await getGitUserName(config.workspace),
-    gitEmail: await getGitUserEmail(config.workspace),
+    gitName: await getGitUserName(updatedConfig.workspace),
+    gitEmail: await getGitUserEmail(updatedConfig.workspace),
   })
 
   // Create a temporary directory to combine templates
@@ -78,7 +96,7 @@ async function command(): Promise<void> {
 
   try {
     // Get the base templates path depending on environment
-    const templatesBasePath = config.DENO_ENV === 'production'
+    const templatesBasePath = updatedConfig.DENO_ENV === 'production'
       ? await extractProductionTemplates()
       : await resolveResourcePath('templates')
 
@@ -110,7 +128,7 @@ async function command(): Promise<void> {
 
     const workspace: Workspace = await createWorkspace({
       name: templateValues.PACKAGE_NAME,
-      workspacePath: config.workspace,
+      workspacePath: updatedConfig.workspace,
       templatesPath: tempTemplatesDir,
       configFileName: 'kit.json',
     })

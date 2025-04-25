@@ -1,6 +1,6 @@
 # Deno-Kit
 
-[![Deno](https://img.shields.io/badge/Deno-000?logo=deno&logoColor=fff)](https://jsr.io/@deno-kit/kit) [![JSR Score](https://jsr.io/badges/@deno-kit/kit/score)](https://jsr.io/@deno-kit/kit) [![JSR](https://jsr.io/badges/@deno-kit/kit)](https://jsr.io/@deno-kit/kit) [![JSR Scope](https://jsr.io/badges/@deno-kit)](https://jsr.io/@deno-kit) [![cd](https://github.com/zackiles/deno-kit/actions/workflows/jsr-publish.yml/badge.svg)](https://github.com/zackiles/deno-kit/actions/workflows/jsr-publish.yml) [![license](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/zackiles/deno-kit/blob/main/LICENSE)
+[![Deno](https://img.shields.io/badge/Deno-000?logo=deno&logoColor=fff)](https://jsr.io/@deno-kit/kit) [![JSR Score](https://jsr.io/badges/@deno-kit/kit/score)](https://jsr.io/@deno-kit/kit) [![JSR](https://jsr.io/badges/@deno-kit/kit)](https://jsr.io/@deno-kit/kit) [![JSR Scope](https://jsr.io/badges/@deno-kit)](https://jsr.io/@deno-kit) [![cd](https://github.com/zackiles/deno-kit/actions/workflows/github-release.yml/badge.svg)](https://github.com/zackiles/deno-kit/actions/workflows/github-release.yml) [![license](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/zackiles/deno-kit/blob/main/LICENSE)
 
 > `deno init` on steroids. The tool-kit for modern, opinionated, and AI-native Deno 2 projects.
 
@@ -21,6 +21,8 @@ Install the Deno-Kit binary globally, instantly, and cross-platform so you can u
 ```sh
 curl -fsSL https://raw.githubusercontent.com/zackiles/deno-kit/main/install.sh | sh
 ```
+
+> To uninstall, run: `curl -fsSL https://raw.githubusercontent.com/zackiles/deno-kit/main/install.sh | sh -s -- --uninstall`
 
 ### Run
 

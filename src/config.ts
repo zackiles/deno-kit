@@ -35,9 +35,17 @@ let initialized = false
 let parsedArgs: Record<string, unknown> = {}
 
 const getWorkspace = (): string => {
-  const { workspace: workspaceArg, w } = parsedArgs
+  const { workspace: workspaceArg, w, _: positionalArgs } = parsedArgs
+
+  // Check for positional argument after "init"
+  const initCommand = Array.isArray(positionalArgs) && positionalArgs[0] === 'init'
+  const positionalWorkspace = initCommand && positionalArgs.length > 1
+    ? String(positionalArgs[1])
+    : undefined
+
   return (workspaceArg as string) ??
     (w as string) ??
+    positionalWorkspace ??
     values.DENO_KIT_WORKSPACE ??
     Deno.cwd()
 }
@@ -68,28 +76,34 @@ const filterEmptyValues = (
  * including the workspace property
  */
 const createConfigProxy = (): Record<string, string> => {
-  if (!configProxy) {
-    configProxy = new Proxy(values, {
-      get: (target, prop) => {
-        if (prop === 'workspace') return getWorkspace()
-        return typeof prop === 'string' ? (target[prop] || undefined) : undefined
-      },
-    })
-  }
+  if (configProxy) return configProxy
+
+  configProxy = new Proxy(values, {
+    get(target, prop) {
+      if (prop === 'workspace') {
+        return getWorkspace()
+      }
+      return target[prop as string]
+    },
+  })
 
   return configProxy
 }
 
 /**
  * Loads configuration and returns an object for direct access to values.
- * Subsequent calls return the cached configuration.
+ * Subsequent calls return the cached configuration unless force=true.
  */
-async function loadConfig(): Promise<Record<string, string>> {
-  if (initialized) return createConfigProxy()
+async function loadConfig(force = false): Promise<Record<string, string>> {
+  if (initialized && !force) return createConfigProxy()
 
   parsedArgs = parseArgs(Deno.args, {
     string: ['workspace', 'w', 'config', 'c'],
     alias: { w: 'workspace', c: 'config' },
+    unknown: (arg: string) => {
+      // Allow positional arguments
+      return true
+    },
   })
   const { config: configArg, c } = parsedArgs
 
@@ -111,6 +125,7 @@ async function loadConfig(): Promise<Record<string, string>> {
   }
 
   initialized = true
+  configProxy = null // Reset proxy to pick up new values
   return createConfigProxy()
 }
 

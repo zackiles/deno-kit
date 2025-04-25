@@ -181,4 +181,57 @@ describe('init command', () => {
     const mainTsContent = await Deno.readTextFile(join(tempDir, 'src/mod.ts'))
     assertStringIncludes(mainTsContent, 'mod') // Check for expected CLI-specific content
   })
+
+  it('should support both positional and flag workspace arguments', async () => {
+    // Test with positional argument
+    const positionalDir = await Deno.makeTempDir({ prefix: 'deno-kit-test-init-positional-' })
+    const flagDir = await Deno.makeTempDir({ prefix: 'deno-kit-test-init-flag-' })
+
+    try {
+      // Test positional argument
+      const positionalResult = await runCLI(
+        ['init', positionalDir],
+        { DENO_KIT_PROJECT_TYPE: 'CLI' },
+      )
+      assert(
+        positionalResult.success,
+        `Command with positional arg failed: ${positionalResult.output}`,
+      )
+
+      // Verify workspace was created in positional directory
+      const positionalKitJson = await exists(join(positionalDir, 'kit.json'))
+      assert(positionalKitJson, 'kit.json should exist in positional argument directory')
+
+      // Test --workspace flag
+      const flagResult = await runCLI(
+        ['init', '--workspace', flagDir],
+        { DENO_KIT_PROJECT_TYPE: 'CLI' },
+      )
+      assert(flagResult.success, `Command with --workspace flag failed: ${flagResult.output}`)
+
+      // Verify workspace was created in flag directory
+      const flagKitJson = await exists(join(flagDir, 'kit.json'))
+      assert(flagKitJson, 'kit.json should exist in --workspace flag directory')
+
+      // Verify both workspaces have the same structure
+      const [positionalFiles, flagFiles] = await Promise.all([
+        Array.fromAsync(Deno.readDir(positionalDir)).then((files) =>
+          files.map((f) => f.name).sort()
+        ),
+        Array.fromAsync(Deno.readDir(flagDir)).then((files) => files.map((f) => f.name).sort()),
+      ])
+
+      assertEquals(
+        positionalFiles,
+        flagFiles,
+        'Both workspace initialization methods should create identical file structures',
+      )
+    } finally {
+      // Clean up the additional test directories
+      await Promise.all([
+        Deno.remove(positionalDir, { recursive: true }).catch(() => {}),
+        Deno.remove(flagDir, { recursive: true }).catch(() => {}),
+      ])
+    }
+  })
 })
