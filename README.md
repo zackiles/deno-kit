@@ -6,22 +6,24 @@
 
 ## Overview
 
-Supercharge your development workflow with a powerful, intuitive, and unobtrusive approach to scaffolding and managing your project using the latest in Deno best practices and tooling. Deno-Kit is part-scaffolding, part-SDK, and part-reference architecture. You can choose to adopt as little or as much of it as you want without ever being locked-in. Everything in Deno-Kit can be used through a single CLI you can install, bootstrap a project, and remove in seconds.
+Scaffold, publish and manage modern AI-native Deno projects in seconds with the Deno-Kit CLI and SDK, along with the latest Typescript and Deno best practices. Use as little or as much of Deno-Kit as you want without ever being locked-in. Read more about [the features](#features)
 
-**Multiple Supported Project Types**: _New projects_, _old projects_, _monorepos_, _CLIs_, _servers_, _libraries_, and supports the following core project types and scaffolding: `Library`, `CLI`, `HTTP-Server`, `Websocket-Server`, and `MCP-Server`.
+**Multiple Supported Project Types**: `Library`, `CLI`, `HTTP-Server`, `Websocket-Server`, and `MCP-Server`.
 
-**Prefer a Github Template?** Try our opinionated [pre-made starter-template](https://github.com/zackiles/deno-kit-starter-template) configured as a Deno library that already has Deno-Kit and a fully configured and publishable package ready to go, OR read below if you'd prefer a hands-on approach using the Deno-Kit CLI.
+> [!TIP]\
+> **Prefer a Github Template?** Try our opinionated [pre-made starter-template](https://github.com/zackiles/deno-kit-starter-template) configured as a Deno library that already has Deno-Kit and a fully configured and publishable package ready to go, OR read below if you'd prefer a hands-on approach using the Deno-Kit CLI.
 
 ## **Quick Start**
 
 ### Install
 
-Install the Deno-Kit binary globally, instantly, and cross-platform so you can use it to bootstrap and manage all your Deno projects:
+Install the Deno-Kit native binary globally, instantly, and cross-platform so you can use it to bootstrap and manage all your Deno projects:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/zackiles/deno-kit/main/install.sh | sh
 ```
 
+> [!TIP]\
 > To uninstall, run: `curl -fsSL https://raw.githubusercontent.com/zackiles/deno-kit/main/install.sh | sh -s -- --uninstall`
 
 ### Run
@@ -46,7 +48,7 @@ Running `deno-kit init` will:
 
 🚀 **That's it!**. You can continue to use the powerful features of Deno-Kit (see a list of tools `deno-kit --help`), or if you made a mistake configuring the project you can reset using `deno-kit reset`.
 
-> [!NOTE]\
+> [!TIP]\
 > Done with Deno-Kit? You can remove it completely and any time without harming the project using `deno-kit remove`.
 
 ### **Next Steps**
