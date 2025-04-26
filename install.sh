@@ -109,7 +109,7 @@ create_temp_dir() {
     TEMP_DIR="${TMPDIR:-/tmp}/deno-kit-install-$$"
     mkdir -p "$TEMP_DIR"
   fi
-  echo "Created temporary directory: $TEMP_DIR"
+  echo "  → Created temporary directory"
 }
 
 # Check if we need sudo for the install directory
@@ -158,14 +158,14 @@ detect_platform() {
       ;;
   esac
 
-  echo "Detected platform: $PLATFORM-$ARCH"
+  echo "  → Detected platform: $PLATFORM-$ARCH"
 }
 
 # Get the latest release URL from GitHub
 get_release_info() {
   # Skip if using a source file
   if [ -n "$SOURCE_FILE" ]; then
-    echo "Using local source file: $SOURCE_FILE"
+    echo "  → Using local source file: $SOURCE_FILE"
     # Determine asset name from source file for extraction logic consistency
     ASSET_NAME=$(basename "$SOURCE_FILE")
     # Attempt to infer platform/arch from filename (optional, for logging/consistency)
@@ -173,9 +173,9 @@ get_release_info() {
     if echo "$ASSET_NAME" | grep -qE "^${BIN_NAME}-(linux|macos|windows)-(x86_64|aarch64)\.zip$"; then
         PLATFORM=$(echo "$ASSET_NAME" | sed -E "s/${BIN_NAME}-([^-]+)-.*/\\1/")
         ARCH=$(echo "$ASSET_NAME" | sed -E "s/${BIN_NAME}-[^-]+-([^-.]+)\.zip/\\1/")
-        echo "Inferred platform from filename: $PLATFORM-$ARCH"
+        echo "  → Inferred platform from filename: $PLATFORM-$ARCH"
     else
-        echo "Could not infer platform/arch from filename, detecting locally."
+        echo "  → Could not infer platform/arch from filename, detecting locally"
         detect_platform # Detect locally if filename doesn't match pattern
     fi
     return
@@ -215,7 +215,7 @@ get_release_info() {
     if [ -z "$VERSION" ]; then
       fail "Could not detect latest version"
     fi
-    echo "Latest version: $VERSION"
+    echo "  → Latest version: $VERSION"
   fi
 
   # Detect platform if not already done (only needed if not using --source-file)
@@ -247,7 +247,7 @@ download_release() {
     fail "Could not find release asset for $PLATFORM-$ARCH version $VERSION"
   fi
 
-  echo "Downloading $ASSET_NAME from $ASSET_URL"
+  echo "  → Downloading $ASSET_NAME..."
   if [ -n "$(command -v curl)" ]; then
     curl -fsSL "$ASSET_URL" -o "$TEMP_DIR/$ASSET_NAME" || fail "Failed to download $ASSET_NAME"
   elif [ -n "$(command -v wget)" ]; then
@@ -259,7 +259,7 @@ download_release() {
 
 # Extract the zip file
 extract_archive() {
-  echo "Extracting archive..."
+  echo "  → Extracting archive..."
   EXTRACT_SOURCE=""
   if [ -n "$SOURCE_FILE" ]; then
       EXTRACT_SOURCE="$SOURCE_FILE" # Use the user-provided file directly
@@ -311,13 +311,13 @@ install_binary() {
     BINARY_NAME="$BIN_NAME"
   fi
 
-  echo "Using installation directory: $INSTALL_DIR"
+  echo "  → Installation directory: $INSTALL_DIR"
 
   # Create install directory if it doesn't exist
   if [ ! -d "$INSTALL_DIR" ]; then
     if ! mkdir -p "$INSTALL_DIR"; then
       if need_sudo; then
-        echo "Creating directory $INSTALL_DIR requires elevated privileges"
+        echo "  → Creating directory $INSTALL_DIR requires elevated privileges"
         if [ -n "$(command -v sudo)" ]; then
           sudo mkdir -p "$INSTALL_DIR" || fail "Failed to create directory $INSTALL_DIR"
         else
@@ -360,7 +360,7 @@ install_binary() {
      done
      if [ -n "$FOUND_EXEC" ]; then
         BINARY_PATH="$FOUND_EXEC"
-        echo "Found potential binary: $BINARY_PATH"
+        echo "  → Found binary: $(basename "$BINARY_PATH")"
      fi
   fi
 
@@ -375,11 +375,11 @@ install_binary() {
 
   # Check if file exists and notify user we're overwriting it
   if [ -f "$DEST_PATH" ]; then
-    echo "Existing installation found. Overwriting..."
+    echo "  → Existing installation found. Overwriting..."
   fi
 
   if need_sudo; then
-    echo "Installing to $DEST_PATH (requires elevated privileges)"
+    echo "  → Installing to $DEST_PATH (requires elevated privileges)"
     if [ -n "$(command -v sudo)" ]; then
       sudo cp -f "$BINARY_PATH" "$DEST_PATH" || fail "Failed to copy binary to $DEST_PATH"
       if [ "$PLATFORM" != "windows" ]; then
@@ -389,14 +389,12 @@ install_binary() {
       fail "Need elevated privileges to install to $DEST_PATH but sudo is not available"
     fi
   else
-    echo "Installing to $DEST_PATH"
+    echo "  → Installing to $DEST_PATH"
     cp -f "$BINARY_PATH" "$DEST_PATH" || fail "Failed to copy binary to $DEST_PATH"
     if [ "$PLATFORM" != "windows" ]; then
       chmod +x "$DEST_PATH" || fail "Failed to set executable permission"
     fi
   fi
-
-  echo "Installation successful!"
 }
 
 # Verify that the binary is in PATH
@@ -420,30 +418,31 @@ verify_install() {
   # Try to find the binary in PATH first
   if [ -n "$(command -v "$BIN_NAME" 2>/dev/null)" ]; then
     VERIFIED_PATH=$(command -v "$BIN_NAME")
-    echo "✅ Installation verified: $VERIFIED_PATH"
+    echo "  → Successfully installed at: $VERIFIED_PATH"
     # Optionally check if it matches the expected installation path
     if [ "$VERIFIED_PATH" = "$DEST_PATH" ]; then
-        echo "   Matches expected install path."
+        echo "    ✓ Matches expected install path"
     else
-        echo "   Note: Found in PATH at a different location than expected ($DEST_PATH)."
+        echo "    ⚠️ Note: Found in PATH at a different location than expected ($DEST_PATH)"
     fi
     return 0
   fi
 
   # If not in PATH, check if the binary exists at the install location
   if [ -f "$DEST_PATH" ]; then
-    echo "✅ Binary installed at: $DEST_PATH"
+    echo "  → Successfully installed at: $DEST_PATH"
 
     # Check if the binary is executable (non-Windows)
     if [ "$PLATFORM" != "windows" ] && [ ! -x "$DEST_PATH" ]; then
-        echo "❌ Warning: Binary at $DEST_PATH is not executable!"
+        echo "    ⚠️ Warning: Binary is not executable!"
     fi
 
     # Still show PATH warning if not in PATH
     if ! echo "$PATH" | grep -q "$INSTALL_DIR"; then
-      echo "⚠️ The installation directory ($INSTALL_DIR) is not in your PATH."
-      echo "You can run the binary using: $DEST_PATH"
-      echo "Or add $INSTALL_DIR to your PATH."
+      echo ""
+      echo "  ⚠️ The installation directory is not in your PATH."
+      echo "     You can run the binary using: $DEST_PATH"
+      echo "     Or add $INSTALL_DIR to your PATH."
     fi
     return 0
   fi
@@ -525,10 +524,10 @@ uninstall_binary() {
 
   BINARY_PATH="$INSTALL_DIR/$BINARY_NAME"
 
-  echo "Looking for deno-kit binary at: $BINARY_PATH"
+  echo "  → Looking for deno-kit binary at: $BINARY_PATH"
 
   if [ -f "$BINARY_PATH" ]; then
-    echo "Removing deno-kit binary..."
+    echo "  → Removing deno-kit binary..."
 
     if need_sudo; then
       if [ -n "$(command -v sudo)" ]; then
@@ -540,45 +539,69 @@ uninstall_binary() {
       rm -f "$BINARY_PATH" || fail "Failed to remove binary"
     fi
 
-    echo "✅ Uninstallation successful!"
+    echo "  ✅ Uninstallation successful!"
   else
-    echo "❌ deno-kit binary not found at $BINARY_PATH"
+    echo "  ❌ deno-kit binary not found at $BINARY_PATH"
     # Don't exit with error if just not found during uninstall
     # exit 1
   fi
 }
 
 # Main script execution
-echo "🦕 Deno-Kit Installer"
+echo "┌─────────────────────────────────────────┐"
+echo "│ 🦕 Deno-Kit Installer                    │"
+echo "└─────────────────────────────────────────┘"
 
 # Handle uninstall if requested
 if [ "$UNINSTALL_MODE" = true ]; then
-  echo "Uninstall mode activated"
+  echo ""
+  echo "🗑️  UNINSTALL MODE"
+  echo "───────────────────────────────────────────"
   detect_platform # Need platform to determine binary name/path
   uninstall_binary
   exit 0
 fi
 
-echo "Installing Deno-Kit..."
-
+echo ""
+echo "📦 PREPARATION"
+echo "───────────────────────────────────────────"
 create_temp_dir
 # Detect platform first, needed for get_release_info logic if source file used
 # and for install_binary/verify_install logic
 detect_platform
 get_release_info # Handles both download and local source file cases
+
+echo ""
+echo "📥 DOWNLOAD & EXTRACTION"
+echo "───────────────────────────────────────────"
 download_release # Skipped if using source file
 extract_archive
+
+echo ""
+echo "🔧 INSTALLATION"
+echo "───────────────────────────────────────────"
 install_binary
+echo "  ✅ Installation successful!"
+
+echo ""
+echo "🔍 VERIFICATION"
+echo "───────────────────────────────────────────"
 verify_install
 
-echo "Deno-Kit installed! Run 'deno-kit help' to get started."
+echo ""
+echo "✨ COMPLETED"
+echo "───────────────────────────────────────────"
+echo "Deno-Kit has been installed successfully!"
+echo "Run 'deno-kit help' to get started."
+
 if [ "$UNINSTALL_MODE" = false ]; then
-    echo "You can remove Deno-Kit by running this script again with the --uninstall flag."
+    echo ""
+    echo "To uninstall in the future:"
     # Show uninstall command using the determined install path
     DETECTED_INSTALL_DIR="$INSTALL_DIR" # Capture the final install dir used
     if [ -f "./install.sh" ]; then
-        echo "Example uninstall command: ./install.sh --uninstall --path=$DETECTED_INSTALL_DIR"
+        echo "  ./install.sh --uninstall --path=$DETECTED_INSTALL_DIR"
     else
-        echo "(To uninstall, re-download install.sh and run with --uninstall --path=$DETECTED_INSTALL_DIR)"
+        echo "  curl -fsSL https://raw.githubusercontent.com/$GITHUB_REPO/main/install.sh | sh -s -- --uninstall --path=$DETECTED_INSTALL_DIR"
     fi
 fi
