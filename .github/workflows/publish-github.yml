@@ -37,6 +37,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-npm-
 
+      - name: Create bin directory
+        run: mkdir -p bin
+
       - name: Build binaries
         run: deno task build
 
