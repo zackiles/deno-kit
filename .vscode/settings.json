@@ -69,6 +69,8 @@
     "modelcontextprotocol",
     "rwxr",
     "pids",
-    "USERPROFILE"
+    "USERPROFILE",
+    "unvalidated",
+    "somevalue"
   ],
 }

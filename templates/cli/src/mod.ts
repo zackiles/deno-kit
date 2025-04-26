@@ -5,7 +5,15 @@
  */
 import cli from './cli.ts'
 import logger from './utils/logger.ts'
+import loadConfig from './config.ts'
 import gracefulShutdown from './utils/graceful-shutdown.ts'
+
+await loadConfig({
+  PROJECT_NAME: '{PROJECT_NAME}',
+  PACKAGE_NAME: '{PACKAGE_NAME}',
+  PACKAGE_DESCRIPTION: '{PACKAGE_DESCRIPTION}',
+  PACKAGE_VERSION: '{PACKAGE_VERSION}',
+}, logger)
 
 if (import.meta.main) {
   await gracefulShutdown.startAndWrap(cli, logger)

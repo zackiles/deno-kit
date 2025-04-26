@@ -77,7 +77,6 @@
   },
   // Schema for lint rules: @https://github.com/denoland/deno/blob/main/cli/schemas/lint-rules.v1.json
   "lint": {
-    "enabled": true,
     "rules": {
       // Possible tags: "fresh", "jsr", "jsx", "react", "recommended"
       "tags": [
