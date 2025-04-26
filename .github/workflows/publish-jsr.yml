@@ -29,5 +29,8 @@ jobs:
         with:
           deno-version: v2.x
 
+      - name: Create bin directory
+        run: mkdir -p bin
+
       - name: Publish to JSR
         run: npx jsr publish --no-check
