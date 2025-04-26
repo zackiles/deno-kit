@@ -1,0 +1,7 @@
+---
+description:
+globs: scripts/build.ts
+alwaysApply: false
+---
+# Working with Build.ts and Native Builds
+**IMPORTANT**: Always read the file [how-this-build-works.md](mdc:scripts/how-this-build-works.md) to understand how native builds compiled with `deno compile` work. Full documentation on `deno compile` can be found at @https://docs.deno.com/runtime/reference/cli/compile/

@@ -176,7 +176,6 @@ Deno.test('Build and run kit binary', async () => {
       args: ['init', '--workspace', tempWorkspaceDir],
       stdout: 'piped',
       stderr: 'piped',
-      cwd: tempBinaryDir, // Run from the directory containing both binary and .env
       env: {
         DENO_KIT_ENV: 'test',
         DENO_KIT_PACKAGE_NAME: '@test/project',

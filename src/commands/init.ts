@@ -30,19 +30,16 @@ const commandRoute: CommandRouteDefinition = {
  * @returns Path to the extracted templates
  */
 async function extractProductionTemplates(): Promise<string> {
-  const templatesPath = join(
-    dirname(fromFileUrl(import.meta.url)),
-    '..',
-    '..',
-    'bin',
-    'templates.zip',
-  )
+  // In production, templates.zip is embedded at this VFS path during build
+  const vfsTemplatesPath = 'bin/templates.zip'
   const tempDir = await Deno.makeTempDir({ prefix: 'deno-kit-templates-' })
   const targetDir = join(tempDir, 'templates')
 
   try {
     await ensureDir(targetDir)
-    const zipReader = new ZipReader(new Uint8ArrayReader(await Deno.readFile(templatesPath)))
+    // Read directly from the determined VFS path
+    const zipData = await Deno.readFile(vfsTemplatesPath)
+    const zipReader = new ZipReader(new Uint8ArrayReader(zipData))
     const entries = await zipReader.getEntries()
 
     await Promise.all(entries.map(async (entry) => {

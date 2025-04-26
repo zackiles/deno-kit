@@ -165,6 +165,7 @@ async function build() {
         '--unstable',
         '--lock',
         '--no-check',
+        '--reload',
         '--config',
         relative(PROJECT_ROOT, RESOLVED_PATHS.denoConfig),
         '--target',
