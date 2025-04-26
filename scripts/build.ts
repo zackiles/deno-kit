@@ -49,11 +49,6 @@ async function createZipFile(sourcePath: string, targetPath: string): Promise<vo
   const zipWriter = new ZipWriter(new Uint8ArrayWriter())
   await zipWriter.add(fileName, new Uint8ArrayReader(fileData))
 
-  // Add the .env file to the zip
-  const envContent = 'DENO_ENV=production'
-  const envData = new TextEncoder().encode(envContent)
-  await zipWriter.add('.env', new Uint8ArrayReader(envData))
-
   const zipData = await zipWriter.close()
   await Deno.writeFile(targetPath, zipData)
 }
@@ -142,7 +137,7 @@ async function build() {
     ]
 
     const outputs = []
-    for (const [index, platform] of targets.entries()) {
+    for (const [_index, platform] of targets.entries()) {
       const outputFileName = `deno-kit-${platform.name}${
         platform.name.includes('windows') ? '.exe' : ''
       }`
@@ -221,41 +216,41 @@ async function build() {
       }
 
       // Clean up temporary files
-      const cleanupFiles = [
-        join(dirname(RESOLVED_PATHS.templatesZip), '.env'),
-      ]
+      // const cleanupFiles = [
+      //   // join(dirname(RESOLVED_PATHS.templatesZip), '.env'),
+      // ]
 
-      for (const fileOrDir of cleanupFiles) {
-        try {
-          if (await exists(fileOrDir)) {
-            // Use recursive remove for directories
-            await Deno.remove(fileOrDir, { recursive: true })
-            console.log(`\nCleaned up temporary file/dir: ${relative(PROJECT_ROOT, fileOrDir)}`)
-          }
-        } catch (error) {
-          console.error(`Error cleaning up file/dir ${relative(PROJECT_ROOT, fileOrDir)}:`, error)
-        }
-      }
+      // for (const fileOrDir of cleanupFiles) {
+      //   try {
+      //     if (await exists(fileOrDir)) {
+      //       // Use recursive remove for directories
+      //       await Deno.remove(fileOrDir, { recursive: true })
+      //       console.log(`\nCleaned up temporary file/dir: ${relative(PROJECT_ROOT, fileOrDir)}`)
+      //     }
+      //   } catch (error) {
+      //     console.error(`Error cleaning up file/dir ${relative(PROJECT_ROOT, fileOrDir)}:`, error)
+      //   }
+      // }
     } else {
       throw new Error('No builds were successful.')
     }
   } catch (error) {
     console.error('Error during build:', error)
     // Clean up temporary files even if build fails
-    const cleanupFiles = [
-      join(dirname(RESOLVED_PATHS.templatesZip), '.env'),
-    ]
+    // const cleanupFiles = [
+    //   // join(dirname(RESOLVED_PATHS.templatesZip), '.env'),
+    // ]
 
-    for (const fileOrDir of cleanupFiles) {
-      try {
-        if (await exists(fileOrDir)) {
-          await Deno.remove(fileOrDir, { recursive: true }) // Use recursive remove
-          console.log(`\nCleaned up temporary file/dir: ${relative(PROJECT_ROOT, fileOrDir)}`)
-        }
-      } catch (_) {
-        // Ignore cleanup errors on build failure
-      }
-    }
+    // for (const fileOrDir of cleanupFiles) {
+    //   try {
+    //     if (await exists(fileOrDir)) {
+    //       await Deno.remove(fileOrDir, { recursive: true }) // Use recursive remove
+    //       console.log(`\nCleaned up temporary file/dir: ${relative(PROJECT_ROOT, fileOrDir)}`)
+    //     }
+    //   } catch (_) {
+    //     // Ignore cleanup errors on build failure
+    //   }
+    // }
     Deno.exit(1)
   }
 }

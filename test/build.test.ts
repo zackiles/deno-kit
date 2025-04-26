@@ -133,22 +133,8 @@ Deno.test('Build and run kit binary', async () => {
       throw new Error(`No entries found in zip file: ${currentZipPath}`)
     }
 
-    // Check for .env file in zip entries
-    const envEntry = entries.find((entry) => entry.filename === '.env')
-    assert(envEntry, '.env file should exist in zip archive')
-
-    // Verify .env file contents
-    if (envEntry && typeof envEntry.getData === 'function') {
-      const envData = await envEntry.getData(new Uint8ArrayWriter())
-      const envContent = new TextDecoder().decode(envData)
-      assert(
-        envContent === 'DENO_ENV=production',
-        `.env file should contain production environment setting, got: ${envContent}`,
-      )
-    }
-
-    // Extract the binary (should be the non-.env entry)
-    const binaryEntry = entries.find((entry) => entry.filename !== '.env') as Entry
+    // Assume the first/only entry is the binary
+    const binaryEntry = entries[0] as Entry
     if (!binaryEntry || typeof binaryEntry.getData !== 'function') {
       throw new Error(`Invalid binary entry in zip file: ${currentZipPath}`)
     }
@@ -160,13 +146,6 @@ Deno.test('Build and run kit binary', async () => {
     }`
     const extractedBinaryPath = join(tempBinaryDir, binaryFileName)
     await Deno.writeFile(extractedBinaryPath, binaryData)
-
-    // Extract .env file to same directory as binary
-    if (envEntry && typeof envEntry.getData === 'function') {
-      const envData = await envEntry.getData(new Uint8ArrayWriter())
-      const extractedEnvPath = join(tempBinaryDir, '.env')
-      await Deno.writeFile(extractedEnvPath, envData)
-    }
 
     // Make sure binary is executable
     if (Deno.build.os !== 'windows') {
@@ -180,10 +159,6 @@ Deno.test('Build and run kit binary', async () => {
       logger.log(`- ${entry.name} (${fileInfo.size} bytes)`)
     }
     logger.log('=== End Debug ===\n')
-
-    // Verify .env file exists in binary directory
-    const envExists = await exists(join(tempBinaryDir, '.env'))
-    assert(envExists, '.env file should exist in binary directory')
 
     // Define the path to the templates.zip created by the build
     const templatesZipPath = join(binDir, 'templates.zip')

@@ -144,9 +144,9 @@ async function loadConfig(force = false): Promise<Record<string, string>> {
   // Merge, giving precedence to process environment variables
   values = { ...fileEnv, ...processEnv }
 
-  // Set default DENO_ENV to development if not already set after loading and merging
+  // Set default DENO_ENV to production if not already set after loading and merging
   if (!values.DENO_ENV) {
-    values.DENO_ENV = 'development'
+    values.DENO_ENV = 'production'
   }
 
   if (configArg || c) {

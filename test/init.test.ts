@@ -234,4 +234,21 @@ describe('init command', () => {
       ])
     }
   })
+
+  it('should set up Cursor config during initialization', async () => {
+    // Run the init command
+    const { output, success } = await runCLI(
+      ['init', '--workspace', tempDir],
+      { DENO_KIT_PROJECT_TYPE: 'CLI' },
+    )
+
+    assert(success, `Command failed: ${output}`)
+
+    // Verify Cursor config setup was called by checking log messages
+    // We only need to verify that the setup process was started
+    assertStringIncludes(output, 'Setting up Cursor AI configuration')
+
+    // Verify it reached the fetching phase
+    assertStringIncludes(output, 'Fetching cursor-config installation script')
+  })
 })

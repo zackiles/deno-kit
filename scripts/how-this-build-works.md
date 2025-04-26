@@ -1,89 +1,135 @@
-# Deno-Kit Build Process Technical Reference
+# Deno-Kit Build and Release Process
 
-This document provides a comprehensive technical overview of the build process used in the Deno-Kit project, primarily orchestrated by `scripts/build.ts` and verified by `test/build.test.ts`.
+This document provides a comprehensive technical overview of the build, release, and installation process for Deno-Kit.
 
-## 1. Overview
+## 1. Build Process Overview
 
-The core goal of the build process is to compile the Deno-Kit application (`src/main.ts`) into standalone, native executable binaries for multiple target platforms (Windows, macOS, Linux) and package them into distributable `.zip` archives.
+The core build process is orchestrated by `scripts/build.ts`, which compiles the Deno-Kit application into standalone native executables for multiple platforms and packages them into distributable `.zip` archives. This process is utilized both for local development and in CI/CD pipelines.
 
 ## 2. Build Script (`scripts/build.ts`)
 
-The `scripts/build.ts` file is the central script responsible for the entire build workflow.
+The `build.ts` script handles the entire build workflow:
 
-**Key Steps:**
+### Resource Preparation
 
-1. **Resource Verification:** Checks for the existence of essential source files, configuration, and assets defined in the `RESOURCES` constant (e.g., `src/main.ts`, `deno.jsonc`, `templates/`, JSON ban lists, Windows icon).
-2. **Output Directory:** Ensures the `bin/` directory exists, creating it if necessary.
-3. **Template Zipping:** Compresses the entire `templates/` directory into a single `bin/templates.zip` file. This zip file is a crucial resource that will be embedded into the final binaries.
-4. **Multi-Platform Compilation:** Iterates through a predefined list of target platforms (e.g., `x86_64-pc-windows-msvc`, `aarch64-apple-darwin`). For each platform:
-   - **Constructs `deno compile` command:** Assembles the arguments for `deno compile`, including:
-     - **Source:** `src/main.ts` (relative path from project root).
-     - **Flags:** `-A` (all permissions), `--unstable`, `--lock`, `--no-check`, `--config deno.jsonc`.
-       - **`--reload`:** Added to ensure the _very latest_ source code (including dependencies of the build script itself) is used during compilation, bypassing potential caching issues, especially when iterating on the build process or its dependencies. The first platform target also includes an _additional_ explicit `--reload` earlier in the argument list for dependency fetching.
-     - **Target:** The specific platform identifier (e.g., `x86_64-unknown-linux-gnu`).
-     - **Output:** Specifies the path for the raw compiled binary (e.g., `bin/deno-kit-linux-x86_64`).
-     - **Resource Embedding (`--include`):** This is critical for bundling necessary files directly into the binary's Virtual File System (VFS). **Relative paths from the project root** are used for:
-       - `bin/templates.zip` (The zipped templates created earlier).
-       - `src/utils/banned_directories_default.jsonc`
-       - `src/utils/banned_directories_custom.jsonc`
-       - `deno.jsonc`
-     - **Icon (`--icon`):** For Windows builds, includes the specified `.ico` file (`assets/deno-kit.ico`).
-   - **Executes `deno compile`:** Runs the command from the project root directory.
-   - **Permissions (Non-Windows):** Sets executable permissions (`chmod 0o755`) on the compiled binary for macOS and Linux.
-5. **Zip Packaging (`createZipFile`):**
-   - Takes the successfully compiled **raw native binary**.
-   - Creates a platform-specific `.zip` archive (e.g., `bin/deno-kit-linux-x86_64.zip`).
-   - Adds the **raw binary** to the zip archive.
-   - Adds a **`.env` file** containing `DENO_ENV=production` to the zip archive. This file is **external** to the binary itself but packaged alongside it.
-   - Writes the final `.zip` file to the `bin/` directory.
-6. **Cleanup:**
-   - **Deletes the raw compiled binary** after it has been successfully added to the `.zip` file.
-   - Deletes the temporary `bin/templates.zip` file after all builds are complete.
+1. Verifies essential source files, configuration, and assets exist (e.g., `src/main.ts`, `deno.jsonc`, banned directories lists, `templates/` directory)
+2. Creates the `bin/` directory if it doesn't exist
+3. Creates a temporary `bin/templates.zip` archive from the `templates/` directory (used during build, then cleaned up)
 
-## 3. Final Output & Binary Details
+### Multi-Platform Compilation
 
-The final distributable artifacts are the `.zip` files located in the `bin/` directory, one for each target platform.
+The script builds binaries for the following targets:
 
-**Contents of each `.zip` file:**
+- Windows x86_64 (`x86_64-pc-windows-msvc`)
+- macOS x86_64 (`x86_64-apple-darwin`)
+- macOS ARM64/Apple Silicon (`aarch64-apple-darwin`)
+- Linux x86_64 (`x86_64-unknown-linux-gnu`)
+- Linux ARM64 (`aarch64-unknown-linux-gnu`)
 
-1. **Native Executable Binary:** The platform-specific compiled application (`deno-kit-platform-arch[.exe]`).
-   - **Self-Contained:** Includes the Deno runtime and the application code.
-   - **Embedded Resources (VFS):** Contains `templates.zip`, `deno.jsonc`, and the ban list JSON files within its internal virtual file system, accessible via the paths used during the `--include` step.
-   - **Permissions:** Pre-set for non-Windows platforms.
-   - **Icon:** Embedded for Windows executables.
-2. **`.env` File:** A simple text file containing `DENO_ENV=production`. This is crucial for ensuring the application runs in production mode when executed. It needs to be present in the same directory as the binary at runtime (the extraction process handles this).
+For each platform, the build script:
 
-## 4. Build Testing (`test/build.test.ts`)
+1. **Constructs and executes a `deno compile` command** with:
+   - **Source**: `src/main.ts`
+   - **Flags**: `-A` (all permissions), `--lock`, `--no-check`, `--config deno.jsonc`
+   - **Target**: The specific platform identifier
+   - **Output**: Platform-specific binary path (e.g., `bin/deno-kit-linux-x86_64`)
+   - **Resource Embedding**: Using `--include` to bundle configuration files directly into the binary:
+     - `src/utils/banned_directories_default.jsonc`
+     - `src/utils/banned_directories_custom.jsonc`
+     - `deno.jsonc`
+   - **Icon**: Windows builds include `assets/deno-kit.ico`
+2. **Sets executable permissions** for non-Windows binaries
+3. **Creates a platform-specific zip archive** (e.g., `bin/deno-kit-linux-x86_64.zip`) containing only:
+   - The compiled binary
+4. **Cleans up temporary files** including the raw binaries and the temporary `bin/templates.zip` after all builds are complete
 
-The `test/build.test.ts` file provides an end-to-end verification of the build process and the functionality of the resulting binary.
+## 3. CI/CD Release Pipeline
 
-**Test Steps:**
+The release process is automated through a sequence of GitHub Actions workflows:
 
-1. **Run Build Script:** Executes `scripts/build.ts` using `Deno.Command`.
-2. **Verify Zip Files:** Asserts that all expected platform-specific `.zip` files (e.g., `bin/deno-kit-macos-aarch64.zip`) have been created in the `bin/` directory.
-3. **Select Current Platform Zip:** Identifies the correct `.zip` file corresponding to the OS and architecture the test is currently running on.
-4. **Extract Zip Contents:** Reads the selected `.zip` file and extracts its contents (the native binary and the `.env` file) into a temporary directory (`tempBinaryDir`).
-5. **Set Executable Permissions:** Ensures the extracted binary is executable (for non-Windows).
-6. **Run Extracted Binary:** Executes the extracted native binary from the temporary directory using `Deno.Command`, specifically running its `init` command (`<binary_path> init --workspace <temp_workspace_dir>`). Environment variables are set to simulate user input for the `init` process.
-   - **Important Note on `cwd`:** The test _does not_ specify a `cwd` (Current Working Directory) when running the extracted binary. Initially, setting `cwd` to the temporary directory containing the binary caused VFS resolution issues within the compiled binary. Allowing Deno to default the `cwd` to the binary's location resolved this specific test environment problem.
-7. **Verify `init` Success:** Asserts that the `init` command executed successfully.
-8. **Verify Workspace Creation:** Checks that the `init` command correctly created the expected project structure (e.g., `README.md`, `deno.jsonc`, `src/`) within the temporary workspace directory (`tempWorkspaceDir`).
+### 1. Test Installer Workflow (`test-installer.yml`)
 
-**Implicit Testing:** By successfully running the `init` command and verifying the output, the test implicitly confirms that the binary could:
+Triggered when a tag matching `v[0-9]+.[0-9]+.[0-9]+` is pushed:
 
-- Detect the external `.env` file.
-- Access the `templates.zip` embedded within its VFS.
-- Extract the templates (handled by the `init` command logic, see `src/commands/init.ts`).
-- Process and write the template files to the target workspace.
+1. Sets up Deno v2.x
+2. Builds binaries using `scripts/build.ts`
+3. Tests the installer with the locally built Linux binary:
+   - Verifies installation works correctly
+   - Checks that the installed version matches the release tag
+   - Tests uninstallation functionality
 
-## 5. Resource Handling Flow (Templates Example)
+### 2. Publish to JSR Workflow (`publish-jsr.yml`)
 
-1. **Source:** Raw template files exist in the `templates/` directory.
-2. **Build Script (`build.ts`):** Zips the `templates/` directory into `bin/templates.zip`.
-3. **Compilation (`deno compile`):** Embeds `bin/templates.zip` into the native binary's VFS using `--include`.
-4. **Packaging (`build.ts`):** Packages the binary (with embedded zip) and an external `.env` file into the final platform `.zip`.
-5. **Test/Execution (`init` command):**
-   - The binary is extracted alongside the `.env` file.
-   - The `init` command logic (specifically `extractProductionTemplates` in `src/commands/init.ts`) accesses the embedded `bin/templates.zip` directly from the VFS using `Deno.readFile('bin/templates.zip')`. **Note:** Attempts to calculate this path using `import.meta.url` or `Deno.mainModule` proved unreliable within the compiled binary context.
-   - It extracts the _contents_ of the read `templates.zip` data to a temporary OS directory.
-   - It uses these extracted templates to generate the project files in the user's workspace.
+Runs after the Test Installer workflow completes successfully if the commit message contains "chore: tag version v":
+
+1. Sets up Deno v2.x
+2. Creates the bin directory
+3. Runs the build task
+4. Publishes the package to JSR (JavaScript Registry) using `npx jsr publish --no-check`
+
+### 3. Publish to GitHub Releases Workflow (`publish-github.yml`)
+
+Runs after the Publish to JSR workflow completes successfully:
+
+1. Sets up Deno v2.x
+2. Builds binaries for all platforms
+3. Extracts the version from the git tag
+4. Creates a GitHub release with:
+   - The version tag
+   - Generated release notes
+   - Uploads all platform-specific zip files (containing the binary) from the `bin/` directory as release assets.
+
+## 4. Installation Process
+
+Deno-Kit provides a shell script (`install.sh`) that handles downloading, extracting, and installing the appropriate binary for the user's platform.
+
+### Installation Script (`install.sh`)
+
+The recommended installation method:
+
+```
+curl -fsSL https://raw.githubusercontent.com/zackiles/deno-kit/main/install.sh | sh
+```
+
+The script performs these steps:
+
+1. **Platform Detection**: Automatically identifies the OS (macOS, Linux, Windows) and architecture (x86_64, ARM64)
+2. **Release Fetching**: Downloads the appropriate platform-specific zip archive (e.g., `deno-kit-linux-x86_64.zip`) from the latest GitHub release (or uses a specified version tag)
+3. **Extraction**: Unpacks the zip archive containing the binary into a temporary location
+4. **Installation**:
+   - Places the binary in `~/.local/bin/deno-kit` (Unix/macOS) or `%USERPROFILE%\.bin\deno-kit.exe` (Windows)
+   - Sets executable permissions
+5. **PATH Configuration**: Verifies the installation and guides users to add the installation directory to PATH if needed
+
+### Installation Options
+
+The script supports several optional flags:
+
+- `--tag=VERSION`: Install a specific version (defaults to latest)
+- `--path=PATH`: Specify a custom installation directory (defaults to standard user binary locations)
+- `--source-file=FILE`: Use a local zip file instead of downloading from GitHub
+- `--uninstall`: Remove an existing installation instead of installing
+
+### Uninstallation
+
+To uninstall Deno-Kit:
+
+```
+curl -fsSL https://raw.githubusercontent.com/zackiles/deno-kit/main/install.sh | sh -s -- --uninstall
+```
+
+## 5. Binary Details
+
+Each platform-specific binary:
+
+1. **Is self-contained**: Includes the Deno runtime and application code
+2. **Contains embedded resources**: Accessible through an internal Virtual File System (VFS):
+   - Configuration files (`deno.jsonc`)
+   - Banned directories lists
+3. **Is pre-configured for production**: The binary defaults to `DENO_ENV=production` unless overridden by the system environment.
+
+When a user runs commands such as `deno-kit init`, the application can:
+
+- Access the embedded configuration files
+- Use the environment configuration (defaulting to production if no `DENO_ENV` system variable is set)
+- Access project templates (likely bundled implicitly via the source code import graph or fetched dynamically, as `templates.zip` is not distributed with the binary)

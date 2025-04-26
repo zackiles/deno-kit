@@ -21,300 +21,252 @@ const commandRoute: CommandRouteDefinition = {
   options: {
     string: ['workspace', 'w'],
     alias: { w: 'workspace' },
-    unknown: () => {
-      return true
-    },
+    unknown: () => true,
   },
 }
 
 /**
- * Fetches the latest release tag from GitHub API.
+ * Fetches content from the given URL and extracts it as a zip to the target directory.
+ * @param source Source URL, file path, or descriptor (for error messages)
+ * @param targetDir Directory to extract the zip contents to
+ * @param isLocalFile Whether the source is a local file (vs URL)
  */
-async function getLatestGitHubTag(): Promise<string> {
-  const url = `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`
-  logger.debug(`Fetching latest release info from: ${url}`)
-
+async function fetchAndExtractZip(
+  source: string,
+  targetDir: string,
+  isLocalFile = false,
+): Promise<void> {
   try {
-    const response = await fetch(url, {
-      headers: {
-        Accept: 'application/vnd.github.v3+json',
-        // Add a token if needed for rate limits, but try without first
-        // Authorization: `token YOUR_GITHUB_TOKEN`,
-      },
-    })
+    // Get the zip data (from URL or file)
+    const zipData = isLocalFile
+      ? await Deno.readFile(source)
+      : new Uint8Array(await (await fetch(source)).arrayBuffer())
 
-    if (!response.ok) {
-      throw new Error(`GitHub API request failed: ${response.status} ${response.statusText}`)
+    logger.debug(
+      `Successfully read ${zipData.byteLength} bytes from ${isLocalFile ? 'file' : 'URL'}`,
+    )
+
+    // Extract the zip
+    const zipReader = new ZipReader(new Uint8ArrayReader(zipData))
+    try {
+      const entries = await zipReader.getEntries()
+      logger.debug(`Found ${entries.length} entries in zip file`)
+      await ensureDir(targetDir)
+
+      // Process entries based on their paths
+      for (const entry of entries) {
+        if (entry.directory || !entry.getData) continue
+
+        let targetPath: string
+
+        // Handle shared/ folder - extract directly to target
+        if (entry.filename.startsWith('shared/')) {
+          targetPath = join(targetDir, entry.filename.substring('shared/'.length))
+        } // Handle project-specific folders - extract directly to target
+        else if (
+          /^(cli|library|http-server|websocket-server|sse-server|mcp-server)\//.test(entry.filename)
+        ) {
+          const parts = entry.filename.split('/')
+          if (parts.length >= 2) {
+            // Remove the project-type prefix
+            parts.shift()
+            targetPath = join(targetDir, parts.join('/'))
+          } else {
+            // Skip entries with unexpected format
+            continue
+          }
+        } // Everything else - extract to target keeping its path
+        else {
+          targetPath = join(targetDir, entry.filename)
+        }
+
+        await ensureDir(dirname(targetPath))
+        await Deno.writeFile(targetPath, await entry.getData(new Uint8ArrayWriter()))
+      }
+
+      logger.debug(`Extracted zip contents to ${targetDir}`)
+    } finally {
+      await zipReader.close().catch(() => {})
     }
-
-    const releaseInfo = await response.json()
-    const tagName = releaseInfo?.tag_name
-
-    if (!tagName) {
-      throw new Error('Could not find tag_name in GitHub API response')
-    }
-
-    // Remove potential 'v' prefix
-    const version = tagName.startsWith('v') ? tagName.slice(1) : tagName
-    logger.debug(`Latest GitHub tag found: ${tagName} -> ${version}`)
-    return version
   } catch (error) {
-    logger.error('Failed to fetch latest GitHub release tag:', error)
-    throw new Error('Could not determine latest version for downloading templates.')
+    const errorType = isLocalFile ? 'read' : 'download'
+    const message = error instanceof Error ? error.message : String(error)
+    throw new Error(`Failed to ${errorType} or extract from ${source}: ${message}`)
   }
 }
 
 /**
- * Downloads and extracts templates.zip from GitHub Release for production.
- * @param version The version tag to download.
- * @param targetDir The directory to extract templates into.
+ * Extracts template files from local source folders to target directory.
+ * @param templatesBasePath Base path to the templates directory
+ * @param projectType Type of project (cli, library, etc.)
+ * @param targetDir Directory to extract templates to
  */
-async function downloadAndExtractProductionTemplates(
-  version: string,
+async function extractLocalTemplates(
+  templatesBasePath: string,
+  projectType: string,
   targetDir: string,
 ): Promise<void> {
-  const assetUrl = `https://github.com/${GITHUB_REPO}/releases/download/v${version}/templates.zip`
-  logger.info(`Downloading templates from ${assetUrl}...`)
-
-  try {
-    const response = await fetch(assetUrl)
-    if (!response.ok || !response.body) {
-      throw new Error(`Failed to download templates.zip: ${response.status} ${response.statusText}`)
+  // Copy shared, then project-specific templates (latter overwrites conflicts)
+  for (const sourceType of ['shared', projectType]) {
+    const sourcePath = join(templatesBasePath, sourceType)
+    if (await exists(sourcePath)) {
+      await copy(sourcePath, targetDir, { overwrite: true })
     }
-
-    const zipData = new Uint8Array(await response.arrayBuffer())
-    logger.debug(`Downloaded ${zipData.byteLength} bytes for templates.zip`)
-
-    logger.info('Extracting templates...')
-    const zipReader = new ZipReader(new Uint8ArrayReader(zipData))
-    const entries = await zipReader.getEntries()
-
-    await ensureDir(targetDir)
-    await Promise.all(entries.map(async (entry) => {
-      if (!entry?.getData || entry.directory) return // Skip directories
-      const data = await entry.getData(new Uint8ArrayWriter())
-      const entryPath = join(targetDir, entry.filename)
-      // Ensure the directory for the file exists
-      await ensureDir(dirname(entryPath))
-      await Deno.writeFile(entryPath, data)
-      logger.debug(`Extracted: ${entry.filename}`)
-    }))
-
-    await zipReader.close()
-    logger.info('Templates extracted successfully.')
-  } catch (error) {
-    logger.error(`Failed to download or extract templates from ${assetUrl}`, error)
-    throw new Error('Could not retrieve project templates for production.')
   }
 }
 
 /**
- * Extracts templates.zip from a specific path provided by an environment variable.
- * Used in 'test' environment when running compiled binary tests.
- * @param targetDir The directory to extract templates into.
+ * Initializes a new Deno-Kit project
  */
-async function extractTestTemplatesZip(targetDir: string): Promise<void> {
-  const templatesZipPath = Deno.env.get('DENO_KIT_TEST_TEMPLATES_ZIP_PATH')
-  if (!templatesZipPath) {
-    throw new Error('DENO_KIT_TEST_TEMPLATES_ZIP_PATH environment variable is not set.')
-  }
-  logger.info(`Extracting test templates zip from: ${templatesZipPath}`)
-
-  try {
-    // Removed Deno.execPath() logic
-    if (!await exists(templatesZipPath)) {
-      throw new Error(
-        `Test templates.zip not found at path specified by env var: ${templatesZipPath}`,
-      )
-    }
-
-    const zipData = await Deno.readFile(templatesZipPath)
-    const zipReader = new ZipReader(new Uint8ArrayReader(zipData))
-    const entries = await zipReader.getEntries()
-
-    await ensureDir(targetDir)
-    await Promise.all(entries.map(async (entry) => {
-      if (!entry?.getData || entry.directory) return // Skip directories
-      const data = await entry.getData(new Uint8ArrayWriter())
-      const entryPath = join(targetDir, entry.filename)
-      await ensureDir(dirname(entryPath))
-      await Deno.writeFile(entryPath, data)
-      logger.debug(`Extracted: ${entry.filename}`)
-    }))
-
-    await zipReader.close()
-    logger.info('Test templates zip extracted successfully.')
-  } catch (error) {
-    logger.error('Failed to extract test templates.zip', error)
-    throw new Error('Could not retrieve project templates for test environment.')
-  }
-}
-
 async function command({ args }: { args: Args }): Promise<void> {
-  // Check for positional argument after "init"
-  const workspacePath = args._.length > 0 ? String(args._[0]) : undefined
-
-  // If a positional argument was provided, set it as the workspace path
-  if (workspacePath) {
-    // This will be picked up by loadConfig() later
-    Deno.env.set('DENO_KIT_WORKSPACE', workspacePath)
+  // Set workspace path from args if provided
+  if (args._.length > 0) {
+    Deno.env.set('DENO_KIT_WORKSPACE', String(args._[0]))
   }
 
-  // Reload config to pick up any workspace changes
-  const updatedConfig = await loadConfig()
-  logger.debug(`Setting up project in workspace: ${updatedConfig.workspace}`)
-  await ensureDir(updatedConfig.workspace)
+  // Load config and check for existing project
+  const config = await loadConfig()
+  const targetWorkspace = config.workspace
+  await ensureDir(targetWorkspace)
 
-  // Check if kit.json already exists in the workspace
-  const configFilePath = join(updatedConfig.workspace, 'kit.json')
+  const configFilePath = join(targetWorkspace, 'kit.json')
   if (await exists(configFilePath)) {
-    throw new Error(`A Deno-Kit project already exists in ${updatedConfig.workspace}`)
+    throw new Error(`A Deno-Kit project already exists at ${configFilePath}`)
   }
 
+  // Get template values for rendering
   const templateValues = await getTemplateValues({
     gitName: await getGitUserName(),
     gitEmail: await getGitUserEmail(),
   })
 
-  // Create a temporary directory to hold the final templates
+  // Set up temporary directory for template processing
   const tempDir = await Deno.makeTempDir({ prefix: 'deno-kit-init-' })
-  const finalTemplatesDir = join(tempDir, 'templates') // This will hold the final combined/downloaded templates
+  const finalTemplatesDir = join(tempDir, 'templates')
   await ensureDir(finalTemplatesDir)
 
   try {
-    if (updatedConfig.DENO_ENV === 'production') {
-      // Production: Download templates from GitHub Release
-      logger.info('Production mode detected. Downloading templates...')
-      const latestVersion = await getLatestGitHubTag()
-      await downloadAndExtractProductionTemplates(latestVersion, finalTemplatesDir)
-    } else if (updatedConfig.DENO_ENV === 'test') {
-      // Test: Check if we should extract a local zip (usually for compiled binary tests)
-      const testZipPath = Deno.env.get('DENO_KIT_TEST_TEMPLATES_ZIP_PATH')
-      if (testZipPath) {
-        logger.info('Test mode with local zip path detected. Extracting...')
-        // Extract zip to an intermediate directory first
-        const extractedZipDir = join(tempDir, 'extracted-zip')
-        await ensureDir(extractedZipDir)
-        await extractTestTemplatesZip(extractedZipDir) // Extract to intermediate dir
+    // Prepare templates based on environment
+    await prepareTemplates(config.DENO_ENV, finalTemplatesDir, templateValues)
 
-        // Now, replicate the dev logic to copy/merge into finalTemplatesDir
-        logger.info('Merging extracted test templates...')
-        const sharedTemplatesDir = join(extractedZipDir, 'shared') // Source from extracted dir
-        const projectTypeTemplatesDir = join(
-          extractedZipDir, // Source from extracted dir
-          templateValues.PROJECT_TYPE.toLowerCase(),
-        )
-
-        logger.debug(`Using shared templates from: ${sharedTemplatesDir}`)
-        logger.debug(
-          `Using ${templateValues.PROJECT_TYPE} templates from: ${projectTypeTemplatesDir}`,
-        )
-
-        if (await exists(sharedTemplatesDir)) {
-          logger.debug('Copying shared templates to final dir...')
-          await copy(sharedTemplatesDir, finalTemplatesDir, { overwrite: true })
-        } else {
-          logger.warn(
-            `Shared templates directory not found in extracted zip: ${sharedTemplatesDir}`,
-          )
-        }
-
-        if (await exists(projectTypeTemplatesDir)) {
-          logger.debug(`Copying ${templateValues.PROJECT_TYPE} templates to final dir...`)
-          await copy(projectTypeTemplatesDir, finalTemplatesDir, { overwrite: true })
-        } else {
-          logger.warn(
-            `Project-specific templates directory not found in extracted zip: ${projectTypeTemplatesDir}`,
-          )
-        }
-        // Clean up intermediate extraction directory (optional, as tempDir is removed anyway)
-        // await Deno.remove(extractedZipDir, { recursive: true });
-      } else {
-        // If test mode but no specific zip path, fall back to dev logic (using source templates)
-        logger.info('Test mode detected, using local development templates...')
-        // Replicate Development logic here
-        const templatesBasePath = await resolveResourcePath('templates')
-        const sharedTemplatesDir = join(templatesBasePath, 'shared')
-        const projectTypeTemplatesDir = join(
-          templatesBasePath,
-          templateValues.PROJECT_TYPE.toLowerCase(),
-        )
-        logger.debug(`Using shared templates from: ${sharedTemplatesDir}`)
-        logger.debug(
-          `Using ${templateValues.PROJECT_TYPE} templates from: ${projectTypeTemplatesDir}`,
-        )
-        if (await exists(sharedTemplatesDir)) {
-          logger.debug('Copying shared templates...')
-          await copy(sharedTemplatesDir, finalTemplatesDir, { overwrite: true })
-        } else {
-          logger.warn(`Shared templates directory not found: ${sharedTemplatesDir}`)
-        }
-        if (await exists(projectTypeTemplatesDir)) {
-          logger.debug(`Copying ${templateValues.PROJECT_TYPE} templates...`)
-          await copy(projectTypeTemplatesDir, finalTemplatesDir, { overwrite: true })
-        } else {
-          logger.warn(
-            `Project-specific templates directory not found: ${projectTypeTemplatesDir}`,
-          )
-        }
-      }
-    } else {
-      // Development: Copy local templates
-      logger.info('Development mode detected. Using local templates...')
-      const templatesBasePath = await resolveResourcePath('templates')
-      const sharedTemplatesDir = join(templatesBasePath, 'shared')
-      const projectTypeTemplatesDir = join(
-        templatesBasePath,
-        templateValues.PROJECT_TYPE.toLowerCase(),
-      )
-
-      logger.debug(`Using shared templates from: ${sharedTemplatesDir}`)
-      logger.debug(
-        `Using ${templateValues.PROJECT_TYPE} templates from: ${projectTypeTemplatesDir}`,
-      )
-
-      // Copy shared templates to the final temp dir
-      if (await exists(sharedTemplatesDir)) {
-        logger.debug('Copying shared templates...')
-        await copy(sharedTemplatesDir, finalTemplatesDir, { overwrite: true })
-      } else {
-        logger.warn(`Shared templates directory not found: ${sharedTemplatesDir}`)
-      }
-
-      // Copy project-specific templates (overwriting shared ones if conflicts)
-      if (await exists(projectTypeTemplatesDir)) {
-        logger.debug(`Copying ${templateValues.PROJECT_TYPE} templates...`)
-        await copy(projectTypeTemplatesDir, finalTemplatesDir, { overwrite: true })
-      } else {
-        logger.warn(`Project-specific templates directory not found: ${projectTypeTemplatesDir}`)
-      }
-    }
-
-    // Use the finalTemplatesDir (either downloaded or copied) for workspace creation
+    // Create the workspace with the prepared templates
     const workspace = await createWorkspace({
       name: templateValues.PACKAGE_NAME,
-      workspacePath: updatedConfig.workspace,
-      templatesPath: finalTemplatesDir, // Use the populated temp directory
+      workspacePath: targetWorkspace,
+      templatesPath: finalTemplatesDir,
       configFileName: 'kit.json',
     })
 
+    // Process and write templates, save config, install dependencies
     await workspace.compileAndWriteTemplates(templateValues)
-    logger.info('✅ Workspace and template files copied successfully')
     await workspace.save()
-    logger.info('✅ Workspace configuration file saved successfully')
-
-    // Run deno install in non-interactive mode with force flag
     await workspace.runCommand('deno', ['install'])
-    logger.info('✅ Deno dependencies installed successfully')
 
-    // Skip Cursor setup in test environment to avoid async leaks/timeouts
-    if (updatedConfig.DENO_ENV !== 'test') {
-      await setupOrUpdateCursorConfig(workspace.path)
-    }
+    // Set up Cursor config (in all environments)
+    await setupOrUpdateCursorConfig(workspace.path)
+
+    // Keep the original log format for test compatibility and add the path info
     logger.info(`Setup ${templateValues.PROJECT_TYPE} project`)
+    logger.info(`✅ Project initialized in ${targetWorkspace}`)
   } finally {
-    // Clean up the temporary directory
+    // Clean up temp files
     await Deno.remove(tempDir, { recursive: true })
+      .catch((err) => logger.warn(`Cleanup failed: ${err instanceof Error ? err.message : err}`))
+  }
+
+  /**
+   * Prepares templates based on the current environment
+   */
+  async function prepareTemplates(
+    environment: string,
+    templatesDir: string,
+    values: Record<string, string>,
+  ): Promise<void> {
+    const preparers = {
+      production: prepareProductionTemplates,
+      test: prepareTestTemplates,
+      development: prepareDevelopmentTemplates,
+    }
+
+    const preparer = preparers[environment as keyof typeof preparers] || prepareDevelopmentTemplates
+    await preparer(templatesDir, values)
+  }
+
+  /**
+   * Prepares templates for production environment by downloading from GitHub
+   */
+  async function prepareProductionTemplates(
+    templatesDir: string,
+    _values: Record<string, string>,
+  ): Promise<void> {
+    const url = `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`
+    const releaseInfo = await fetch(url, {
+      headers: { Accept: 'application/vnd.github.v3+json' },
+    }).then((res) => res.json())
+
+    const version = (releaseInfo?.tag_name || '').replace(/^v/, '')
+    if (!version) throw new Error('Could not determine latest version')
+
+    await fetchAndExtractZip(
+      `https://github.com/${GITHUB_REPO}/releases/download/v${version}/templates.zip`,
+      templatesDir,
+    )
+  }
+
+  /**
+   * Prepares templates for test environment using local zip file
+   */
+  async function prepareTestTemplates(
+    templatesDir: string,
+    _values: Record<string, string>,
+  ): Promise<void> {
+    // In test mode, templates.zip should be in the bin directory of the project
+    const cwd = Deno.cwd()
+    const templatesZipPath = join(cwd, 'bin', 'templates.zip')
+
+    logger.debug(`Looking for test templates at: ${templatesZipPath}`)
+
+    if (!await exists(templatesZipPath)) {
+      // Fall back to development mode if templates.zip doesn't exist
+      logger.debug('Templates zip not found, falling back to local templates')
+      const templatesBasePath = await resolveResourcePath('templates')
+      try {
+        await extractLocalTemplates(
+          templatesBasePath,
+          'cli', // Default to CLI templates in test mode
+          templatesDir,
+        )
+        return
+      } catch (err) {
+        throw new Error(
+          `Templates zip not found at ${templatesZipPath} and local templates fallback failed. Make sure to run 'deno task build' before running tests.`,
+        )
+      }
+    }
+
+    logger.debug(`Using test templates zip: ${templatesZipPath}`)
+    await fetchAndExtractZip(templatesZipPath, templatesDir, true)
+
+    // Simple verification that extraction succeeded
+    const readmeExists = await exists(join(templatesDir, 'README.md'))
+    if (!readmeExists) {
+      logger.warn('README.md not found after extraction - build test may fail.')
+    }
+  }
+
+  /**
+   * Prepares templates for development environment using local templates
+   */
+  async function prepareDevelopmentTemplates(
+    templatesDir: string,
+    values: Record<string, string>,
+  ): Promise<void> {
+    const templatesBasePath = await resolveResourcePath('templates')
+    await extractLocalTemplates(
+      templatesBasePath,
+      values.PROJECT_TYPE.toLowerCase(),
+      templatesDir,
+    )
   }
 }
 
@@ -322,4 +274,5 @@ if (import.meta.main) {
   const args: Args = parseArgs(Deno.args, commandRoute.options)
   await commandRoute.command({ args, routes: [commandRoute] })
 }
+
 export default commandRoute

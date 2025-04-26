@@ -395,25 +395,6 @@ install_binary() {
       chmod +x "$DEST_PATH" || fail "Failed to set executable permission"
     fi
   fi
-
-  # --- ADDED: Copy .env file if it exists in the temp dir ---
-  ENV_FILE_TEMP_PATH="$TEMP_DIR/.env"
-  if [ -f "$ENV_FILE_TEMP_PATH" ]; then
-    DEST_ENV_PATH="$INSTALL_DIR/.env"
-    echo "  → Installing .env file to $INSTALL_DIR"
-    if need_sudo; then
-      if [ -n "$(command -v sudo)" ]; then
-        sudo cp -f "$ENV_FILE_TEMP_PATH" "$DEST_ENV_PATH" || echo "  ⚠️ Warning: Failed to copy .env file (permission denied?)" # Don't fail install for .env copy error
-      else
-         echo "  ⚠️ Warning: Need sudo to copy .env file, but sudo not found."
-      fi
-    else
-       cp -f "$ENV_FILE_TEMP_PATH" "$DEST_ENV_PATH" || echo "  ⚠️ Warning: Failed to copy .env file."
-    fi
-  else
-    echo "  → No .env file found in extracted archive to install."
-  fi
-  # --- END ADDED SECTION ---
 }
 
 # Verify that the binary is in PATH
@@ -542,7 +523,7 @@ uninstall_binary() {
   fi
 
   BINARY_PATH="$INSTALL_DIR/$BINARY_NAME"
-  ENV_PATH="$INSTALL_DIR/.env" # <-- ADDED: Path for .env file
+  # ENV_PATH="$INSTALL_DIR/.env" # <-- ADDED: Path for .env file
 
   echo "  → Looking for deno-kit binary at: $BINARY_PATH"
 
@@ -565,22 +546,22 @@ uninstall_binary() {
   fi
 
   # --- ADDED: Remove .env file during uninstall ---
-  if [ -f "$ENV_PATH" ]; then
-      echo "  → Removing .env file..."
-      if need_sudo; then
-        if [ -n "$(command -v sudo)" ]; then
-            sudo rm -f "$ENV_PATH" || echo "  ⚠️ Warning: Failed to remove .env file (permission denied?)"
-            REMOVED_SOMETHING=true
-        else
-             echo "  ⚠️ Warning: Need sudo to remove .env file, but sudo not found."
-        fi
-      else
-         rm -f "$ENV_PATH" || echo "  ⚠️ Warning: Failed to remove .env file."
-         REMOVED_SOMETHING=true
-      fi
-  else
-      echo "  → .env file not found at $ENV_PATH"
-  fi
+  # if [ -f "$ENV_PATH" ]; then
+  #     echo "  → Removing .env file..."
+  #     if need_sudo; then
+  #       if [ -n "$(command -v sudo)" ]; then
+  #           sudo rm -f "$ENV_PATH" || echo "  ⚠️ Warning: Failed to remove .env file (permission denied?)"
+  #           REMOVED_SOMETHING=true
+  #       else
+  #            echo "  ⚠️ Warning: Need sudo to remove .env file, but sudo not found."
+  #       fi
+  #     else
+  #        rm -f "$ENV_PATH" || echo "  ⚠️ Warning: Failed to remove .env file."
+  #        REMOVED_SOMETHING=true
+  #     fi
+  # else
+  #     echo "  → .env file not found at $ENV_PATH"
+  # fi
   # --- END ADDED SECTION ---
 
   if [ "$REMOVED_SOMETHING" = true ]; then
