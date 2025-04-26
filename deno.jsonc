@@ -1,7 +1,7 @@
 {
   // Schema deno.jsonc: @https://github.com/denoland/deno/blob/main/cli/schemas/config-file.v1.json
   "name": "@deno-kit/kit",
-  "version": "0.0.25",
+  "version": "0.0.26",
   "description": "The modern, unopinionated, and AI-native way to quickly scaffold and maintain Deno projects.",
   "license": "MIT",
   "author": "Zachary Iles <zack.iles@gmail.com>",
@@ -11,7 +11,7 @@
     "url": "https://github.com/zackiles/deno-kit.git"
   },
   "tasks": {
-    "tests": "deno test -A --reload",
+    "tests": "DENO_ENV=test deno test -A --reload",
     "kit": "deno run -A src/main.ts",
     "pre-publish": "deno run -A scripts/pre-publish.ts",
     "test:build": "deno test -A --reload test/build.test.ts",
@@ -31,6 +31,7 @@
     "@opentelemetry/sdk-trace-base": "npm:@opentelemetry/sdk-trace-base@1",
     "@opentelemetry/resources": "npm:@opentelemetry/resources@1",
     "@opentelemetry/semantic-conventions": "npm:@opentelemetry/semantic-conventions@1",
+    "@std/datetime": "jsr:@std/datetime@^0.225.4",
     "@std/fmt": "jsr:@std/fmt@1",
     "@std/fs": "jsr:@std/fs@1",
     "@std/dotenv": "jsr:@std/dotenv@0",

@@ -28,7 +28,6 @@
 import { load as loadEnv } from '@std/dotenv'
 import { parseArgs } from '@std/cli'
 import { dirname, join } from '@std/path' // Import path functions
-import logger from './utils/logger.ts' // Import logger for debug
 
 // Module state
 let values: Record<string, string> = {}
@@ -107,7 +106,7 @@ async function loadConfig(force = false): Promise<Record<string, string>> {
       execDir = dirname(execPath)
     }
   } catch (e) {
-    logger.warn(`Could not determine executable path: ${e}. Falling back to cwd for .env.`)
+    console.warn(`Could not determine executable path: ${e}. Falling back to cwd for .env.`)
   }
 
   parsedArgs = parseArgs(Deno.args, {
@@ -133,15 +132,19 @@ async function loadConfig(force = false): Promise<Record<string, string>> {
     loadedFrom = 'executable directory'
   } catch (e) {
     if (!(e instanceof Deno.errors.NotFound)) {
-      logger.warn(`Error checking for .env near executable: ${e}`)
+      console.warn(`Error checking for .env near executable: ${e}`)
     }
     // If not found near executable, loadEnv will try cwd by default
   }
 
-  // Load env vars using the determined path or fallback to loadEnv's default (.env in cwd)
-  values = filterEmptyValues(await loadEnv({ envPath: finalEnvPath, export: false }))
+  // Load env vars from the determined file path
+  const fileEnv = filterEmptyValues(await loadEnv({ envPath: finalEnvPath, export: false }))
+  // Get current process environment variables
+  const processEnv = Deno.env.toObject()
+  // Merge, giving precedence to process environment variables
+  values = { ...fileEnv, ...processEnv }
 
-  // Set default DENO_ENV to development if not already set after loading
+  // Set default DENO_ENV to development if not already set after loading and merging
   if (!values.DENO_ENV) {
     values.DENO_ENV = 'development'
   }

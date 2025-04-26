@@ -112,21 +112,13 @@ async function build() {
       }
     }
 
-    // Always use bin directory relative to project root
-    const outputDir = join(PROJECT_ROOT, 'bin')
-    try {
-      await Deno.mkdir(outputDir, { recursive: true })
-    } catch (err) {
-      if (!(err instanceof Deno.errors.AlreadyExists)) throw err
-    }
-
     await createDirectoryZip(RESOLVED_PATHS.templates, RESOLVED_PATHS.templatesZip)
     console.log(`Created templates zip at: ${RESOURCES.templatesZip}`)
 
     const config = {
       cwd: PROJECT_ROOT,
       source: RESOURCES.source,
-      outputDir,
+      outputDir: join(PROJECT_ROOT, 'bin'),
       denoConfig: RESOURCES.denoConfig,
       templates: RESOLVED_PATHS.templatesZip,
       bannedDirsDefault: RESOURCES.bannedDirsDefault,
@@ -154,7 +146,7 @@ async function build() {
       const outputFileName = `deno-kit-${platform.name}${
         platform.name.includes('windows') ? '.exe' : ''
       }`
-      const outputPath = join(outputDir, outputFileName)
+      const outputPath = join(config.outputDir, outputFileName)
 
       console.log(`\nBuilding for ${platform.name} (${platform.target}) to ${outputPath}...`)
 
@@ -162,7 +154,6 @@ async function build() {
       const args = [
         'compile',
         '-A',
-        '--unstable',
         '--lock',
         '--no-check',
         '--reload',
@@ -173,8 +164,6 @@ async function build() {
         '--output',
         outputPath,
         '--include',
-        'bin/templates.zip',
-        '--include',
         relative(PROJECT_ROOT, RESOLVED_PATHS.bannedDirsDefault),
         '--include',
         relative(PROJECT_ROOT, RESOLVED_PATHS.bannedDirsCustom),
@@ -182,7 +171,6 @@ async function build() {
         relative(PROJECT_ROOT, RESOLVED_PATHS.denoConfig),
       ]
 
-      if (index === 0) args.splice(2, 0, '--reload')
       if (platform.name.includes('windows')) {
         args.push('--icon', relative(PROJECT_ROOT, RESOLVED_PATHS.windowsIcon))
       }
@@ -213,7 +201,7 @@ async function build() {
         }
 
         const zipFileName = `deno-kit-${platform.name}.zip`
-        const zipFilePath = join(outputDir, zipFileName)
+        const zipFilePath = join(config.outputDir, zipFileName)
 
         await createZipFile(outputPath, zipFilePath)
         console.log(`✅ Created zip archive: ${zipFilePath}`)
@@ -234,18 +222,18 @@ async function build() {
 
       // Clean up temporary files
       const cleanupFiles = [
-        RESOLVED_PATHS.templatesZip,
         join(dirname(RESOLVED_PATHS.templatesZip), '.env'),
       ]
 
-      for (const file of cleanupFiles) {
+      for (const fileOrDir of cleanupFiles) {
         try {
-          if (await exists(file)) {
-            await Deno.remove(file)
-            console.log(`\nCleaned up temporary file: ${relative(PROJECT_ROOT, file)}`)
+          if (await exists(fileOrDir)) {
+            // Use recursive remove for directories
+            await Deno.remove(fileOrDir, { recursive: true })
+            console.log(`\nCleaned up temporary file/dir: ${relative(PROJECT_ROOT, fileOrDir)}`)
           }
         } catch (error) {
-          console.error(`Error cleaning up file ${relative(PROJECT_ROOT, file)}:`, error)
+          console.error(`Error cleaning up file/dir ${relative(PROJECT_ROOT, fileOrDir)}:`, error)
         }
       }
     } else {
@@ -255,15 +243,14 @@ async function build() {
     console.error('Error during build:', error)
     // Clean up temporary files even if build fails
     const cleanupFiles = [
-      RESOLVED_PATHS.templatesZip,
       join(dirname(RESOLVED_PATHS.templatesZip), '.env'),
     ]
 
-    for (const file of cleanupFiles) {
+    for (const fileOrDir of cleanupFiles) {
       try {
-        if (await exists(file)) {
-          await Deno.remove(file)
-          console.log(`\nCleaned up temporary file: ${relative(PROJECT_ROOT, file)}`)
+        if (await exists(fileOrDir)) {
+          await Deno.remove(fileOrDir, { recursive: true }) // Use recursive remove
+          console.log(`\nCleaned up temporary file/dir: ${relative(PROJECT_ROOT, fileOrDir)}`)
         }
       } catch (_) {
         // Ignore cleanup errors on build failure

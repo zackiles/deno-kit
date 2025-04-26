@@ -54,7 +54,9 @@ jobs:
           name: Release ${{ steps.get_version.outputs.VERSION }}
           draft: false
           prerelease: false
-          files: bin/*.zip
+          files: |
+            bin/*.zip
+            bin/templates.zip
           token: ${{ secrets.GITHUB_TOKEN }}
           generate_release_notes: true
           tag_name: ${{ steps.get_version.outputs.VERSION }}

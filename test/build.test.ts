@@ -1,9 +1,21 @@
 import { assert } from '@std/assert'
 import { dirname, fromFileUrl, join } from '@std/path'
 import { exists } from '@std/fs'
-import { Uint8ArrayReader, Uint8ArrayWriter, ZipReader } from '@zip-js/zip-js'
+// NOTE: Using data-uri is a workaround to avoid an issue with the zip-js library. See https://github.com/gildas-lormeau/zip.js/issues/519
+import {
+  configure as configureZipJs,
+  Uint8ArrayReader,
+  Uint8ArrayWriter,
+  ZipReader,
+} from '@zip-js/zip-js/data-uri'
 import type { Entry } from '@zip-js/zip-js'
 import logger from '../src/utils/logger.ts'
+
+// Configure zip-js to terminate workers immediately to avoid timer leaks
+configureZipJs({
+  useWebWorkers: false, // Disable web workers to prevent timer leaks
+  terminateWorkerTimeout: 0, // Immediate termination of workers
+})
 
 /**
  * Streams process output and collects it into a string
@@ -173,13 +185,19 @@ Deno.test('Build and run kit binary', async () => {
     const envExists = await exists(join(tempBinaryDir, '.env'))
     assert(envExists, '.env file should exist in binary directory')
 
+    // Define the path to the templates.zip created by the build
+    const templatesZipPath = join(binDir, 'templates.zip')
+    const templatesZipExists = await exists(templatesZipPath)
+    assert(templatesZipExists, `templates.zip should exist at ${templatesZipPath} after build`)
+
     // Run the init command with workspace flag from the temp binary directory
     const initProcess = new Deno.Command(extractedBinaryPath, {
       args: ['init', '--workspace', tempWorkspaceDir],
       stdout: 'piped',
       stderr: 'piped',
       env: {
-        DENO_KIT_ENV: 'test',
+        DENO_ENV: 'test',
+        DENO_KIT_TEST_TEMPLATES_ZIP_PATH: templatesZipPath,
         DENO_KIT_PACKAGE_NAME: '@test/project',
         DENO_KIT_PACKAGE_VERSION: '0.1.0',
         DENO_KIT_PACKAGE_AUTHOR_NAME: 'Test User',
@@ -206,9 +224,36 @@ Deno.test('Build and run kit binary', async () => {
     // Clean up the temp directories
     try {
       if (zipReader) {
-        await zipReader.close()
-        logger.log('Closed test zip reader.')
+        try {
+          await zipReader.close()
+          // Set to null to help with garbage collection
+          zipReader = null
+          logger.log('Closed test zip reader.')
+
+          // Ensure all timers and resources from zip-js are properly cleaned up
+          await new Promise<void>((resolve) => {
+            // Force a short delay to give time for cleanup
+            setTimeout(() => {
+              // Clean up any pending operations
+              try {
+                // Force garbage collection if available
+                // @ts-expect-error - Accessing Deno.gc which may exist in certain environments
+                if (typeof Deno.gc === 'function') {
+                  // @ts-expect-error - Using non-standard API
+                  Deno.gc()
+                }
+              } catch (_) {
+                // Ignore if gc is not available
+              }
+              resolve()
+            }, 100)
+          })
+        } catch (closeError) {
+          logger.warn(`Error closing zip reader: ${closeError}`)
+        }
       }
+
+      // Clean up temp directories after ensuring all zip operations are complete
       await Deno.remove(tempWorkspaceDir, { recursive: true })
       await Deno.remove(tempBinaryDir, { recursive: true })
     } catch (error) {

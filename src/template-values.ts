@@ -119,7 +119,7 @@ async function promptUser(promptText: string, defaultValue: string): Promise<str
   logger.print(promptWithDefault)
 
   // Skip stdin read in test mode
-  if (Deno.env.get('DENO_KIT_ENV') === 'test') {
+  if (Deno.env.get('DENO_ENV') === 'test') {
     return defaultValue
   }
 
@@ -180,7 +180,7 @@ export async function getTemplateValues({ gitName = '', gitEmail = '' }): Promis
       }
 
       // Skip prompt in test mode
-      if (Deno.env.get('DENO_KIT_ENV') === 'test') {
+      if (Deno.env.get('DENO_ENV') === 'test') {
         values[key] = prompt.defaultValue
         continue
       }
