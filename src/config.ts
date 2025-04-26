@@ -27,6 +27,8 @@
 
 import { load as loadEnv } from '@std/dotenv'
 import { parseArgs } from '@std/cli'
+import { dirname, join } from '@std/path' // Import path functions
+import logger from './utils/logger.ts' // Import logger for debug
 
 // Module state
 let values: Record<string, string> = {}
@@ -97,6 +99,17 @@ const createConfigProxy = (): Record<string, string> => {
 async function loadConfig(force = false): Promise<Record<string, string>> {
   if (initialized && !force) return createConfigProxy()
 
+  // Determine executable directory for reliable .env loading
+  let execDir = '.' // Default to current dir
+  try {
+    const execPath = Deno.execPath()
+    if (execPath) {
+      execDir = dirname(execPath)
+    }
+  } catch (e) {
+    logger.warn(`Could not determine executable path: ${e}. Falling back to cwd for .env.`)
+  }
+
   parsedArgs = parseArgs(Deno.args, {
     string: ['workspace', 'w', 'config', 'c'],
     alias: { w: 'workspace', c: 'config' },
@@ -107,17 +120,33 @@ async function loadConfig(force = false): Promise<Record<string, string>> {
   })
   const { config: configArg, c } = parsedArgs
 
-  const envPath = (configArg as string) ?? (c as string) ?? '.env'
-  const hasConfigArg = configArg || c
+  // Look for .env relative to executable first, then cwd as fallback
+  const envPathExec = join(execDir, '.env')
+  const envPathCwd = '.env' // Default path checked by loadEnv
+  let finalEnvPath = envPathCwd // Default to cwd
+  let loadedFrom = 'cwd (default)'
 
-  values = filterEmptyValues(await loadEnv({ envPath, export: false }))
+  try {
+    // Check if .env exists next to executable
+    await Deno.stat(envPathExec)
+    finalEnvPath = envPathExec
+    loadedFrom = 'executable directory'
+  } catch (e) {
+    if (!(e instanceof Deno.errors.NotFound)) {
+      logger.warn(`Error checking for .env near executable: ${e}`)
+    }
+    // If not found near executable, loadEnv will try cwd by default
+  }
 
-  // Set default DENO_ENV to development if not already set
+  // Load env vars using the determined path or fallback to loadEnv's default (.env in cwd)
+  values = filterEmptyValues(await loadEnv({ envPath: finalEnvPath, export: false }))
+
+  // Set default DENO_ENV to development if not already set after loading
   if (!values.DENO_ENV) {
     values.DENO_ENV = 'development'
   }
 
-  if (hasConfigArg) {
+  if (configArg || c) {
     const filteredArgs = Deno.args.filter((arg) =>
       !arg.startsWith('config=') && !arg.startsWith('-c=')
     )
