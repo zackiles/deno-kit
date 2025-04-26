@@ -1,7 +1,7 @@
 {
   // Schema deno.jsonc: @https://github.com/denoland/deno/blob/main/cli/schemas/config-file.v1.json
   "name": "@deno-kit/kit",
-  "version": "0.0.24",
+  "version": "0.0.25",
   "description": "The modern, unopinionated, and AI-native way to quickly scaffold and maintain Deno projects.",
   "license": "MIT",
   "author": "Zachary Iles <zack.iles@gmail.com>",
@@ -11,10 +11,10 @@
     "url": "https://github.com/zackiles/deno-kit.git"
   },
   "tasks": {
-    "tests": "deno test -A",
+    "tests": "deno test -A --reload",
     "kit": "deno run -A src/main.ts",
     "pre-publish": "deno run -A scripts/pre-publish.ts",
-    "test:build": "deno test -A test/build.test.ts",
+    "test:build": "deno test -A --reload test/build.test.ts",
     "build": "deno run -A scripts/build.ts",
     // Ideally ran from the Github action workflow
     "release": "deno run -A scripts/release.ts",

@@ -173,7 +173,7 @@ async function build() {
         '--output',
         outputPath,
         '--include',
-        relative(PROJECT_ROOT, RESOLVED_PATHS.templatesZip),
+        'bin/templates.zip',
         '--include',
         relative(PROJECT_ROOT, RESOLVED_PATHS.bannedDirsDefault),
         '--include',

@@ -61,6 +61,8 @@ Deno.test('Build and run kit binary', async () => {
   const tempWorkspaceDir = await Deno.makeTempDir()
   const tempBinaryDir = await Deno.makeTempDir()
 
+  let zipReader: ZipReader<Uint8ArrayReader> | null = null
+
   try {
     // Build the binary (will use bin/ directory by default now)
     const buildProcess = new Deno.Command(Deno.execPath(), {
@@ -112,7 +114,7 @@ Deno.test('Build and run kit binary', async () => {
 
     // Extract the zip file
     const zipData = await Deno.readFile(currentZipPath)
-    const zipReader = new ZipReader(new Uint8ArrayReader(zipData))
+    zipReader = new ZipReader(new Uint8ArrayReader(zipData))
     const entries = await zipReader.getEntries()
 
     if (entries.length === 0) {
@@ -203,6 +205,10 @@ Deno.test('Build and run kit binary', async () => {
   } finally {
     // Clean up the temp directories
     try {
+      if (zipReader) {
+        await zipReader.close()
+        logger.log('Closed test zip reader.')
+      }
       await Deno.remove(tempWorkspaceDir, { recursive: true })
       await Deno.remove(tempBinaryDir, { recursive: true })
     } catch (error) {

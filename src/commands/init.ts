@@ -37,7 +37,16 @@ async function extractProductionTemplates(): Promise<string> {
 
   try {
     await ensureDir(targetDir)
-    // Read directly from the determined VFS path
+
+    // --- DEBUG LINES ADDED ---
+    logger.debug('[DEBUG] extractProductionTemplates context:')
+    logger.debug(`  --> CWD: ${Deno.cwd()}`)
+    logger.debug(`  --> Deno.mainModule: ${Deno.mainModule}`)
+    logger.debug(`  --> Deno.execPath(): ${Deno.execPath()}`)
+    logger.debug(`  --> Attempting VFS read path: ${vfsTemplatesPath}`)
+    // --- END DEBUG LINES ---
+
+    // Read directly from the VFS path provided during compile --include
     const zipData = await Deno.readFile(vfsTemplatesPath)
     const zipReader = new ZipReader(new Uint8ArrayReader(zipData))
     const entries = await zipReader.getEntries()
