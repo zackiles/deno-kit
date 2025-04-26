@@ -31,6 +31,9 @@ jobs:
           echo "TAG=${TAG_NAME}" >> $GITHUB_OUTPUT
           echo "Testing tag: ${TAG_NAME}"
 
+      - name: Create bin directory
+        run: mkdir -p bin
+
       - name: Build binaries for current tag
         id: build
         run: |
