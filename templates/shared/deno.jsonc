@@ -12,7 +12,7 @@
   },
   "tasks": {
     "dev": "deno run -A scripts/dev.ts",
-    "test": "deno test -A src/test",
+    "tests": "DENO_ENV=test deno test -A --reload",
     "pre-publish": "deno fmt && deno check -r src/ && deno lint"
   },
   // Import maps. Prefer import "@scope/package" syntax in code.
@@ -47,7 +47,6 @@
     "ffi",
     "cron",
     "temporal",
-    "webgpu",
     "unsafe-proto",
     "otel",
     "webgpu"
@@ -81,10 +80,6 @@
       // Possible tags: "fresh", "jsr", "jsx", "react", "recommended"
       "tags": [
         "recommended"
-      ],
-      "exclude": [
-        // LLMs don't play well with this rule, you should patch them manually.
-        "require-await"
       ]
     },
     "include": [

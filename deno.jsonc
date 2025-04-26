@@ -16,8 +16,6 @@
     "pre-publish": "deno run -A scripts/pre-publish.ts",
     "test:build": "deno test -A --reload test/build.test.ts",
     "build": "deno run -A scripts/build.ts",
-    // Ideally ran from the Github action workflow
-    "release": "deno run -A scripts/release.ts",
     "tag": "deno run -A scripts/tag.ts $0"
   },
   // Import maps. Prefer import "@scope/package" syntax in code.
@@ -84,10 +82,6 @@
       // Possible tags: "fresh", "jsr", "jsx", "react", "recommended"
       "tags": [
         "recommended"
-      ],
-      "exclude": [
-        // LLMs don't play well with require-await.
-        "require-await"
       ]
     },
     "include": [

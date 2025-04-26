@@ -34,7 +34,7 @@
   },
   "[markdown][typescript][javascript]": {
     "editor.defaultFormatter": "denoland.vscode-deno",
-    "editor.formatOnSave": true,
+    "editor.formatOnSave": true
   },
   "search.exclude": {
     "**/.cursor": true
@@ -71,6 +71,7 @@
     "pids",
     "USERPROFILE",
     "unvalidated",
-    "somevalue"
+    "somevalue",
+    "testuser"
   ],
 }
