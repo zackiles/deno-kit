@@ -24,7 +24,7 @@
  * console.log(await workspace.toJSON());
  * ```
  */
-import { basename, fromFileUrl, join } from '@std/path'
+import { basename, dirname, fromFileUrl, join, relative } from '@std/path'
 import { parse as parseJSONC } from '@std/jsonc'
 import { copy, ensureDir, exists } from '@std/fs'
 
@@ -64,7 +64,7 @@ interface WorkspaceConfigFile {
   /** List of backup file paths */
   backupFiles: string[]
   /** Template values for the workspace */
-  templateValues: { [key: string]: string }
+  templateValues?: { [key: string]: string }
 }
 
 /**
@@ -84,6 +84,7 @@ class Workspace {
   #templates = new Map<string, string>()
   #templateValues = new Map<string, string>()
   #backups = new Map<string, string>()
+  #originalPathsForBackup: string[] = []
 
   /**
    * Logger instance for the Workspace class
@@ -158,6 +159,12 @@ class Workspace {
       // We don't _need_ backups made at this point.
       // Call this.backup() if desired at a later time.
       this.#backups = backupFiles
+      // If backupFiles map is provided (e.g. during load from a state not just config),
+      // #originalPathsForBackup should also be populated accordingly.
+      // However, load() will handle populating #originalPathsForBackup from the config.
+      // For direct constructor use with backupFiles, caller might need to also set #originalPathsForBackup
+      // if they intend 'toJSON' to reflect these immediately.
+      // For now, we assume 'load' is the primary way backups are restored with original paths.
     }
 
     // Convert templateValues object to Map if provided
@@ -219,7 +226,7 @@ class Workspace {
       : await Workspace.#validateTemplatesPath(join(currentDir, 'templates'))
 
     // Read all workspace and template files
-    const [workspaceFiles, templateFiles] = await Promise.all([
+    const [workspaceFiles, templateFilesFromFileSystem] = await Promise.all([
       readFilesRecursively(validWorkspacePath),
       readFilesRecursively(validTemplatesPath),
     ])
@@ -240,12 +247,13 @@ class Workspace {
     if (workspaceFiles.size === 0) {
       await Workspace.#initializeEmptyWorkspace({
         workspacePath: validWorkspacePath,
-        templateFiles,
+        templateFiles: templateFilesFromFileSystem, // Pass the Map of templates read from FS
         id,
         name,
         templatesValues: templatesValues ?? undefined,
         configFileName,
-        workspaceFiles,
+        workspaceFiles, // Pass the (empty) workspaceFiles Map to be populated
+        baseTemplatesPath: validTemplatesPath, // Pass the base path of the templates
       })
     }
 
@@ -254,7 +262,7 @@ class Workspace {
       id,
       name,
       workspaceFiles,
-      templateFiles,
+      templateFiles: templateFilesFromFileSystem,
       ...(templatesValues && { templateValues: templatesValues }),
       configFileName,
       ...(logger && { logger }),
@@ -281,6 +289,7 @@ class Workspace {
     templatesValues,
     configFileName,
     workspaceFiles,
+    baseTemplatesPath,
   }: {
     workspacePath: string
     templateFiles: Map<string, string>
@@ -289,6 +298,7 @@ class Workspace {
     templatesValues?: { [key: string]: string } | undefined
     configFileName: string
     workspaceFiles: Map<string, string>
+    baseTemplatesPath: string
   }): Promise<void> {
     // packageConfigPath is the path of the package config file for the process or package currently executing this module.
     const packageConfigPath = await getPackageForPath()
@@ -312,9 +322,11 @@ class Workspace {
       )
     }
 
-    const templateFileList = Array.from(templateFiles.keys())
+    const templateFileList = Array.from(templateFiles.keys()).map((p) =>
+      relative(baseTemplatesPath, p)
+    )
 
-    const workspaceConfig = {
+    const workspaceConfig: WorkspaceConfigFile = {
       [`${packageConfig.name}-version`]: packageConfig.version,
       id,
       workspaceFiles: [],
@@ -502,9 +514,19 @@ class Workspace {
     const configFilePath = join(this.path, this.configFileName)
 
     // Process files that aren't template files or the config file
-    const backupFiles = new Map<string, string>()
+    const backupFilesMap = new Map<string, string>() // Renamed from backupFiles to avoid confusion with the array in JSON
+    this.#originalPathsForBackup = [] // Clear before populating for the current backup operation
+
     const backupOperations = [...this.#files.entries()]
-      .filter(([path]) => !templateFilenames.has(basename(path)) && path !== configFilePath)
+      .filter(([path]) => {
+        const isTemplate = templateFilenames.has(basename(path))
+        const isConfig = path === configFilePath
+        if (!isTemplate && !isConfig) {
+          this.#originalPathsForBackup.push(path) // Store original absolute path
+          return true
+        }
+        return false
+      })
       .map(async ([path, content]) => {
         const backupPath = path.replace(this.path, backupBasePath)
         const parentDir = backupPath.substring(0, backupPath.lastIndexOf('/'))
@@ -512,7 +534,7 @@ class Workspace {
         try {
           await ensureDir(parentDir)
           await copy(path, backupPath, { preserveTimestamps: true, overwrite: true })
-          backupFiles.set(backupPath, content)
+          backupFilesMap.set(backupPath, content)
         } catch (error) {
           Workspace.logger.warn(
             `Failed to backup file ${path}: ${
@@ -525,15 +547,15 @@ class Workspace {
     await Promise.all(backupOperations)
 
     // Update internal state
-    this.#backups = backupFiles
+    this.#backups = backupFilesMap
 
     // Update backupsPath if we have backup files to ensure we use the common base path
-    if (backupFiles.size > 0) {
-      this.backupsPath = getCommonBasePath(Array.from(backupFiles.keys()))
+    if (backupFilesMap.size > 0) {
+      this.backupsPath = getCommonBasePath(Array.from(backupFilesMap.keys()))
     }
 
     await this.save()
-    return backupFiles
+    return backupFilesMap
   }
 
   /**
@@ -836,9 +858,9 @@ class Workspace {
         [packageConfig.name]: packageConfig.version,
         id: this.id,
         name: this.name,
-        workspaceFiles: Array.from(this.#files.keys()),
-        templateFiles: Array.from(this.#templates.keys()),
-        backupFiles: Array.from(this.#backups.keys()),
+        workspaceFiles: Array.from(this.#files.keys()).map((p) => relative(this.path, p)),
+        templateFiles: Array.from(this.#templates.keys()).map((p) => relative(this.path, p)),
+        backupFiles: this.#originalPathsForBackup.map((p) => relative(this.path, p)),
         templateValues: Object.fromEntries(this.#templateValues.entries()) as {
           [key: string]: string
         },
@@ -891,6 +913,7 @@ class Workspace {
 
       // Extract the config file name
       const configFileName = basename(configFilePath)
+      const configDir = dirname(configFilePath)
 
       // Read files listed in the config file
       const workspaceFiles = new Map<string, string>()
@@ -900,51 +923,59 @@ class Workspace {
       // Load the files from the paths specified in the config
       await Promise.all([
         // Load workspace files
-        ...parsedConfig.workspaceFiles.map(async (path) => {
+        ...parsedConfig.workspaceFiles.map(async (relativePath) => {
+          const absolutePath = join(configDir, relativePath)
           try {
-            const content = await Deno.readTextFile(path)
-            workspaceFiles.set(path, content)
+            const content = await Deno.readTextFile(absolutePath)
+            workspaceFiles.set(absolutePath, content)
           } catch (error) {
-            Workspace.logger.warn(`Failed to read workspace file ${path}: ${error}`)
+            Workspace.logger.warn(`Failed to read workspace file ${absolutePath}: ${error}`)
           }
         }),
         // Load template files
-        ...parsedConfig.templateFiles.map(async (path) => {
+        ...parsedConfig.templateFiles.map(async (relativePath) => {
+          const absolutePath = join(configDir, relativePath)
           try {
-            const content = await Deno.readTextFile(path)
-            templateFiles.set(path, content)
+            const content = await Deno.readTextFile(absolutePath)
+            templateFiles.set(absolutePath, content)
           } catch (error) {
-            Workspace.logger.warn(`Failed to read template file ${path}: ${error}`)
+            Workspace.logger.warn(`Failed to read template file ${absolutePath}: ${error}`)
           }
         }),
-        // Load backup files
-        ...parsedConfig.backupFiles.map(async (path) => {
-          try {
-            const content = await Deno.readTextFile(path)
-            backupFiles.set(path, content)
-          } catch (error) {
-            Workspace.logger.warn(`Failed to read backup file ${path}: ${error}`)
-          }
-        }),
+        // Backup files listed in config are original paths, not copies.
+        // We will store these original paths (made absolute) for later use if backup() is called.
+        // The actual backup copies are not loaded from config by default.
       ])
 
       // Verify we loaded at least the workspace files
-      if (workspaceFiles.size === 0) {
-        throw new Error('No workspace files could be loaded from configuration')
+      if (workspaceFiles.size === 0 && parsedConfig.workspaceFiles.length > 0) {
+        Workspace.logger.warn(
+          'Workspace configuration listed workspace files, but none could be loaded.',
+        )
+        // Allow loading an empty workspace if workspaceFiles in config is empty
+        if (parsedConfig.workspaceFiles.length > 0) {
+          throw new Error('No workspace files could be loaded from configuration')
+        }
       }
 
+      const originalBackupPaths = parsedConfig.backupFiles.map((relativePath) =>
+        join(configDir, relativePath)
+      )
+
       // Create and return a new workspace instance
-      return new Workspace({
+      const workspace = new Workspace({
         id: parsedConfig.id,
         ...(parsedConfig.name && { name: parsedConfig.name }),
         workspaceFiles,
         templateFiles,
-        ...(backupFiles.size > 0 && { backupFiles }),
-        ...(Object.keys(parsedConfig.templateValues).length > 0 && {
+        // backupFiles Map is not populated here from config, only #originalPathsForBackup
+        ...(parsedConfig.templateValues && Object.keys(parsedConfig.templateValues).length > 0 && {
           templateValues: parsedConfig.templateValues,
         }),
         configFileName,
       })
+      workspace.#originalPathsForBackup = originalBackupPaths
+      return workspace
     } catch (error) {
       if (error instanceof Deno.errors.NotFound) {
         throw new Error(`Workspace configuration file not found: ${configFilePath}`)

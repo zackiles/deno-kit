@@ -768,6 +768,41 @@ Deno.test('Workspace functionality', async (t) => {
     assertEquals(readContent, testContent, 'Should be able to write files to loaded workspace')
   })
 
+  // Step 25: Verify paths in persisted JSON are relative
+  await t.step('JSON persistence - ensures all stored paths are relative', async () => {
+    // Ensure some files and backups exist to be written to the config
+    await workspace.writeFile('another-test-file.txt', 'content')
+    await workspace.backup() // This will also trigger a save()
+
+    const configFilePath = join(workspace.path, workspace.configFileName)
+    const configContent = await Deno.readTextFile(configFilePath)
+    const parsedConfig = JSON.parse(configContent) as WorkspaceConfigFile
+
+    const allPathArrays = {
+      workspaceFiles: parsedConfig.workspaceFiles,
+      templateFiles: parsedConfig.templateFiles,
+      backupFiles: parsedConfig.backupFiles,
+    }
+
+    for (const [arrayName, paths] of Object.entries(allPathArrays)) {
+      assertExists(paths, `${arrayName} array should exist in config`)
+      assertEquals(Array.isArray(paths), true, `${arrayName} should be an array`)
+      for (const path of paths) {
+        assertEquals(
+          typeof path === 'string' && !path.startsWith('/') && !path.match(/^[a-zA-Z]:\\/),
+          true,
+          `Path "${path}" in ${arrayName} should be relative (not start with '/' or drive letter)`,
+        )
+        // Also check that paths don't contain the workspace path, which would indicate they aren't purely relative
+        assertEquals(
+          !path.includes(workspace.path.substring(1)), // substring(1) to avoid leading '/' matching root relative paths
+          true,
+          `Path "${path}" in ${arrayName} should not contain the absolute workspace path segment`,
+        )
+      }
+    }
+  })
+
   // Clean up test directories
   try {
     if (await isBannedDirectory(workspace.path)) {

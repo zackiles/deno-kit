@@ -339,7 +339,7 @@ const createTag = async (tagValue: string): Promise<void> => {
   const git = new GitClient()
 
   // Process workflow in sequence
-  const hasChanges = await processWorkingDirectory(git, tagValue)
+  await processWorkingDirectory(git, tagValue)
   await syncWithRemoteMain(git)
   await pushChangesToRemote(git)
   await fetchAndValidateExistingTags(git, tagValue)

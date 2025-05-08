@@ -63,7 +63,7 @@ const DEFAULT_VALUES: ConfigRecord = {
   DENO_ENV: 'development',
   PACKAGE_NAME: getPackageName, // Uncalled async function will be resolved during initialization
   PACKAGE_PATH: getPackagePath, // Uncalled async function will be resolved during initialization
-  workspace: Deno.cwd()
+  workspace: Deno.cwd(),
 }
 
 let values: Record<string, string> = {}
@@ -73,7 +73,9 @@ let _internalLogger: Logger = console // Module-level logger instance
 
 // Validate a config key (must be a string)
 function validateKey(key: PropertyKey): string {
-  if (typeof key !== 'string') throw new TypeError(`Property name must be a string, got: ${typeof key}`)
+  if (typeof key !== 'string') {
+    throw new TypeError(`Property name must be a string, got: ${typeof key}`)
+  }
   if (key.length === 0) throw new RangeError('Property name cannot be empty')
   return key
 }
@@ -84,10 +86,12 @@ function validateKey(key: PropertyKey): string {
 function logger(method: keyof Logger, ...args: unknown[]): void {
   // Use the module-level logger instance
   if (typeof _internalLogger[method] === 'function') {
-     _internalLogger[method]('[CONFIG]', ...args)
+    _internalLogger[method]('[CONFIG]', ...args)
   } else {
     // Fallback or error if method doesn't exist on custom logger
-    console.warn(`[CONFIG] Logger method '${method}' not found on provided logger instance. Falling back to console.log.`)
+    console.warn(
+      `[CONFIG] Logger method '${method}' not found on provided logger instance. Falling back to console.log.`,
+    )
     console.log('[CONFIG]', ...args)
   }
 }
@@ -112,9 +116,13 @@ async function getPackageName(): Promise<string> {
       return baseName.trim() // Trim whitespace just in case
     } catch (err) {
       // Log specific error for debugging if URL parsing failed
-       if (inputString.includes('://')) {
-            logger('warn', `Failed to parse URL string [${inputString}] during base name extraction: ${err?.message}`)
-       }
+      if (inputString.includes('://')) {
+        const errorMessage = err instanceof Error ? err.message : String(err)
+        logger(
+          'warn',
+          `Failed to parse URL string [${inputString}] during base name extraction: ${errorMessage}`,
+        )
+      }
       return '' // Return empty on any error during extraction
     }
   }
@@ -123,9 +131,10 @@ async function getPackageName(): Promise<string> {
 
   try {
     // Attempt 1: Get name from package path
-    const packagePath = await getPackagePath().catch(err => {
-       logger('warn', `Error getting package path: ${err?.message}. Proceeding to fallbacks.`)
-       return null // Allow fallback if getPackagePath rejects
+    const packagePath = await getPackagePath().catch((err) => {
+      const errorMessage = err instanceof Error ? err.message : String(err)
+      logger('warn', `Error getting package path: ${errorMessage}. Proceeding to fallbacks.`)
+      return null // Allow fallback if getPackagePath rejects
     })
     name = extractBaseNameFromString(packagePath)
 
@@ -133,23 +142,25 @@ async function getPackageName(): Promise<string> {
     if (!name) {
       const urlString = import.meta.url
       if (urlString) {
-          logger('warn', 'Could not determine valid package name from package path. Trying import.meta.url.')
-          name = extractBaseNameFromString(urlString)
-          if (!name) {
-              logger('warn', 'Failed to extract name from import.meta.url.')
-          }
+        logger(
+          'warn',
+          'Could not determine valid package name from package path. Trying import.meta.url.',
+        )
+        name = extractBaseNameFromString(urlString)
+        if (!name) {
+          logger('warn', 'Failed to extract name from import.meta.url.')
+        }
       } else {
-           logger('warn', 'import.meta.url is not available for fallback name.')
+        logger('warn', 'import.meta.url is not available for fallback name.')
       }
     }
-
   } catch (err) {
-      // Catch unexpected errors during the main logic flow
-      logger('error', `Unexpected error resolving package name: ${(err as Error).message}.`)
-      // Attempt fallback from import.meta.url one last time in case of unexpected error
-      if (!name && import.meta.url) {
-          name = extractBaseNameFromString(import.meta.url)
-      }
+    // Catch unexpected errors during the main logic flow
+    logger('error', `Unexpected error resolving package name: ${(err as Error).message}.`)
+    // Attempt fallback from import.meta.url one last time in case of unexpected error
+    if (!name && import.meta.url) {
+      name = extractBaseNameFromString(import.meta.url)
+    }
   }
 
   // Final fallback if all attempts fail or result in an empty string
@@ -170,7 +181,10 @@ async function getPackagePath(): Promise<string> {
     }
     return Deno.cwd()
   } catch (err) {
-    logger('warn', `Failed to resolve package path: ${(err as Error).message}. Using current directory instead.`)
+    logger(
+      'warn',
+      `Failed to resolve package path: ${(err as Error).message}. Using current directory instead.`,
+    )
     return Deno.cwd()
   }
 }
@@ -184,7 +198,7 @@ async function getPackagePath(): Promise<string> {
  * @returns A new object with all values resolved to strings
  */
 async function resolveObjectValues(
-  obj: ConfigRecord
+  obj: ConfigRecord,
 ): Promise<Record<string, string>> {
   const result: Record<string, string> = {}
 
@@ -205,7 +219,9 @@ async function resolveObjectValues(
 
       // Ensure final value is a string
       if (typeof resolvedValue !== 'string') {
-        throw new Error(`Resolved value for key '${key}' is not a string (type: ${typeof resolvedValue})`)
+        throw new Error(
+          `Resolved value for key '${key}' is not a string (type: ${typeof resolvedValue})`,
+        )
       }
 
       result[key] = resolvedValue
@@ -231,7 +247,10 @@ function createConfigProxy(): Record<string, string> {
         validateKey(prop)
         return target[prop as string] ?? Deno.env.get(prop as string)
       } catch (err) {
-        logger('error', `Error accessing configuration value for ${String(prop)}: ${(err as Error).message}`)
+        logger(
+          'error',
+          `Error accessing configuration value for ${String(prop)}: ${(err as Error).message}`,
+        )
         return undefined // Return undefined on error
       }
     },
@@ -241,7 +260,10 @@ function createConfigProxy(): Record<string, string> {
 
         // Ensure value is a string before setting
         if (typeof value !== 'string') {
-          logger('warn', `Cannot set environment variable ${key} to non-string value: ${typeof value}`)
+          logger(
+            'warn',
+            `Cannot set environment variable ${key} to non-string value: ${typeof value}`,
+          )
           return false // Indicate failure for non-string types
         }
 
@@ -249,7 +271,10 @@ function createConfigProxy(): Record<string, string> {
         Deno.env.set(key, value)
         return true // Return true on success
       } catch (err) {
-        logger('error', `Failed to set configuration value for ${String(prop)}: ${(err as Error).message}`)
+        logger(
+          'error',
+          `Failed to set configuration value for ${String(prop)}: ${(err as Error).message}`,
+        )
         return false // Indicate failure on error
       }
     },
@@ -264,7 +289,10 @@ function createConfigProxy(): Record<string, string> {
         }
         return false // Property didn't exist
       } catch (err) {
-        logger('error', `Failed to delete configuration value for ${String(prop)}: ${(err as Error).message}`)
+        logger(
+          'error',
+          `Failed to delete configuration value for ${String(prop)}: ${(err as Error).message}`,
+        )
         return false
       }
     },
@@ -282,7 +310,10 @@ function createConfigProxy(): Record<string, string> {
       const envKeys = Object.keys(Deno.env.toObject())
       return [...new Set([...targetKeys, ...envKeys])]
     },
-    getOwnPropertyDescriptor: (target: Record<string, string>, prop: PropertyKey): PropertyDescriptor | undefined => {
+    getOwnPropertyDescriptor: (
+      target: Record<string, string>,
+      prop: PropertyKey,
+    ): PropertyDescriptor | undefined => {
       try {
         const key = validateKey(prop)
         if (key in target) {
@@ -296,7 +327,7 @@ function createConfigProxy(): Record<string, string> {
         // Check Deno.env as fallback
         const envValue = Deno.env.get(key)
         if (envValue !== undefined) {
-           return {
+          return {
             value: envValue,
             writable: true, // Treat env vars as writable through the proxy
             enumerable: true,
@@ -305,9 +336,9 @@ function createConfigProxy(): Record<string, string> {
         }
         return undefined // Property not found
       } catch {
-         return undefined // Invalid key type
+        return undefined // Invalid key type
       }
-    }
+    },
   }
 
   // Create proxy around the final, resolved values
@@ -345,7 +376,9 @@ async function initializeConfig(overrides?: ConfigRecord): Promise<Record<string
   // 3. Load .env file if it exists
   try {
     const packagePath = await combinedConfig.PACKAGE_PATH // Resolve package path
-    const defaultEnvPath = typeof packagePath === 'string' ? join(packagePath, '.env') : join(Deno.cwd(), '.env')
+    const defaultEnvPath = typeof packagePath === 'string'
+      ? join(packagePath, '.env')
+      : join(Deno.cwd(), '.env')
     logger('debug', `Checking for default .env file at: ${defaultEnvPath}`)
     if (await exists(defaultEnvPath)) {
       logger('debug', 'Loading and filtering default .env file...')
@@ -363,7 +396,7 @@ async function initializeConfig(overrides?: ConfigRecord): Promise<Record<string
   try {
     const args = parseArgs(Deno.args, {
       string: ['config'],
-      alias: { c: 'config' }
+      alias: { c: 'config' },
     })
     customConfigPath = args.config
 
@@ -397,21 +430,21 @@ async function initializeConfig(overrides?: ConfigRecord): Promise<Record<string
 
   // 7. Handle workspace specifically (use --workspace arg if present, otherwise default)
   try {
-     const args = parseArgs(Deno.args, {
+    const args = parseArgs(Deno.args, {
       string: ['workspace'],
-      alias: { w: 'workspace' }
+      alias: { w: 'workspace' },
     })
-    if(args.workspace) {
-       resolvedConfig.workspace = args.workspace
-       logger('debug', `Workspace set from --workspace arg: ${args.workspace}`)
+    if (args.workspace) {
+      resolvedConfig.workspace = args.workspace
+      logger('debug', `Workspace set from --workspace arg: ${args.workspace}`)
     } else if (!resolvedConfig.workspace) {
-       // Fallback if default wasn't set or resolved correctly
-       resolvedConfig.workspace = Deno.cwd()
-       logger('debug', `Workspace set to CWD fallback: ${resolvedConfig.workspace}`)
+      // Fallback if default wasn't set or resolved correctly
+      resolvedConfig.workspace = Deno.cwd()
+      logger('debug', `Workspace set to CWD fallback: ${resolvedConfig.workspace}`)
     }
   } catch (err) {
-     logger('warn', `Failed to parse --workspace arg: ${(err as Error).message}`)
-     if (!resolvedConfig.workspace) resolvedConfig.workspace = Deno.cwd() // Ensure workspace is set
+    logger('warn', `Failed to parse --workspace arg: ${(err as Error).message}`)
+    if (!resolvedConfig.workspace) resolvedConfig.workspace = Deno.cwd() // Ensure workspace is set
   }
 
   // 8. Set the final resolved values and update Deno.env
@@ -454,23 +487,28 @@ async function initializeConfig(overrides?: ConfigRecord): Promise<Record<string
  */
 async function loadConfig(
   overrides?: ConfigRecord,
-  customLogger?: Logger
+  customLogger?: Logger,
 ): Promise<Record<string, string>> {
   // Update the internal logger if a custom one is provided
   // Do this early so subsequent logs in this function use the custom logger
   if (customLogger) {
     // Basic validation: Check if essential methods exist
-    const requiredMethods: (keyof Logger)[] = ['log', 'info', 'warn', 'error', 'debug'];
-    const missingMethods = requiredMethods.filter(m => typeof customLogger[m] !== 'function');
+    const requiredMethods: (keyof Logger)[] = ['log', 'info', 'warn', 'error', 'debug']
+    const missingMethods = requiredMethods.filter((m) => typeof customLogger[m] !== 'function')
 
     if (missingMethods.length > 0) {
-        // Use the default logger to warn about the issue
-        logger('warn', `Provided custom logger is missing required methods: ${missingMethods.join(', ')}. Using default console logger.`);
-        // Keep _internalLogger as console
+      // Use the default logger to warn about the issue
+      logger(
+        'warn',
+        `Provided custom logger is missing required methods: ${
+          missingMethods.join(', ')
+        }. Using default console logger.`,
+      )
+      // Keep _internalLogger as console
     } else {
-        _internalLogger = customLogger;
-        // Use the *new* logger for the confirmation message
-        logger('debug', 'Custom logger provided and validated.');
+      _internalLogger = customLogger
+      // Use the *new* logger for the confirmation message
+      logger('debug', 'Custom logger provided and validated.')
     }
   }
 
@@ -484,17 +522,20 @@ async function loadConfig(
     // we need to handle applying them potentially
     // For simplicity now, we assume overrides are only relevant on the *first* call
     // A more robust implementation might merge overrides into the existing config here
-     if (overrides && configProxy) {
-        logger('debug', 'Applying subsequent overrides to existing config...')
-        for (const [key, value] of Object.entries(overrides)) {
-           // Use the proxy's set method to ensure Deno.env is updated
-           // We assume 'value' here is KeyValueConfig, proxy handles resolution/validation
-           configProxy[key] = value as string // Cast needed as proxy expects string setter
-        }
-        logger('debug', 'Subsequent overrides applied.')
-     } else if (overrides) {
-        logger('warn', 'Overrides provided on subsequent call before initialization complete. These might not be applied as expected.')
-     }
+    if (overrides && configProxy) {
+      logger('debug', 'Applying subsequent overrides to existing config...')
+      for (const [key, value] of Object.entries(overrides)) {
+        // Use the proxy's set method to ensure Deno.env is updated
+        // We assume 'value' here is KeyValueConfig, proxy handles resolution/validation
+        configProxy[key] = value as string // Cast needed as proxy expects string setter
+      }
+      logger('debug', 'Subsequent overrides applied.')
+    } else if (overrides) {
+      logger(
+        'warn',
+        'Overrides provided on subsequent call before initialization complete. These might not be applied as expected.',
+      )
+    }
   }
 
   try {
@@ -503,10 +544,10 @@ async function loadConfig(
     logger('debug', 'Initialization complete, returning config proxy.')
     return finalConfig
   } catch (err) {
-     throw new Error(`Configuration failed to load: ${(err as Error).message}`)
+    throw new Error(`Configuration failed to load: ${(err as Error).message}`)
   }
 }
 
 export default loadConfig
 export { loadConfig }
-export type { KeyValueConfig, ConfigRecord, Logger }
+export type { ConfigRecord, KeyValueConfig, Logger }
