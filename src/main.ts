@@ -14,12 +14,14 @@
  */
 import loadConfig from './config.ts'
 import logger from './utils/logger.ts'
+import type { LogLevel } from './utils/logger.ts'
 import gracefulShutdown from './utils/graceful-shutdown.ts'
 import CommandRouter from './utils/command-router.ts'
 import type { CommandRouteDefinition, CommandRouteOptions } from './utils/command-router.ts'
 
 const CLI_NAME = 'Deno-Kit'
-await loadConfig()
+const config = await loadConfig()
+logger.setConfig({ level: config.LOG_LEVEL as LogLevel })
 
 /**
  * Static mapping of CLI commands to their implementations.

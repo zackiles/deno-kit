@@ -16,6 +16,7 @@
  *   2. DENO_KIT_WORKSPACE environment variable
  *   3. Current working directory (fallback)
  * - DENO_ENV will default to "development" if not set
+ * - LOG_LEVEL will be parsed to the LogLevel enum type
  *
  * @example
  * import loadConfig from './config.ts';
@@ -23,17 +24,47 @@
  * const config = await loadConfig();
  * const apiKey = config.API_KEY;
  * const workspacePath = config.workspace;
+ * const logLevel = config.LOG_LEVEL; // Returns LogLevel enum value
  */
 
 import { load as loadEnv } from '@std/dotenv'
 import { parseArgs } from '@std/cli'
 import { dirname, join } from '@std/path' // Import path functions
+import { LogLevel } from './utils/logger.ts'
 
 // Module state
 let values: Record<string, string> = {}
-let configProxy: Record<string, string> | null = null
+let configProxy: Record<string, string | LogLevel> | null = null
 let initialized = false
 let parsedArgs: Record<string, unknown> = {}
+
+/**
+ * Parses a string value to the corresponding LogLevel enum
+ */
+const parseLogLevel = (level: string | undefined): LogLevel => {
+  if (!level) return LogLevel.INFO
+
+  switch (level.toUpperCase()) {
+    case 'DEBUG':
+      return LogLevel.DEBUG
+    case 'INFO':
+      return LogLevel.INFO
+    case 'WARN':
+      return LogLevel.WARN
+    case 'ERROR':
+      return LogLevel.ERROR
+    case 'SILENT':
+      return LogLevel.SILENT
+    default: {
+      // Try to parse as number if not a recognized string
+      const numLevel = Number.parseInt(level, 10)
+      if (!Number.isNaN(numLevel) && numLevel >= 0 && numLevel <= 4) {
+        return numLevel as LogLevel
+      }
+      return LogLevel.INFO
+    }
+  }
+}
 
 const getWorkspace = (): string => {
   const { workspace: workspaceArg, w, _: positionalArgs } = parsedArgs
@@ -76,13 +107,16 @@ const filterEmptyValues = (
  * Creates a proxy that provides direct property access to config values
  * including the workspace property
  */
-const createConfigProxy = (): Record<string, string> => {
+const createConfigProxy = (): Record<string, string | LogLevel> => {
   if (configProxy) return configProxy
 
   configProxy = new Proxy(values, {
     get(target, prop) {
       if (prop === 'workspace') {
         return getWorkspace()
+      }
+      if (prop === 'DENO_KIT_DEBUG_LEVEL') {
+        return parseLogLevel(target.DENO_KIT_DEBUG_LEVEL)
       }
       return target[prop as string]
     },
@@ -95,7 +129,7 @@ const createConfigProxy = (): Record<string, string> => {
  * Loads configuration and returns an object for direct access to values.
  * Subsequent calls return the cached configuration unless force=true.
  */
-async function loadConfig(force = false): Promise<Record<string, string>> {
+async function loadConfig(force = false): Promise<Record<string, string | LogLevel>> {
   if (initialized && !force) return createConfigProxy()
 
   // Determine executable directory for reliable .env loading
@@ -112,7 +146,7 @@ async function loadConfig(force = false): Promise<Record<string, string>> {
   parsedArgs = parseArgs(Deno.args, {
     string: ['workspace', 'w', 'config', 'c'],
     alias: { w: 'workspace', c: 'config' },
-    unknown: (arg: string) => {
+    unknown: () => {
       // Allow positional arguments
       return true
     },
@@ -123,13 +157,11 @@ async function loadConfig(force = false): Promise<Record<string, string>> {
   const envPathExec = join(execDir, '.env')
   const envPathCwd = '.env' // Default path checked by loadEnv
   let finalEnvPath = envPathCwd // Default to cwd
-  let loadedFrom = 'cwd (default)'
 
   try {
     // Check if .env exists next to executable
     await Deno.stat(envPathExec)
     finalEnvPath = envPathExec
-    loadedFrom = 'executable directory'
   } catch (e) {
     if (!(e instanceof Deno.errors.NotFound)) {
       console.warn(`Error checking for .env near executable: ${e}`)

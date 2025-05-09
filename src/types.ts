@@ -2,7 +2,7 @@
  * @module types
  * @description Core type definitions for the deno-kit library
  */
-import type { CommandRouteDefinition } from './utils/ command-router.ts'
+import type { CommandRouteDefinition } from './utils/command-router.ts'
 
 /**
  * Type guard to validate if a module exports a valid CommandDefinition.

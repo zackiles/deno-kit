@@ -56,6 +56,14 @@ import { join } from '@std/path'
 import { exists } from '@std/fs'
 import { expandGlob } from '@std/fs/expand-glob'
 import { isGlob } from '@std/path/is-glob'
+import logger, { LogLevel } from '../src/utils/logger.ts'
+import loadConfig from '../src/config.ts'
+
+// Load configuration and configure logger based on environment
+const config = await loadConfig()
+if (config.DENO_ENV === 'development' || config.DEBUG === 'true') {
+  logger.setLevel(LogLevel.DEBUG)
+}
 
 /**
  * Test runner script that simplifies running tests by automatically handling the test/ directory prefix.

@@ -10,7 +10,7 @@
  *   - OR use `await gracefulShutdown.wrapAndStart(entrypointMethod)` to wrap an entry point
  * - Done! Graceful shutdown will now respond to signals and perform the registered cleanup handlers.
  *
- * Note: (Optional)You can call panic(errorOrMessage) to trigger a custom shutdown and exit with a non-zero exit code.
+ * Note: (Optional): You can call panic(errorOrMessage) to trigger a custom shutdown and exit with a non-zero exit code.
  */
 
 type ShutdownLogger = Record<

@@ -33,6 +33,7 @@ import { load as loadEnv } from '@std/dotenv'
 import { parseArgs } from '@std/cli'
 import { exists } from '@std/fs'
 import { dirname, fromFileUrl, join } from '@std/path'
+import { LogLevel } from './utils/logger.ts'
 
 /**
  * Interface for a logger object compatible with the standard Console API.
@@ -67,8 +68,8 @@ const DEFAULT_VALUES: ConfigRecord = {
 }
 
 let values: Record<string, string> = {}
-let configProxy: Record<string, string> | null = null
-let initPromise: Promise<Record<string, string>> | null = null
+let configProxy: Record<string, string | LogLevel> | null = null
+let initPromise: Promise<Record<string, string | LogLevel>> | null = null
 let _internalLogger: Logger = console // Module-level logger instance
 
 // Validate a config key (must be a string)
@@ -93,6 +94,34 @@ function logger(method: keyof Logger, ...args: unknown[]): void {
       `[CONFIG] Logger method '${method}' not found on provided logger instance. Falling back to console.log.`,
     )
     console.log('[CONFIG]', ...args)
+  }
+}
+
+/**
+ * Parses a string value to the corresponding LogLevel enum
+ */
+const parseLogLevel = (level: string | undefined): LogLevel => {
+  if (!level) return LogLevel.INFO
+
+  switch (level.toUpperCase()) {
+    case 'DEBUG':
+      return LogLevel.DEBUG
+    case 'INFO':
+      return LogLevel.INFO
+    case 'WARN':
+      return LogLevel.WARN
+    case 'ERROR':
+      return LogLevel.ERROR
+    case 'SILENT':
+      return LogLevel.SILENT
+    default: {
+      // Try to parse as number if not a recognized string
+      const numLevel = Number.parseInt(level, 10)
+      if (!Number.isNaN(numLevel) && numLevel >= 0 && numLevel <= 4) {
+        return numLevel as LogLevel
+      }
+      return LogLevel.INFO
+    }
   }
 }
 
@@ -237,14 +266,20 @@ async function resolveObjectValues(
  * Creates a proxy that provides direct property access to config values
  * with direct modification of Deno.env
  */
-function createConfigProxy(): Record<string, string> {
+function createConfigProxy(): Record<string, string | LogLevel> {
   if (configProxy) return configProxy
 
   // Create a handler
   const handler = {
-    get: (target: Record<string, string>, prop: PropertyKey): string | undefined => {
+    get: (
+      target: Record<string, string | LogLevel>,
+      prop: PropertyKey,
+    ): string | LogLevel | undefined => {
       try {
         validateKey(prop)
+        if (prop === '{PROJECT_NAME}_DEBUG_LEVEL') {
+          return parseLogLevel(target[prop as string] as string | undefined)
+        }
         return target[prop as string] ?? Deno.env.get(prop as string)
       } catch (err) {
         logger(
@@ -254,7 +289,11 @@ function createConfigProxy(): Record<string, string> {
         return undefined // Return undefined on error
       }
     },
-    set: (target: Record<string, string>, prop: PropertyKey, value: unknown): boolean => {
+    set: (
+      target: Record<string, string | LogLevel>,
+      prop: PropertyKey,
+      value: unknown,
+    ): boolean => {
       try {
         const key = validateKey(prop)
 
@@ -279,7 +318,7 @@ function createConfigProxy(): Record<string, string> {
       }
     },
     // Optional: Add other traps like has, deleteProperty if needed, ensuring they update Deno.env
-    deleteProperty: (target: Record<string, string>, prop: PropertyKey): boolean => {
+    deleteProperty: (target: Record<string, string | LogLevel>, prop: PropertyKey): boolean => {
       try {
         const key = validateKey(prop)
         if (key in target) {
@@ -296,7 +335,7 @@ function createConfigProxy(): Record<string, string> {
         return false
       }
     },
-    has: (target: Record<string, string>, prop: PropertyKey): boolean => {
+    has: (target: Record<string, string | LogLevel>, prop: PropertyKey): boolean => {
       try {
         const key = validateKey(prop)
         return key in target || Deno.env.has(key)
@@ -304,14 +343,14 @@ function createConfigProxy(): Record<string, string> {
         return false // Invalid key type
       }
     },
-    ownKeys: (target: Record<string, string>): string[] => {
+    ownKeys: (target: Record<string, string | LogLevel>): string[] => {
       // Combine keys from the target object and Deno.env
       const targetKeys = Object.keys(target)
       const envKeys = Object.keys(Deno.env.toObject())
       return [...new Set([...targetKeys, ...envKeys])]
     },
     getOwnPropertyDescriptor: (
-      target: Record<string, string>,
+      target: Record<string, string | LogLevel>,
       prop: PropertyKey,
     ): PropertyDescriptor | undefined => {
       try {
@@ -350,7 +389,9 @@ function createConfigProxy(): Record<string, string> {
  * Initializes the configuration by loading values from environment file
  * and applying any overrides
  */
-async function initializeConfig(overrides?: ConfigRecord): Promise<Record<string, string>> {
+async function initializeConfig(
+  overrides?: ConfigRecord,
+): Promise<Record<string, string | LogLevel>> {
   logger('debug', 'Starting configuration initialization...')
   // 1. Start with defaults
   let combinedConfig: ConfigRecord = { ...DEFAULT_VALUES }
@@ -488,7 +529,7 @@ async function initializeConfig(overrides?: ConfigRecord): Promise<Record<string
 async function loadConfig(
   overrides?: ConfigRecord,
   customLogger?: Logger,
-): Promise<Record<string, string>> {
+): Promise<Record<string, string | LogLevel>> {
   // Update the internal logger if a custom one is provided
   // Do this early so subsequent logs in this function use the custom logger
   if (customLogger) {

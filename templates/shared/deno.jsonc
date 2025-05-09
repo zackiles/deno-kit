@@ -48,7 +48,6 @@
     "cron",
     "temporal",
     "unsafe-proto",
-    "otel",
     "webgpu"
   ],
   "lock": true,

@@ -1,6 +1,10 @@
 #!/usr/bin/env -S deno run -A
 import { type Args, parseArgs } from '@std/cli'
-import { create as createWorkspace, getGitUserEmail, getGitUserName } from '../workspace.ts'
+import {
+  create as createWorkspace,
+  getGitUserEmail,
+  getGitUserName,
+} from '../workspace/workspace.ts'
 import type { CommandRouteDefinition } from '../utils/command-router.ts'
 import resolveResourcePath from '../utils/resource-path.ts'
 import logger from '../utils/logger.ts'
@@ -197,8 +201,15 @@ async function command({ args }: { args: Args }): Promise<void> {
    */
   async function prepareProductionTemplates(
     templatesDir: string,
-    _values: Record<string, string>,
+    values: Record<string, string>,
   ): Promise<void> {
+    // Check if we should use local files instead of downloads
+    if (Deno.env.get('DENO_KIT_USE_LOCAL_FILES') === 'true') {
+      logger.debug('Using local files instead of downloads due to DENO_KIT_USE_LOCAL_FILES=true')
+      await prepareDevelopmentTemplates(templatesDir, values)
+      return
+    }
+
     const url = `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`
     const releaseInfo = await fetch(url, {
       headers: { Accept: 'application/vnd.github.v3+json' },
@@ -237,7 +248,7 @@ async function command({ args }: { args: Args }): Promise<void> {
           templatesDir,
         )
         return
-      } catch (err) {
+      } catch (_err) {
         throw new Error(
           `Templates zip not found at ${templatesZipPath} and local templates fallback failed. Make sure to run 'deno task build' before running tests.`,
         )

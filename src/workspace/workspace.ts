@@ -9,24 +9,24 @@
  * // Create a new workspace
  * const workspace = await create({
  *   templatesPath: "./templates"
- * });
+ * })
  *
  * // Load an existing workspace from config
- * const loadedWorkspace = await load("/path/to/workspace.json");
+ * const loadedWorkspace = await load("/path/to/workspace.json")
  *
  * // Validate a workspace config file
- * const config = JSON.parse(await Deno.readTextFile("workspace.json"));
+ * const config = JSON.parse(await Deno.readTextFile("workspace.json"))
  * if (isConfigFile(config)) {
- *   console.log("Valid workspace config:", config.id);
+ *   console.log("Valid workspace config:", config.id)
  * }
  *
  * // Access workspace data
- * console.log(await workspace.toJSON());
+ * console.log(await workspace.toJSON())
  * ```
  */
 import { basename, dirname, fromFileUrl, join, relative } from '@std/path'
 import { parse as parseJSONC } from '@std/jsonc'
-import { copy, ensureDir, exists } from '@std/fs'
+import { exists } from '@std/fs'
 
 import {
   checkDirectoryWriteAccess,
@@ -35,37 +35,15 @@ import {
   PACKAGE_CONFIG_FILES,
   readFilesRecursively,
   validateCommonBasePath,
-} from './utils/fs-extra.ts'
-import { isBannedDirectory } from './utils/banned-directories.ts'
+} from '../utils/fs-extra.ts'
+import { isBannedDirectory } from '../utils/banned-directories.ts'
+import { WorkspaceFiles } from './workspace-files.ts'
+import { WorkspaceTemplates } from './workspace-templates.ts'
+import { WorkspaceBackups } from './workspace-backups.ts'
+import type { WorkspaceConfigFile, WorkspaceLogger } from './workspace-types.ts'
 
 const DEFAULT_TEMP_PREFIX = 'workspace-temp-'
-const DEFAULT_BACKUPS_PREFIX = 'workspace-backups-'
 const DEFAULT_WORKSPACE_CONFIG_FILE_NAME = 'workspace.json'
-
-/**
- * Logger interface for Workspace class to use for logging operations
- */
-type WorkspaceLogger = Record<
-  'debug' | 'info' | 'warn' | 'error' | 'log',
-  (message: string, ...args: unknown[]) => void
->
-
-/**
- * Specification for the workspace config file that defines the workspace configuration
- */
-interface WorkspaceConfigFile {
-  /** Unique identifier for the workspace */
-  id: string
-  /** List of file paths in the workspace */
-  name?: string
-  workspaceFiles: string[]
-  /** List of template file paths */
-  templateFiles: string[]
-  /** List of backup file paths */
-  backupFiles: string[]
-  /** Template values for the workspace */
-  templateValues?: { [key: string]: string }
-}
 
 /**
  * Workspace class that manages files in workspace and template directories.
@@ -73,18 +51,17 @@ interface WorkspaceConfigFile {
  * and automatic workspace backups. All operations are restricted to the workspace directory
  * for security.
  */
-class Workspace {
+export class Workspace {
   readonly id: string
   readonly name: string
   readonly path: string
   readonly configFileName: string
   readonly templatesPath: string
-  backupsPath: string
-  #files = new Map<string, string>()
-  #templates = new Map<string, string>()
-  #templateValues = new Map<string, string>()
-  #backups = new Map<string, string>()
-  #originalPathsForBackup: string[] = []
+
+  // Components
+  #files: WorkspaceFiles
+  #templates: WorkspaceTemplates
+  #backups: WorkspaceBackups
 
   /**
    * Logger instance for the Workspace class
@@ -145,34 +122,32 @@ class Workspace {
 
     this.path = getCommonBasePath(workspaceFilePaths)
     this.templatesPath = getCommonBasePath(templateFilePaths)
-    this.backupsPath = backupFilePaths.length > 0 ? getCommonBasePath(backupFilePaths) : ''
+    const backupsPath = backupFilePaths.length > 0 ? getCommonBasePath(backupFilePaths) : ''
 
     validateCommonBasePath(workspaceFilePaths, this.path)
     validateCommonBasePath(templateFilePaths, this.templatesPath)
     if (backupFilePaths.length > 0) {
-      validateCommonBasePath(backupFilePaths, this.backupsPath)
-    }
-
-    this.#files = workspaceFiles
-    this.#templates = templateFiles
-    if (backupFiles) {
-      // We don't _need_ backups made at this point.
-      // Call this.backup() if desired at a later time.
-      this.#backups = backupFiles
-      // If backupFiles map is provided (e.g. during load from a state not just config),
-      // #originalPathsForBackup should also be populated accordingly.
-      // However, load() will handle populating #originalPathsForBackup from the config.
-      // For direct constructor use with backupFiles, caller might need to also set #originalPathsForBackup
-      // if they intend 'toJSON' to reflect these immediately.
-      // For now, we assume 'load' is the primary way backups are restored with original paths.
-    }
-
-    // Convert templateValues object to Map if provided
-    if (templateValues) {
-      this.#templateValues = new Map(Object.entries(templateValues))
+      validateCommonBasePath(backupFilePaths, backupsPath)
     }
 
     this.configFileName = configFileName || DEFAULT_WORKSPACE_CONFIG_FILE_NAME
+
+    // Initialize components
+    this.#files = new WorkspaceFiles(this.path, Workspace.logger)
+    this.#templates = new WorkspaceTemplates(this.templatesPath, this.path, Workspace.logger)
+    this.#backups = new WorkspaceBackups(this.path, backupsPath, Workspace.logger)
+
+    // Set initial state
+    this.#files.files = workspaceFiles
+    this.#templates.setTemplates(templateFiles)
+
+    if (backupFiles) {
+      this.#backups.setBackups(backupFiles)
+    }
+
+    if (templateValues) {
+      this.#templates.setTemplateValues(templateValues)
+    }
   }
 
   /**
@@ -211,7 +186,7 @@ class Workspace {
       Workspace.logger = logger
     }
 
-    const currentDir = join(fromFileUrl(import.meta.url), '..')
+    const currentDir = join(fromFileUrl(import.meta.url), '../..')
     // Ensure the user-supplied workspace configFileName ends with .json
     configFileName = configFileName.endsWith('.json') ? configFileName : `${configFileName}.json`
 
@@ -480,79 +455,21 @@ class Workspace {
    * @returns A map of backed up file paths to their contents
    */
   async backup(): Promise<Map<string, string>> {
-    // If backupsPath is set, verify it exists, otherwise create a temp directory
-    let backupBasePath: string
-
-    if (this.backupsPath) {
-      // Reuse existing backupsPath if set
-      if (!await exists(this.backupsPath)) {
-        throw new Error(`Backup path set but does not exist: ${this.backupsPath}`)
-      }
-      backupBasePath = this.backupsPath
-    } else {
-      // Create a unique backup directory for the workspace based on its ID
-      backupBasePath = await Deno.makeTempDir({
-        prefix: DEFAULT_BACKUPS_PREFIX,
-        suffix: `-${this.id}`,
-      })
-      this.backupsPath = backupBasePath
-    }
-
-    // Security check for banned directory
-    if (await isBannedDirectory(backupBasePath)) {
-      throw new Error(`Cannot create backup in banned directory: ${backupBasePath}`)
-    }
-
-    await ensureDir(backupBasePath)
-
     // Create a set of template filenames for filtering
     const templateFilenames = new Set(
-      [...this.#templates.keys()].map((path) => basename(path)),
+      [...this.#templates.templates.keys()].map((path) => basename(path)),
     )
 
     // Get the full path of the config file
     const configFilePath = join(this.path, this.configFileName)
 
-    // Process files that aren't template files or the config file
-    const backupFilesMap = new Map<string, string>() // Renamed from backupFiles to avoid confusion with the array in JSON
-    this.#originalPathsForBackup = [] // Clear before populating for the current backup operation
-
-    const backupOperations = [...this.#files.entries()]
-      .filter(([path]) => {
-        const isTemplate = templateFilenames.has(basename(path))
-        const isConfig = path === configFilePath
-        if (!isTemplate && !isConfig) {
-          this.#originalPathsForBackup.push(path) // Store original absolute path
-          return true
-        }
-        return false
-      })
-      .map(async ([path, content]) => {
-        const backupPath = path.replace(this.path, backupBasePath)
-        const parentDir = backupPath.substring(0, backupPath.lastIndexOf('/'))
-
-        try {
-          await ensureDir(parentDir)
-          await copy(path, backupPath, { preserveTimestamps: true, overwrite: true })
-          backupFilesMap.set(backupPath, content)
-        } catch (error) {
-          Workspace.logger.warn(
-            `Failed to backup file ${path}: ${
-              error instanceof Error ? error.message : String(error)
-            }`,
-          )
-        }
-      })
-
-    await Promise.all(backupOperations)
-
-    // Update internal state
-    this.#backups = backupFilesMap
-
-    // Update backupsPath if we have backup files to ensure we use the common base path
-    if (backupFilesMap.size > 0) {
-      this.backupsPath = getCommonBasePath(Array.from(backupFilesMap.keys()))
-    }
+    // Perform backup
+    const backupFilesMap = await this.#backups.backup(
+      this.#files.files,
+      this.id,
+      templateFilenames,
+      configFilePath,
+    )
 
     await this.save()
     return backupFilesMap
@@ -564,7 +481,7 @@ class Workspace {
    */
   async save(): Promise<void> {
     const configFilePath = this.configFileName
-    await this.writeFile(configFilePath, await this.toJSON())
+    await this.#files.writeFile(configFilePath, await this.toJSON())
   }
 
   /**
@@ -596,6 +513,43 @@ class Workspace {
       throw new Error(`Cannot run command in banned directory: ${path}`)
     }
 
+    // Handle special case for deno commands in test mode
+    if (command === 'deno' && Deno.env.get('DENO_KIT_ENV') === 'test') {
+      // Use a special environment to make deno use local files
+      // instead of attempting to download from JSR
+      const env: Record<string, string> = {
+        DENO_KIT_USE_LOCAL_FILES: 'true',
+      }
+
+      const cmdOptions = {
+        args,
+        stdout: 'piped',
+        stderr: 'piped',
+        cwd: path,
+        env,
+      } as const
+
+      try {
+        const { stdout, stderr } = await new Deno.Command(command, cmdOptions).output()
+        const decoder = new TextDecoder()
+
+        const error = decoder.decode(stderr).trim()
+        if (error) throw new Error(`Command '${command}' failed with error: ${error}`)
+
+        return decoder.decode(stdout).trim()
+      } catch (error) {
+        const errorMessage = error instanceof Error
+          ? `${error.message}${error.stack ? `\nStack trace: ${error.stack}` : ''}`
+          : String(error)
+        throw new Error(
+          `Failed to execute command ${
+            options?.useWorkspacePath ? 'in workspace' : ''
+          } '${command}': ${errorMessage}`,
+        )
+      }
+    }
+
+    // Regular command handling for non-deno or non-test cases
     const cmdOptions = {
       args,
       stdout: 'piped',
@@ -695,138 +649,31 @@ class Workspace {
   }
 
   /**
-   * Writes a file to the workspace directory. If the file path contains subdirectories
-   * that don't exist, they will be created automatically.
-   *
-   * @param path The path to write the file to (absolute or relative to workspace)
-   * @param content The content to write to the file
-   * @param create If true, creates a new file or overwrites existing. If false, fails if file doesn't exist (default: true)
-   * @throws Error If the path is not within the workspace directory or if writing fails
+   * Writes a file to the workspace directory using the WorkspaceFiles component
    */
   async writeFile(path: string, content: string, create = true): Promise<void> {
-    const absolutePath = path.startsWith('/') ? path : join(this.path, path)
-
-    if (!absolutePath.startsWith(this.path)) {
-      throw new Error(`Cannot write file outside of workspace: ${absolutePath}`)
-    }
-
-    const parentDir = absolutePath.substring(0, absolutePath.lastIndexOf('/'))
-
-    // Security check
-    if (await isBannedDirectory(parentDir)) {
-      throw new Error(`Cannot write file in banned directory: ${parentDir}`)
-    }
-
-    // Check if file exists when create=false
-    if (!create && !await exists(absolutePath)) {
-      Workspace.logger.warn(`File does not exist and create=false: ${absolutePath}`)
-      return
-    }
-
-    try {
-      await ensureDir(parentDir)
-      await Deno.writeTextFile(absolutePath, content, { create })
-
-      // Update the internal files map
-      this.#files.set(absolutePath, content)
-    } catch (error) {
-      throw new Error(
-        `Failed to write file at '${absolutePath}': ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      )
-    }
+    await this.#files.writeFile(path, content, create)
   }
 
   /**
-   * Compiles template files by replacing placeholder values with provided template values,
-   * then saves the compiled templates to the workspace directory.
-   * The template paths are adjusted to point to the workspace directory before saving.
-   * Placeholders in templates should be in the format {PLACEHOLDER_NAME}.
-   *
-   * @param templateValues Optional values to replace placeholders with in template files
-   * @param templateFiles Optional map of template files to use instead of this.#templates
-   * @throws Error If writing any template file fails or if no template files or values are available
-   * @example
-   * ```ts
-   * await workspace.compileAndWriteTemplates({
-   *   PROJECT_NAME: "my-project",
-   *   AUTHOR: "John Doe"
-   * });
-   * ```
+   * Compiles and writes templates using the WorkspaceTemplates component
    */
   async compileAndWriteTemplates(
     templateValues?: { [key: string]: string },
     templateFiles?: Map<string, string>,
   ): Promise<void> {
-    const templatesMap = templateFiles || this.#templates
+    await this.#templates.compileAndWriteTemplates(templateValues, templateFiles)
+    await this.save()
+  }
 
-    if (templatesMap.size === 0) {
-      throw new Error(
-        'No template files available to compile. Please provide template files or ensure the workspace has templates.',
-      )
-    }
-
-    if (templateValues && Object.keys(templateValues).length === 0) {
-      throw new Error(
-        'No template values provided. Please provide template values either during workspace creation or when calling compileAndWriteTemplates.',
-      )
-    }
-
-    // Merge template values using nullish coalescing and spread operators
-    const existingValues = this.#templateValues.size > 0
-      ? Object.fromEntries(this.#templateValues.entries())
-      : {}
-
-    const mergedTemplateValues = {
-      ...existingValues,
-      ...(templateValues ?? {}),
-    } as { [key: string]: string }
-
-    if (Object.keys(mergedTemplateValues).length === 0) {
-      throw new Error(
-        'No template values provided. Please provide template values either during workspace creation or when calling compileAndWriteTemplates.',
-      )
-    }
-
-    // Store the merged template values in the workspace's internal template values map
-    this.#templateValues = new Map(Object.entries(mergedTemplateValues))
-
-    // Compile templates and prepare for writing
-    const compiledTemplates = [...templatesMap.entries()].map(([path, content]) => {
-      const processedContent = content.replace(
-        /{([A-Z_]+)}/g,
-        (_match, placeholder) => mergedTemplateValues[placeholder] ?? _match,
-      )
-
-      return [path.replace(this.templatesPath, this.path), processedContent]
-    })
-
-    // Update the internal template map with workspace paths instead of template paths
-    const updatedTemplates = new Map<string, string>()
-    for (const [templatePath, content] of this.#templates.entries()) {
-      const workspacePath = templatePath.replace(this.templatesPath, this.path)
-      updatedTemplates.set(workspacePath, content)
-    }
-    this.#templates = updatedTemplates
-
-    // Write all templates to disk with Promise.all for parallelism
-    await Promise.all(
-      compiledTemplates.map(async ([path, content]) => {
-        try {
-          const dirPath = path.substring(0, path.lastIndexOf('/'))
-          await ensureDir(dirPath)
-          await Deno.writeTextFile(path, content)
-        } catch (error) {
-          throw new Error(
-            `Failed to write template to workspace at '${path}': ${
-              error instanceof Error ? error.message : String(error)
-            }`,
-          )
-        }
-      }),
-    )
-
+  /**
+   * Reset the workspace by copying files from the backup directory to the workspace directory
+   * using the WorkspaceBackups component
+   */
+  async reset(): Promise<void> {
+    await this.#backups.reset()
+    this.#files = new WorkspaceFiles(this.path, Workspace.logger)
+    await this.#files.loadFiles()
     await this.save()
   }
 
@@ -854,14 +701,26 @@ class Workspace {
         )
       }
 
+      // Get template paths and ensure they are relative
+      // Fix overly-escaped paths by simplifying to base filename if needed
+      const templateFiles = this.#templates.getRelativeTemplatePaths().map((path) => {
+        // If the path starts with "../", it's likely a path that couldn't be properly relativized
+        // In this case, extract just the filename
+        if (path.startsWith('../') || path.includes(':/')) {
+          const parts = path.split('/')
+          return parts[parts.length - 1]
+        }
+        return path
+      })
+
       const workspaceSpecification: WorkspaceConfigFile = {
         [packageConfig.name]: packageConfig.version,
         id: this.id,
         name: this.name,
-        workspaceFiles: Array.from(this.#files.keys()).map((p) => relative(this.path, p)),
-        templateFiles: Array.from(this.#templates.keys()).map((p) => relative(this.path, p)),
-        backupFiles: this.#originalPathsForBackup.map((p) => relative(this.path, p)),
-        templateValues: Object.fromEntries(this.#templateValues.entries()) as {
+        workspaceFiles: Array.from(this.#files.files.keys()).map((p) => relative(this.path, p)),
+        templateFiles,
+        backupFiles: this.#backups.originalPathsForBackup.map((p) => relative(this.path, p)),
+        templateValues: Object.fromEntries(this.#templates.templateValues.entries()) as {
           [key: string]: string
         },
       }
@@ -918,7 +777,7 @@ class Workspace {
       // Read files listed in the config file
       const workspaceFiles = new Map<string, string>()
       const templateFiles = new Map<string, string>()
-      const backupFiles = new Map<string, string>()
+      const _backupFiles = new Map<string, string>()
 
       // Load the files from the paths specified in the config
       await Promise.all([
@@ -940,6 +799,8 @@ class Workspace {
             templateFiles.set(absolutePath, content)
           } catch (error) {
             Workspace.logger.warn(`Failed to read template file ${absolutePath}: ${error}`)
+            // Add a placeholder content for missing template files to prevent issues
+            templateFiles.set(absolutePath, `# Template placeholder for ${relativePath}`)
           }
         }),
         // Backup files listed in config are original paths, not copies.
@@ -962,6 +823,11 @@ class Workspace {
         join(configDir, relativePath)
       )
 
+      // If we have no workspace files, set config dir as workspace path to avoid empty path errors
+      if (workspaceFiles.size === 0) {
+        workspaceFiles.set(configFilePath, configContent)
+      }
+
       // Create and return a new workspace instance
       const workspace = new Workspace({
         id: parsedConfig.id,
@@ -974,7 +840,10 @@ class Workspace {
         }),
         configFileName,
       })
-      workspace.#originalPathsForBackup = originalBackupPaths
+
+      // Set the original backup paths
+      workspace.#backups.setOriginalPathsForBackup(originalBackupPaths)
+
       return workspace
     } catch (error) {
       if (error instanceof Deno.errors.NotFound) {
@@ -989,55 +858,12 @@ class Workspace {
   }
 
   /**
-   * Reset the workspace by copying files from the backup directory to the workspace directory.
-   * After copying all files, the backup directory is emptied but preserved.
-   *
-   * @returns A Promise that resolves when the reset operation is complete
-   * @throws Error if the backup path doesn't exist or is a banned directory
-   * @throws Error if copying files fails
+   * Get the path where backups are stored
    */
-  async reset(): Promise<void> {
-    const copyOperations = [...this.#backups.entries()].map(async ([backupPath, _]) => {
-      try {
-        // Get the relative path from the backup directory to create the same structure in workspace
-        const relativePath = backupPath.substring(this.backupsPath.length)
-        // Create a clean, platform-independent path by using join
-        const workspacePath = join(this.path, relativePath.replace(/^\//, ''))
-        // Ensure parent directory exists
-        await ensureDir(join(workspacePath, '..'))
-        // Copy the file with timestamps preserved
-        await copy(backupPath, workspacePath, { preserveTimestamps: true, overwrite: true })
-      } catch (error) {
-        throw new Error(
-          `Failed to reset file ${backupPath}: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-        )
-      }
-    })
-
-    try {
-      // Execute all copy operations in parallel
-      await Promise.all(copyOperations)
-
-      // Empty the backup directory by removing each file but keeping the directory
-      for (const backupPath of this.#backups.keys()) {
-        await Deno.remove(backupPath)
-      }
-
-      this.#backups = new Map()
-      this.#files = await readFilesRecursively(this.path)
-
-      // Save the updated workspace configuration
-      await this.save()
-    } catch (error) {
-      throw new Error(
-        `Reset operation failed: ${error instanceof Error ? error.message : String(error)}`,
-      )
-    }
+  get backupsPath(): string {
+    return this.#backups.backupsPath
   }
 }
 
-export { Workspace }
-export type { WorkspaceConfigFile, WorkspaceLogger }
 export const { create, load, isConfigFile, getGitUserName, getGitUserEmail } = Workspace
+export type { WorkspaceConfigFile }

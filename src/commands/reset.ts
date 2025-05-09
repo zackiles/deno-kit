@@ -1,7 +1,7 @@
 #!/usr/bin/env -S deno run -A
 import { type Args, parseArgs } from '@std/cli'
-import { load as loadWorkspace, type Workspace } from '../workspace.ts'
-import type { CommandRouteDefinition } from '../utils/ command-router.ts'
+import { load as loadWorkspace, type Workspace } from '../workspace/workspace.ts'
+import type { CommandRouteDefinition } from '../utils/command-router.ts'
 import { getPackageForPath } from '../utils/package-info.ts'
 import logger from '../utils/logger.ts'
 import loadConfig from '../config.ts'

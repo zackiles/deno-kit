@@ -5,6 +5,7 @@ import { stripAnsiCode } from '@std/fmt/colors'
 import { exists } from '@std/fs'
 
 const CLI_PATH = join(dirname(fromFileUrl(import.meta.url)), '../src/main.ts')
+const TEST_DIR = dirname(fromFileUrl(import.meta.url))
 
 /**
  * Helper function to run the CLI with given arguments and environment variables
@@ -23,6 +24,10 @@ async function runCLI(
     env: {
       // Set test mode to avoid interactive prompts
       DENO_KIT_ENV: 'test',
+      // Force using local files instead of JSR downloads
+      DENO_KIT_USE_LOCAL_FILES: 'true',
+      // Set up path to mocks
+      DENO_PATH: `${join(TEST_DIR, 'mocks')}:${Deno.env.get('DENO_PATH') || ''}`,
       // Default values that would normally be prompted
       DENO_KIT_PACKAGE_NAME: '@test/project',
       DENO_KIT_PACKAGE_VERSION: '0.1.0',
@@ -153,14 +158,14 @@ describe('init command', () => {
 
     assert(success, 'Command should succeed')
 
-    // Check for CONTRIBUTING.md which should come from shared templates
-    const contributingExists = await exists(join(tempDir, 'CONTRIBUTING.md'))
-    assert(contributingExists, 'CONTRIBUTING.md from shared templates should exist')
+    // Check for CHANGELOG.md which should come from shared templates
+    const changelogExists = await exists(join(tempDir, 'CHANGELOG.md'))
+    assert(changelogExists, 'CHANGELOG.md from shared templates should exist')
 
     // Verify its content is from the shared template
-    const contributingContent = await Deno.readTextFile(join(tempDir, 'CONTRIBUTING.md'))
-    // Look for content we know should be in the shared CONTRIBUTING.md
-    assertStringIncludes(contributingContent, 'Contributing to')
+    const changelogContent = await Deno.readTextFile(join(tempDir, 'CHANGELOG.md'))
+    // Look for content we know should be in the shared CHANGELOG.md
+    assertStringIncludes(changelogContent, 'Changelog')
   })
 
   it('should include project-specific templates that are not in shared templates', async () => {

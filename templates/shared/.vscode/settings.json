@@ -12,7 +12,6 @@
     "temporal",
     "webgpu",
     "unsafe-proto",
-    "otel",
     "webgpu"
   ],
   "deno.codeLens.implementations": true,

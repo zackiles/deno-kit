@@ -1,6 +1,6 @@
-import { create, load, type WorkspaceConfigFile } from '../src/workspace.ts'
+import { create, load, type WorkspaceConfigFile } from '../src/workspace/workspace.ts'
 import { isBannedDirectory } from '../src/utils/banned-directories.ts'
-import { basename, join } from '@std/path'
+import { basename, dirname, join } from '@std/path'
 import { assertEquals, assertExists, assertRejects, assertStringIncludes } from '@std/assert'
 
 Deno.test('Workspace functionality', async (t) => {
@@ -830,8 +830,10 @@ Deno.test('Workspace with JSONC config file', async (t) => {
   const templatesDir = await Deno.makeTempDir({ prefix: 'deno-kit-test-templates-' })
 
   // Create a template file
+  const templateContent = '# {PROJECT_NAME}'
   const templateFile = join(templatesDir, 'README.md')
-  await Deno.writeTextFile(templateFile, '# {PROJECT_NAME}')
+  await Deno.mkdir(dirname(templateFile), { recursive: true })
+  await Deno.writeTextFile(templateFile, templateContent)
 
   // Create a workspace with a .jsonc config file
   const configFileName = 'workspace.jsonc'

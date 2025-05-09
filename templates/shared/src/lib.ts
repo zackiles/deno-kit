@@ -1,8 +1,18 @@
-import { Logger } from './utils/telemetry.ts'
-import type { LibConfig, LibRequest, LibResult } from './types.ts'
+import logger from './utils/logger.ts'
 
-// Default logger for you to use. Will print to the default OpenTelemetry sink.
-const logger = Logger.get('lib')
+/**
+ * Configuration options for the Lib class
+ */
+interface LibConfig {
+  [key: string]: unknown
+}
+
+type CrudOperation = {
+  [key: string]: unknown
+}
+
+type LibRequest = CrudOperation
+type LibResult = CrudOperation
 
 /**
  * Lib class is a default starter library that is exported to a user.
@@ -61,3 +71,4 @@ class Lib {
 }
 
 export { Lib }
+export type { LibConfig, LibRequest, LibResult }

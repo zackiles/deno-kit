@@ -1,6 +1,6 @@
 #!/usr/bin/env -S deno run -A
 import { type Args, parseArgs } from '@std/cli'
-import type { CommandRouteDefinition } from '../utils/ command-router.ts'
+import type { CommandRouteDefinition } from '../utils/command-router.ts'
 import { getMainExportPath } from '../utils/package-info.ts'
 import logger from '../utils/logger.ts'
 import loadConfig from '../config.ts'
