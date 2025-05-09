@@ -59,6 +59,13 @@ type KeyValueConfig = string | (() => string | Promise<string>) | Promise<string
  */
 type ConfigRecord = Record<string, KeyValueConfig>
 
+// Define interface for the config proxy with proper types for workspace
+interface ConfigProxy extends Record<string, string | LogLevel> {
+  workspace: string
+  DENO_KIT_DEBUG_LEVEL?: LogLevel
+  DENO_ENV: string
+}
+
 // Default values - functions/promises will be resolved during initialization
 const DEFAULT_VALUES: ConfigRecord = {
   DENO_ENV: 'development',
@@ -68,8 +75,8 @@ const DEFAULT_VALUES: ConfigRecord = {
 }
 
 let values: Record<string, string> = {}
-let configProxy: Record<string, string | LogLevel> | null = null
-let initPromise: Promise<Record<string, string | LogLevel>> | null = null
+let configProxy: ConfigProxy | null = null
+let initPromise: Promise<ConfigProxy> | null = null
 let _internalLogger: Logger = console // Module-level logger instance
 
 // Validate a config key (must be a string)
@@ -266,20 +273,14 @@ async function resolveObjectValues(
  * Creates a proxy that provides direct property access to config values
  * with direct modification of Deno.env
  */
-function createConfigProxy(): Record<string, string | LogLevel> {
+function createConfigProxy(): ConfigProxy {
   if (configProxy) return configProxy
 
   // Create a handler
   const handler = {
-    get: (
-      target: Record<string, string | LogLevel>,
-      prop: PropertyKey,
-    ): string | LogLevel | undefined => {
+    get: (target: Record<string, string>, prop: PropertyKey): string | undefined => {
       try {
         validateKey(prop)
-        if (prop === '{PROJECT_NAME}_DEBUG_LEVEL') {
-          return parseLogLevel(target[prop as string] as string | undefined)
-        }
         return target[prop as string] ?? Deno.env.get(prop as string)
       } catch (err) {
         logger(
@@ -381,7 +382,7 @@ function createConfigProxy(): Record<string, string | LogLevel> {
   }
 
   // Create proxy around the final, resolved values
-  configProxy = new Proxy(values, handler)
+  configProxy = new Proxy(values, handler) as ConfigProxy
   return configProxy
 }
 
@@ -391,7 +392,7 @@ function createConfigProxy(): Record<string, string | LogLevel> {
  */
 async function initializeConfig(
   overrides?: ConfigRecord,
-): Promise<Record<string, string | LogLevel>> {
+): Promise<ConfigProxy> {
   logger('debug', 'Starting configuration initialization...')
   // 1. Start with defaults
   let combinedConfig: ConfigRecord = { ...DEFAULT_VALUES }
@@ -529,7 +530,7 @@ async function initializeConfig(
 async function loadConfig(
   overrides?: ConfigRecord,
   customLogger?: Logger,
-): Promise<Record<string, string | LogLevel>> {
+): Promise<ConfigProxy> {
   // Update the internal logger if a custom one is provided
   // Do this early so subsequent logs in this function use the custom logger
   if (customLogger) {

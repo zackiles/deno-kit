@@ -32,9 +32,16 @@ import { parseArgs } from '@std/cli'
 import { dirname, join } from '@std/path' // Import path functions
 import { LogLevel } from './utils/logger.ts'
 
+// Define interface for the config proxy with proper types for workspace
+interface ConfigProxy extends Record<string, string | LogLevel> {
+  workspace: string
+  DENO_KIT_DEBUG_LEVEL?: LogLevel
+  DENO_ENV: string
+}
+
 // Module state
 let values: Record<string, string> = {}
-let configProxy: Record<string, string | LogLevel> | null = null
+let configProxy: ConfigProxy | null = null
 let initialized = false
 let parsedArgs: Record<string, unknown> = {}
 
@@ -107,7 +114,7 @@ const filterEmptyValues = (
  * Creates a proxy that provides direct property access to config values
  * including the workspace property
  */
-const createConfigProxy = (): Record<string, string | LogLevel> => {
+const createConfigProxy = (): ConfigProxy => {
   if (configProxy) return configProxy
 
   configProxy = new Proxy(values, {
@@ -120,7 +127,7 @@ const createConfigProxy = (): Record<string, string | LogLevel> => {
       }
       return target[prop as string]
     },
-  })
+  }) as ConfigProxy
 
   return configProxy
 }
@@ -129,7 +136,7 @@ const createConfigProxy = (): Record<string, string | LogLevel> => {
  * Loads configuration and returns an object for direct access to values.
  * Subsequent calls return the cached configuration unless force=true.
  */
-async function loadConfig(force = false): Promise<Record<string, string | LogLevel>> {
+async function loadConfig(force = false): Promise<ConfigProxy> {
   if (initialized && !force) return createConfigProxy()
 
   // Determine executable directory for reliable .env loading

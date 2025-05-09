@@ -1,5 +1,5 @@
 // Command to run this test deno test -A --no-check test/config-plus.test.ts
-import { assertEquals, assertExists, assert } from '@std/assert'
+import { assert, assertEquals, assertExists } from '@std/assert'
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd'
 import { join } from '@std/path'
 // Import types for the loadConfig function signature
@@ -23,11 +23,23 @@ describe('config-plus.ts', () => {
 
     // Backup environment variables we'll modify
     const envKeys = [
-      'TEST_API_KEY', 'TEST_DEBUG', 'TEST_ENV_VAR', 'DENO_ENV',
-      'TEST_OVERRIDE_TARGET', 'TEST_KEY_FROM_ENV', 'TEST_DEBUG_FROM_ENV',
-      'FROM_DEFAULT_ENV', 'FROM_CUSTOM_ENV', 'FROM_ENV_VAR',
-      'FUNC_VALUE', 'PROMISE_VALUE', 'ASYNC_FUNC_VALUE',
-      'INITIAL_LOAD_VAR', 'SECOND_LOAD_OVERRIDE', 'EMPTY_VAR', 'VAR_TO_DELETE' // Add keys for new tests
+      'TEST_API_KEY',
+      'TEST_DEBUG',
+      'TEST_ENV_VAR',
+      'DENO_ENV',
+      'TEST_OVERRIDE_TARGET',
+      'TEST_KEY_FROM_ENV',
+      'TEST_DEBUG_FROM_ENV',
+      'FROM_DEFAULT_ENV',
+      'FROM_CUSTOM_ENV',
+      'FROM_ENV_VAR',
+      'FUNC_VALUE',
+      'PROMISE_VALUE',
+      'ASYNC_FUNC_VALUE',
+      'INITIAL_LOAD_VAR',
+      'SECOND_LOAD_OVERRIDE',
+      'EMPTY_VAR',
+      'VAR_TO_DELETE', // Add keys for new tests
     ]
     // Clear the object before populating
     for (const key in originalEnv) {
@@ -66,12 +78,24 @@ describe('config-plus.ts', () => {
 
     // Delete any remaining test environment variables
     const testKeys = [
-      'TEST_API_KEY', 'TEST_DEBUG', 'TEST_ENV_VAR', 'TEST_RUNTIME_VAR',
-      'TEST_OVERRIDE_TARGET', 'TEST_KEY_FROM_ENV', 'TEST_DEBUG_FROM_ENV',
-      'FROM_DEFAULT_ENV', 'FROM_CUSTOM_ENV', 'FROM_ENV_VAR',
+      'TEST_API_KEY',
+      'TEST_DEBUG',
+      'TEST_ENV_VAR',
+      'TEST_RUNTIME_VAR',
+      'TEST_OVERRIDE_TARGET',
+      'TEST_KEY_FROM_ENV',
+      'TEST_DEBUG_FROM_ENV',
+      'FROM_DEFAULT_ENV',
+      'FROM_CUSTOM_ENV',
+      'FROM_ENV_VAR',
       'NEW_VALUE_FROM_OVERRIDE', // Added in overrides test
-      'FUNC_VALUE', 'PROMISE_VALUE', 'ASYNC_FUNC_VALUE',
-      'INITIAL_LOAD_VAR', 'SECOND_LOAD_OVERRIDE', 'EMPTY_VAR', 'VAR_TO_DELETE' // Add keys for new tests
+      'FUNC_VALUE',
+      'PROMISE_VALUE',
+      'ASYNC_FUNC_VALUE',
+      'INITIAL_LOAD_VAR',
+      'SECOND_LOAD_OVERRIDE',
+      'EMPTY_VAR',
+      'VAR_TO_DELETE', // Add keys for new tests
     ]
     for (const key of testKeys) {
       Deno.env.delete(key) // Delete without checking originalEnv
@@ -170,7 +194,10 @@ FROM_CUSTOM_ENV=true
 
     // Modify Deno.args to use --config
     const originalArgs = [...Deno.args]
-    Object.defineProperty(Deno, 'args', { value: ['--config', customConfigPath], configurable: true })
+    Object.defineProperty(Deno, 'args', {
+      value: ['--config', customConfigPath],
+      configurable: true,
+    })
 
     try {
       const config = await loadConfig()
@@ -183,7 +210,6 @@ FROM_CUSTOM_ENV=true
       assertEquals(config.FROM_DEFAULT_ENV, 'true')
       // Verify env var value still exists (lowest priority)
       assertEquals(config.FROM_ENV_VAR, 'true')
-
     } finally {
       Object.defineProperty(Deno, 'args', { value: originalArgs, configurable: true })
       await Deno.remove(envFilePath)
@@ -215,12 +241,15 @@ FROM_CUSTOM_ENV=true
 
     // Modify Deno.args to use --config
     const originalArgs = [...Deno.args]
-    Object.defineProperty(Deno, 'args', { value: ['--config', customConfigPath], configurable: true })
+    Object.defineProperty(Deno, 'args', {
+      value: ['--config', customConfigPath],
+      configurable: true,
+    })
 
     // Define overrides
     const overrides = {
       DENO_ENV: 'override-dev', // Should be final value
-      NEW_VALUE_FROM_OVERRIDE: 'new-override'
+      NEW_VALUE_FROM_OVERRIDE: 'new-override',
     }
 
     try {
@@ -234,7 +263,6 @@ FROM_CUSTOM_ENV=true
       assertEquals(config.FROM_CUSTOM_ENV, 'true')
       assertEquals(config.FROM_DEFAULT_ENV, 'true')
       assertEquals(config.FROM_ENV_VAR, 'true')
-
     } finally {
       Object.defineProperty(Deno, 'args', { value: originalArgs, configurable: true })
       await Deno.remove(envFilePath)
@@ -247,14 +275,14 @@ FROM_CUSTOM_ENV=true
     const functionValue = () => 'resolved-function'
     const promiseValue = Promise.resolve('resolved-promise')
     const asyncFunctionValue = async () => {
-      await new Promise(resolve => setTimeout(resolve, 10)) // Simulate async work
+      await new Promise((resolve) => setTimeout(resolve, 10)) // Simulate async work
       return 'resolved-async-function'
     }
 
     const overrides = {
       FUNC_VALUE: functionValue,
       PROMISE_VALUE: promiseValue,
-      ASYNC_FUNC_VALUE: asyncFunctionValue
+      ASYNC_FUNC_VALUE: asyncFunctionValue,
     }
 
     const config = await loadConfig(overrides)
@@ -270,7 +298,10 @@ FROM_CUSTOM_ENV=true
 
     // Modify Deno.args to use non-existent --config
     const originalArgs = [...Deno.args]
-    Object.defineProperty(Deno, 'args', { value: ['--config', nonExistentPath], configurable: true })
+    Object.defineProperty(Deno, 'args', {
+      value: ['--config', nonExistentPath],
+      configurable: true,
+    })
 
     try {
       // Load config - should not throw an error
@@ -293,7 +324,10 @@ FROM_CUSTOM_ENV=true
 
     // Modify Deno.args to use --workspace
     const originalArgs = [...Deno.args]
-    Object.defineProperty(Deno, 'args', { value: ['--workspace', customWorkspacePath], configurable: true })
+    Object.defineProperty(Deno, 'args', {
+      value: ['--workspace', customWorkspacePath],
+      configurable: true,
+    })
 
     try {
       const config = await loadConfig()
