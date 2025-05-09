@@ -12,20 +12,15 @@
   },
   "tasks": {
     "dev": "deno run -A scripts/dev.ts",
-    "tests": "DENO_ENV=test deno test -A --reload",
-    "pre-publish": "deno fmt && deno check -r src/ && deno lint"
+    "test": "deno run -A scripts/test.ts",
+    "pre-publish": "deno fmt && deno check -r src/ && deno lint",
+    "tag": "deno run -A scripts/tag.ts"
   },
   // Import maps. Prefer import "@scope/package" syntax in code.
   // NOTE: uses the import maps standard see https://github.com/WICG/import-maps
   "imports": {
     // Most of these are needed for deno-kit, be careful removing them.
     // <@deno-kit IMPORTS START>
-    "@opentelemetry/api": "npm:@opentelemetry/api@1",
-    "@opentelemetry/api-logs": "npm:@opentelemetry/api-logs@0",
-    "@opentelemetry/sdk-logs": "npm:@opentelemetry/sdk-logs@0",
-    "@opentelemetry/sdk-trace-base": "npm:@opentelemetry/sdk-trace-base@1",
-    "@opentelemetry/resources": "npm:@opentelemetry/resources@1",
-    "@opentelemetry/semantic-conventions": "npm:@opentelemetry/semantic-conventions@1",
     "@std/fmt": "jsr:@std/fmt@1",
     "@std/fs": "jsr:@std/fs@1",
     "@std/dotenv": "jsr:@std/dotenv@0",
@@ -35,6 +30,7 @@
     "@std/jsonc": "jsr:@std/jsonc@1",
     "@std/net": "jsr:@std/net@1",
     "@std/testing": "jsr:@std/testing@1",
+    "@std/semver": "jsr:@std/semver@1",
     "@deno-kit/kit": "jsr:@deno-kit/kit@0",
     "@deno-kit/module-to-cli": "jsr:@deno-kit/module-to-cli@0"
     // </@deno-kit IMPORTS END>
