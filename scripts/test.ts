@@ -57,51 +57,26 @@ import { exists } from '@std/fs'
 import { expandGlob } from '@std/fs/expand-glob'
 import { isGlob } from '@std/path/is-glob'
 import logger, { LogLevel } from '../src/utils/logger.ts'
-import loadConfig from '../src/config.ts'
+import { loadConfig } from '../src/config.ts'
 
 // Load configuration and configure logger based on environment
 const config = await loadConfig()
-if (config.DENO_ENV === 'development' || config.DEBUG === 'true') {
-  logger.setLevel(LogLevel.DEBUG)
-}
+if (config.DENO_KIT_ENV === 'development' || config.DEBUG === 'true') {
+  // Convert numeric log level to LogLevel enum
+  const logLevel = (() => {
+    const level = LogLevel.DEBUG // Default to DEBUG in development
+    return level
+  })()
 
-/**
- * Test runner script that simplifies running tests by automatically handling the test/ directory prefix.
- * Supports multiple test path formats:
- * 1. Full test names (workspace.test.ts)
- * 2. Short names (workspace)
- * 3. Directory tests (workspace -> test/workspace/*.test.ts)
- * 4. Full paths relative to test/ (workspace/subfolder/test.test.ts)
- * 5. Glob patterns relative to test/ (workspace/subfolder/*.test.ts)
- *
- * Examples:
- * ```
- * # Run all tests
- * deno run -A scripts/test.ts
- *
- * # Run specific test
- * deno run -A scripts/test.ts workspace.test.ts
- *
- * # Run test by name
- * deno run -A scripts/test.ts workspace
- *
- * # Run by full path
- * deno run -A scripts/test.ts workspace/subfolder/test.test.ts
- *
- * # Run by glob
- * deno run -A scripts/test.ts "workspace/subfolder/*.test.ts"
- *
- * # Run with filter
- * deno run -A scripts/test.ts workspace --filter "test name"
- * ```
- */
+  logger.setLevel(logLevel)
+}
 
 // Common command options for test runs
 const cmdOptions = {
   stdout: 'inherit' as const,
   stderr: 'inherit' as const,
   env: {
-    'DENO_ENV': 'test',
+    'DENO_KIT_ENV': 'test',
   },
 }
 

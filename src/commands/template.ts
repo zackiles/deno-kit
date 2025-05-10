@@ -24,7 +24,7 @@ const commandRoute: CommandRouteDefinition = {
 }
 
 function command({ args, routes }: CommandRouteOptions): Promise<void> {
-  logger.debug(`Command ${commandRoute.name} executed in environment ${config.DENO_ENV}`, {
+  logger.debug(`Command ${commandRoute.name} executed in environment ${config.DENO_KIT_ENV}`, {
     args,
     config,
     routes,

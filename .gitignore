@@ -3,6 +3,7 @@
 .temp
 .cache
 .env
+!.env.example
 .deno-kit/templates/*.backup
 coverage
 bin

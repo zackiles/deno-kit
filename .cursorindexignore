@@ -2,3 +2,4 @@ docs
 deno.lock
 .vscode/**
 assets/**
+!.env.example

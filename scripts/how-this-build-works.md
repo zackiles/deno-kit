@@ -126,10 +126,10 @@ Each platform-specific binary:
 2. **Contains embedded resources**: Accessible through an internal Virtual File System (VFS):
    - Configuration files (`deno.jsonc`)
    - Banned directories lists
-3. **Is pre-configured for production**: The binary defaults to `DENO_ENV=production` unless overridden by the system environment.
+3. **Is pre-configured for production**: The binary defaults to `DENO_KIT_ENV=production` unless overridden by the system environment.
 
 When a user runs commands such as `deno-kit init`, the application can:
 
 - Access the embedded configuration files
-- Use the environment configuration (defaulting to production if no `DENO_ENV` system variable is set)
+- Use the environment configuration (defaulting to production if no `DENO_KIT_ENV` system variable is set)
 - Access project templates (likely bundled implicitly via the source code import graph or fetched dynamically, as `templates.zip` is not distributed with the binary)

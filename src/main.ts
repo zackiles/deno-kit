@@ -12,16 +12,35 @@
  * await main() // Execute CLI command
  * ```
  */
-import loadConfig from './config.ts'
-import logger from './utils/logger.ts'
-import type { LogLevel } from './utils/logger.ts'
+import { loadConfig } from './config.ts'
+import logger, { LogLevel } from './utils/logger.ts'
 import gracefulShutdown from './utils/graceful-shutdown.ts'
 import CommandRouter from './utils/command-router.ts'
 import type { CommandRouteDefinition, CommandRouteOptions } from './utils/command-router.ts'
 
 const CLI_NAME = 'Deno-Kit'
 const config = await loadConfig()
-logger.setConfig({ level: config.LOG_LEVEL as LogLevel })
+
+// Convert numeric log level to LogLevel enum
+const logLevel = (() => {
+  const numericLevel = config.DENO_KIT_LOG_LEVEL as number
+  switch (numericLevel) {
+    case 0:
+      return LogLevel.DEBUG
+    case 1:
+      return LogLevel.INFO
+    case 2:
+      return LogLevel.WARN
+    case 3:
+      return LogLevel.ERROR
+    case 4:
+      return LogLevel.SILENT
+    default:
+      return LogLevel.INFO
+  }
+})()
+
+logger.setConfig({ level: logLevel })
 
 /**
  * Static mapping of CLI commands to their implementations.

@@ -18,7 +18,7 @@ async function runCLI(
   env: Record<string, string> = {},
 ): Promise<{ output: string; success: boolean }> {
   const command = new Deno.Command(Deno.execPath(), {
-    args: ['run', '--allow-read', '--allow-write', '--allow-env', '--allow-run', CLI_PATH, ...args],
+    args: ['run', '-A', CLI_PATH, ...args],
     stdout: 'piped',
     stderr: 'piped',
     env: {

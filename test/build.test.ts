@@ -171,7 +171,7 @@ Deno.test('Build and run kit binary', async () => {
       stdout: 'piped',
       stderr: 'piped',
       env: {
-        DENO_ENV: 'test',
+        DENO_KIT_ENV: 'test',
         DENO_KIT_TEST_TEMPLATES_ZIP_PATH: templatesZipPath,
         DENO_KIT_PACKAGE_NAME: '@test/project',
         DENO_KIT_PACKAGE_VERSION: '0.1.0',

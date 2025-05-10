@@ -16,6 +16,8 @@ import getTemplateValues from '../template-values.ts'
 import loadConfig from '../config.ts'
 import { dirname, join } from '@std/path'
 
+// Load config and check for existing project
+const config = await loadConfig()
 const GITHUB_REPO = 'zackiles/deno-kit'
 
 const commandRoute: CommandRouteDefinition = {
@@ -122,15 +124,10 @@ async function extractLocalTemplates(
 /**
  * Initializes a new Deno-Kit project
  */
-async function command({ args }: { args: Args }): Promise<void> {
-  // Set workspace path from args if provided
-  if (args._.length > 0) {
-    Deno.env.set('DENO_KIT_WORKSPACE', String(args._[0]))
-  }
-
-  // Load config and check for existing project
-  const config = await loadConfig()
-  const targetWorkspace = config.workspace
+async function command(): Promise<void> {
+  // Use the workspace path from config (now properly resolved with priority)
+  const targetWorkspace = config.workspace as string
+  logger.debug(`Using target workspace: ${targetWorkspace}`)
   await ensureDir(targetWorkspace)
 
   const configFilePath = join(targetWorkspace, 'kit.json')
@@ -151,7 +148,9 @@ async function command({ args }: { args: Args }): Promise<void> {
 
   try {
     // Prepare templates based on environment
-    await prepareTemplates(config.DENO_ENV, finalTemplatesDir, templateValues)
+    // Convert DENO_KIT_ENV to string explicitly to fix type issue
+    const envMode = String(config.DENO_KIT_ENV || 'production')
+    await prepareTemplates(envMode, finalTemplatesDir, templateValues)
 
     // Create the workspace with the prepared templates
     const workspace = await createWorkspace({

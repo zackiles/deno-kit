@@ -10,6 +10,9 @@ import logger from './utils/logger.ts'
 import { extractProjectName, extractScope, isValidPackageName } from './utils/package-info.ts'
 import type { TemplateValues } from './types.ts'
 import { promptSelect } from '@std/cli/unstable-prompt-select'
+import { loadConfig } from './config.ts'
+
+const config = await loadConfig()
 
 /**
  * Type definitions for prompt configuration
@@ -119,7 +122,7 @@ async function promptUser(promptText: string, defaultValue: string): Promise<str
   logger.print(promptWithDefault)
 
   // Skip stdin read in test mode
-  if (Deno.env.get('DENO_ENV') === 'test') {
+  if (config.DENO_KIT_ENV === 'test') {
     return defaultValue
   }
 
@@ -180,7 +183,7 @@ export async function getTemplateValues({ gitName = '', gitEmail = '' }): Promis
       }
 
       // Skip prompt in test mode
-      if (Deno.env.get('DENO_ENV') === 'test') {
+      if (config.DENO_KIT_ENV === 'test') {
         values[key] = prompt.defaultValue
         continue
       }

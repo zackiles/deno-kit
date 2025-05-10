@@ -1,14 +1,13 @@
-// Command to run this test deno test -A --no-check test/config-plus.test.ts
 import { assert, assertEquals, assertExists } from '@std/assert'
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd'
 import { join } from '@std/path'
 // Import types for the loadConfig function signature
-import type { KeyValueConfig } from '../src/config-plus.ts'
+import type { KeyValueConfig } from '../src/config.ts'
 
 // Module path for dynamic import (DON'T CHANGE THIS)
-const configModulePath = '../src/config-plus.ts'
+const configModulePath = '../src/config.ts'
 
-describe('config-plus.ts', () => {
+describe('config.ts', () => {
   let tempDir: string // Needed for creating temp files
   const originalEnv: Record<string, string> = {}
   let originalArgs: string[] = []
@@ -26,7 +25,7 @@ describe('config-plus.ts', () => {
       'TEST_API_KEY',
       'TEST_DEBUG',
       'TEST_ENV_VAR',
-      'DENO_ENV',
+      'DENO_KIT_ENV',
       'TEST_OVERRIDE_TARGET',
       'TEST_KEY_FROM_ENV',
       'TEST_DEBUG_FROM_ENV',
@@ -136,8 +135,8 @@ describe('config-plus.ts', () => {
   it('should include default values when no other sources modify them', async () => {
     const config = await loadConfig()
 
-    // Check default value for DENO_ENV
-    assertEquals(config.DENO_ENV, 'development')
+    // Check default value for DENO_KIT_ENV
+    assertEquals(config.DENO_KIT_ENV, 'development')
 
     // PACKAGE_PATH and workspace should exist and be strings
     assertExists(config.PACKAGE_PATH)
@@ -150,13 +149,13 @@ describe('config-plus.ts', () => {
   // Test .env loading and precedence over defaults/env
   it('.env file should override defaults and Deno.env', async () => {
     // Set conflicting env var
-    Deno.env.set('DENO_ENV', 'env-var-value')
+    Deno.env.set('DENO_KIT_ENV', 'env-var-value')
 
     const envFilePath = join(Deno.cwd(), '.env')
     const envContent = `
 TEST_KEY_FROM_ENV=env-file-value
 # This should override both the default and the Deno.env value
-DENO_ENV=env-file-dev
+DENO_KIT_ENV=env-file-dev
 `
     await Deno.writeTextFile(envFilePath, envContent)
 
@@ -164,7 +163,7 @@ DENO_ENV=env-file-dev
       const config = await loadConfig()
       assertEquals(config.TEST_KEY_FROM_ENV, 'env-file-value')
       // Verify .env overrides default and Deno.env
-      assertEquals(config.DENO_ENV, 'env-file-dev')
+      assertEquals(config.DENO_KIT_ENV, 'env-file-dev')
     } finally {
       await Deno.remove(envFilePath)
     }
@@ -173,13 +172,13 @@ DENO_ENV=env-file-dev
   // Test custom config file (--config) loading and precedence
   it('--config file should override .env, defaults, and Deno.env', async () => {
     // Set conflicting env var
-    Deno.env.set('DENO_ENV', 'env-var-value')
+    Deno.env.set('DENO_KIT_ENV', 'env-var-value')
     Deno.env.set('FROM_ENV_VAR', 'true')
 
     // Create conflicting .env file
     const envFilePath = join(Deno.cwd(), '.env')
     const envContent = `
-DENO_ENV=env-file-dev
+DENO_KIT_ENV=env-file-dev
 FROM_DEFAULT_ENV=true
 `
     await Deno.writeTextFile(envFilePath, envContent)
@@ -187,7 +186,7 @@ FROM_DEFAULT_ENV=true
     // Create custom config file
     const customConfigPath = join(tempDir, 'custom.conf')
     const customContent = `
-DENO_ENV=custom-config-dev # Override .env and default
+DENO_KIT_ENV=custom-config-dev # Override .env and default
 FROM_CUSTOM_ENV=true
 `
     await Deno.writeTextFile(customConfigPath, customContent)
@@ -203,7 +202,7 @@ FROM_CUSTOM_ENV=true
       const config = await loadConfig()
 
       // Verify custom config overrides .env/default
-      assertEquals(config.DENO_ENV, 'custom-config-dev')
+      assertEquals(config.DENO_KIT_ENV, 'custom-config-dev')
       // Verify custom config value exists
       assertEquals(config.FROM_CUSTOM_ENV, 'true')
       // Verify .env value still exists (lower priority)
@@ -220,13 +219,13 @@ FROM_CUSTOM_ENV=true
   // Test overrides parameter precedence
   it('overrides parameter should override all other sources', async () => {
     // Set conflicting env var
-    Deno.env.set('DENO_ENV', 'env-var-value')
+    Deno.env.set('DENO_KIT_ENV', 'env-var-value')
     Deno.env.set('FROM_ENV_VAR', 'true')
 
     // Create conflicting .env file
     const envFilePath = join(Deno.cwd(), '.env')
     const envContent = `
-DENO_ENV=env-file-dev
+DENO_KIT_ENV=env-file-dev
 FROM_DEFAULT_ENV=true
 `
     await Deno.writeTextFile(envFilePath, envContent)
@@ -234,7 +233,7 @@ FROM_DEFAULT_ENV=true
     // Create custom config file
     const customConfigPath = join(tempDir, 'custom.conf')
     const customContent = `
-DENO_ENV=custom-config-dev
+DENO_KIT_ENV=custom-config-dev
 FROM_CUSTOM_ENV=true
 `
     await Deno.writeTextFile(customConfigPath, customContent)
@@ -248,7 +247,7 @@ FROM_CUSTOM_ENV=true
 
     // Define overrides
     const overrides = {
-      DENO_ENV: 'override-dev', // Should be final value
+      DENO_KIT_ENV: 'override-dev', // Should be final value
       NEW_VALUE_FROM_OVERRIDE: 'new-override',
     }
 
@@ -256,7 +255,7 @@ FROM_CUSTOM_ENV=true
       const config = await loadConfig(overrides)
 
       // Verify override has highest precedence
-      assertEquals(config.DENO_ENV, 'override-dev')
+      assertEquals(config.DENO_KIT_ENV, 'override-dev')
       // Verify override-specific value exists
       assertEquals(config.NEW_VALUE_FROM_OVERRIDE, 'new-override')
       // Verify values from lower sources still exist
@@ -309,7 +308,7 @@ FROM_CUSTOM_ENV=true
 
       // Basic check that config is still created and has defaults
       assertExists(config)
-      assertEquals(config.DENO_ENV, 'development')
+      assertEquals(config.DENO_KIT_ENV, 'development')
       console.log('[Non-existent Config Test] Successfully loaded config despite missing file.')
     } finally {
       Object.defineProperty(Deno, 'args', { value: originalArgs, configurable: true })
