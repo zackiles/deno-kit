@@ -57,18 +57,17 @@ import { exists } from '@std/fs'
 import { expandGlob } from '@std/fs/expand-glob'
 import { isGlob } from '@std/path/is-glob'
 import logger, { LogLevel } from '../src/utils/logger.ts'
-import { loadConfig } from '../src/config.ts'
+import { setConfig } from '../src/config.ts'
+import type { DenoKitConfig } from '../src/types.ts'
 
 // Load configuration and configure logger based on environment
-const config = await loadConfig()
-if (config.DENO_KIT_ENV === 'development' || config.DEBUG === 'true') {
-  // Convert numeric log level to LogLevel enum
-  const logLevel = (() => {
-    const level = LogLevel.DEBUG // Default to DEBUG in development
-    return level
-  })()
-
-  logger.setLevel(logLevel)
+const config = await setConfig({}, logger)
+// Set the logger level based on config values instead of direct env checks
+if (config.DENO_KIT_ENV === 'development') {
+  logger.setLevel(LogLevel.DEBUG)
+} else if (config.DENO_KIT_LOG_LEVEL) {
+  // Use the log level from config if it's been set
+  logger.setLogLevel(config.DENO_KIT_LOG_LEVEL)
 }
 
 // Common command options for test runs
@@ -77,7 +76,9 @@ const cmdOptions = {
   stderr: 'inherit' as const,
   env: {
     'DENO_KIT_ENV': 'test',
-  },
+    'DENO_KIT_PATH': Deno.cwd(),
+    'DENO_KIT_TEMPLATES_PATH': join(Deno.cwd(), 'templates'),
+  } as DenoKitConfig,
 }
 
 /**

@@ -62,7 +62,7 @@ type ConfigRecord = Record<string, KeyValueConfig>
 // Define interface for the config proxy with proper types for workspace
 interface ConfigProxy extends Record<string, string | LogLevel> {
   workspace: string
-  DENO_KIT_DEBUG_LEVEL?: LogLevel
+  DENO_KIT_LOG_LEVEL?: LogLevel
   DENO_ENV: string
 }
 

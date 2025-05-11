@@ -7,12 +7,14 @@
  */
 
 import logger from './utils/logger.ts'
+import { getGitUserEmail, getGitUserName } from './workspace/workspace.ts'
 import { extractProjectName, extractScope, isValidPackageName } from './utils/package-info.ts'
 import type { TemplateValues } from './types.ts'
 import { promptSelect } from '@std/cli/unstable-prompt-select'
-import { loadConfig } from './config.ts'
+import { getConfig } from './config.ts'
+import { toTitleCase } from './utils/formatting.ts'
 
-const config = await loadConfig()
+const config = await getConfig()
 
 /**
  * Type definitions for prompt configuration
@@ -33,36 +35,37 @@ type DerivedConfig = {
 type SelectConfig = {
   select: true
   text: string
-  options: string[]
+  options: Array<{
+    value: string
+    label: string
+  }>
   defaultValue: string
   envKey?: string
 }
 
 type PromptItem = PromptConfig | DerivedConfig | SelectConfig
 
-// Available project types
-const PROJECT_TYPES = [
-  'Library',
-  'CLI',
-  'HTTP-Server',
-  'Websocket-Server',
-  'SSE-Server',
-  'MCP-Server',
-]
+/**
+ * Gets a template value from config using the DENO_KIT_TEMPLATE_ prefix
+ */
+function getTemplateValueFromConfig(key: string): string | undefined {
+  const configKey = `DENO_KIT_TEMPLATE_${key}` as keyof typeof config
+  return config[configKey]
+}
 
 /**
  * Creates a prompt configuration with options for all template values
  */
 function createPromptConfig(context: {
-  gitName: string
-  gitEmail: string
-  scope: string
+  PACKAGE_AUTHOR_NAME: string
+  PACKAGE_AUTHOR_EMAIL: string
+  PACKAGE_SCOPE: string
 }): Record<string, PromptItem> {
   return {
     PACKAGE_NAME: {
       text: 'Enter package @scope/name',
       defaultValue: '@my-org/my-project',
-      envKey: 'DENO_KIT_PACKAGE_NAME',
+      envKey: 'PACKAGE_NAME',
       validate: isValidPackageName,
       errorMessage:
         'Invalid package name format. It must be in the format @scope/name (e.g., @deno/example)',
@@ -78,9 +81,12 @@ function createPromptConfig(context: {
     PROJECT_TYPE: {
       select: true,
       text: 'Select project type',
-      options: PROJECT_TYPES,
-      defaultValue: 'Library',
-      envKey: 'DENO_KIT_PROJECT_TYPE',
+      options: config.DENO_KIT_PROJECT_TYPES.split(',').map((type) => ({
+        value: type,
+        label: toTitleCase(type.replace(/-/g, ' ')),
+      })),
+      defaultValue: 'library',
+      envKey: 'PROJECT_TYPE',
     },
     YEAR: {
       derived: true,
@@ -89,27 +95,27 @@ function createPromptConfig(context: {
     PACKAGE_VERSION: {
       text: 'Enter package version',
       defaultValue: '0.0.1',
-      envKey: 'DENO_KIT_PACKAGE_VERSION',
+      envKey: 'PACKAGE_VERSION',
     },
     PACKAGE_AUTHOR_NAME: {
       text: 'Enter author name',
-      defaultValue: context.gitName,
-      envKey: 'DENO_KIT_PACKAGE_AUTHOR_NAME',
+      defaultValue: context.PACKAGE_AUTHOR_NAME,
+      envKey: 'PACKAGE_AUTHOR_NAME',
     },
     PACKAGE_AUTHOR_EMAIL: {
       text: 'Enter author email',
-      defaultValue: context.gitEmail,
-      envKey: 'DENO_KIT_PACKAGE_AUTHOR_EMAIL',
+      defaultValue: context.PACKAGE_AUTHOR_EMAIL,
+      envKey: 'PACKAGE_AUTHOR_EMAIL',
     },
     PACKAGE_DESCRIPTION: {
       text: 'Enter package description',
       defaultValue: 'A Deno project',
-      envKey: 'DENO_KIT_PACKAGE_DESCRIPTION',
+      envKey: 'PACKAGE_DESCRIPTION',
     },
     PACKAGE_GITHUB_USER: {
       text: 'Enter GitHub username or organization',
-      defaultValue: context.scope,
-      envKey: 'DENO_KIT_PACKAGE_GITHUB_USER',
+      defaultValue: context.PACKAGE_SCOPE,
+      envKey: 'PACKAGE_GITHUB_USER',
     },
   }
 }
@@ -136,9 +142,15 @@ async function promptUser(promptText: string, defaultValue: string): Promise<str
 /**
  * Gathers all setup values from user input
  */
-export async function getTemplateValues({ gitName = '', gitEmail = '' }): Promise<TemplateValues> {
+export async function getTemplateValues(): Promise<TemplateValues> {
   const values: Record<string, string> = {}
-  const initialContext = { gitName, gitEmail, scope: '' }
+
+  const initialContext = {
+    PACKAGE_AUTHOR_NAME: await getGitUserName({ cwd: config.DENO_KIT_WORKSPACE_PATH }),
+    PACKAGE_AUTHOR_EMAIL: await getGitUserEmail({ cwd: config.DENO_KIT_WORKSPACE_PATH }),
+    PACKAGE_SCOPE: '',
+  }
+  logger.debug('initialContext', initialContext)
   const prompts = createPromptConfig(initialContext)
 
   // Process PACKAGE_NAME first with validation
@@ -146,7 +158,10 @@ export async function getTemplateValues({ gitName = '', gitEmail = '' }): Promis
   let packageName: string
 
   do {
-    const defaultValue = Deno.env.get(namePrompt.envKey || '') || namePrompt.defaultValue
+    const configValue = namePrompt.envKey
+      ? getTemplateValueFromConfig(namePrompt.envKey)
+      : undefined
+    const defaultValue = configValue ?? namePrompt.defaultValue
     packageName = await promptUser(namePrompt.text, defaultValue)
 
     // Validate the package name if validation function exists
@@ -161,7 +176,7 @@ export async function getTemplateValues({ gitName = '', gitEmail = '' }): Promis
   // Update context with derived scope
   const derivedScope = (prompts.PACKAGE_SCOPE as DerivedConfig).getValue(values)
   const scopeWithoutAt = derivedScope.replace('@', '')
-  const updatedPrompts = createPromptConfig({ ...initialContext, scope: scopeWithoutAt })
+  const updatedPrompts = createPromptConfig({ ...initialContext, PACKAGE_SCOPE: scopeWithoutAt })
 
   // Process all remaining values
   for (const [key, prompt] of Object.entries(updatedPrompts)) {
@@ -176,9 +191,10 @@ export async function getTemplateValues({ gitName = '', gitEmail = '' }): Promis
 
     // Handle select prompts
     if ('select' in prompt && prompt.select) {
-      // Use environment variable if available
-      if (prompt.envKey && Deno.env.get(prompt.envKey)) {
-        values[key] = Deno.env.get(prompt.envKey) || prompt.defaultValue
+      // Use config value from environment variable if available
+      const configValue = prompt.envKey ? getTemplateValueFromConfig(prompt.envKey) : undefined
+      if (configValue) {
+        values[key] = configValue
         continue
       }
 
@@ -188,27 +204,30 @@ export async function getTemplateValues({ gitName = '', gitEmail = '' }): Promis
         continue
       }
 
-      try {
-        const result = await promptSelect(
-          prompt.text,
-          prompt.options,
-          { clear: true },
-        )
-        values[key] = result || prompt.defaultValue
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : String(err)
-        const errorStack = err instanceof Error && err.stack
-          ? err.stack
-          : 'No stack trace available'
-        logger.error(`Error in select prompt: ${errorMessage}`, errorStack)
-        values[key] = prompt.defaultValue
+      // Call promptSelect and handle both success and failure cases
+      values[key] = prompt.defaultValue
+
+      const result = await promptSelect(
+        prompt.text,
+        prompt.options.map((opt) => opt.label),
+        { clear: true },
+      )
+
+      if (result) {
+        // Find the original value that matches the selected label
+        const selected = prompt.options.find((opt) => opt.label === result)
+        values[key] = selected?.value ?? prompt.defaultValue
       }
+
       continue
     }
 
     // Handle normal prompts
     const typedPrompt = prompt as PromptConfig
-    const defaultValue = Deno.env.get(typedPrompt.envKey || '') || typedPrompt.defaultValue
+    const configValue = typedPrompt.envKey
+      ? getTemplateValueFromConfig(typedPrompt.envKey)
+      : undefined
+    const defaultValue = configValue ?? typedPrompt.defaultValue
     values[key] = await promptUser(typedPrompt.text, defaultValue)
   }
 

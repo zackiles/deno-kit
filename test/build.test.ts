@@ -1,21 +1,8 @@
 import { assert } from '@std/assert'
 import { dirname, fromFileUrl, join } from '@std/path'
 import { exists } from '@std/fs'
-// NOTE: Using data-uri is a workaround to avoid an issue with the zip-js library. See https://github.com/gildas-lormeau/zip.js/issues/519
-import {
-  configure as configureZipJs,
-  Uint8ArrayReader,
-  Uint8ArrayWriter,
-  ZipReader,
-} from '@zip-js/zip-js/data-uri'
-import type { Entry } from '@zip-js/zip-js'
 import logger from '../src/utils/logger.ts'
-
-// Configure zip-js to terminate workers immediately to avoid timer leaks
-configureZipJs({
-  useWebWorkers: false, // Disable web workers to prevent timer leaks
-  terminateWorkerTimeout: 0, // Immediate termination of workers
-})
+import { decompress } from '../src/utils/compression.ts'
 
 /**
  * Streams process output and collects it into a string
@@ -72,8 +59,7 @@ Deno.test('Build and run kit binary', async () => {
   // Create temp directories for workspace and binary testing
   const tempWorkspaceDir = await Deno.makeTempDir()
   const tempBinaryDir = await Deno.makeTempDir()
-
-  let zipReader: ZipReader<Uint8ArrayReader> | null = null
+  const tempTemplatesDir = await Deno.makeTempDir()
 
   try {
     // Build the binary (will use bin/ directory by default now)
@@ -124,28 +110,14 @@ Deno.test('Build and run kit binary', async () => {
     const currentZipPath = join(binDir, `${binaryName}-${currentPlatform}.zip`)
     logger.log(`Using zip for current platform: ${currentZipPath}`)
 
-    // Extract the zip file
-    const zipData = await Deno.readFile(currentZipPath)
-    zipReader = new ZipReader(new Uint8ArrayReader(zipData))
-    const entries = await zipReader.getEntries()
+    // Extract the binary from the zip
+    const extractedBinaryPath = join(
+      tempBinaryDir,
+      `${binaryName}-${currentPlatform}${currentPlatform.includes('windows') ? '.exe' : ''}`,
+    )
 
-    if (entries.length === 0) {
-      throw new Error(`No entries found in zip file: ${currentZipPath}`)
-    }
-
-    // Assume the first/only entry is the binary
-    const binaryEntry = entries[0] as Entry
-    if (!binaryEntry || typeof binaryEntry.getData !== 'function') {
-      throw new Error(`Invalid binary entry in zip file: ${currentZipPath}`)
-    }
-
-    // Extract binary to temp directory
-    const binaryData = await binaryEntry.getData(new Uint8ArrayWriter())
-    const binaryFileName = `${binaryName}-${currentPlatform}${
-      currentPlatform.includes('windows') ? '.exe' : ''
-    }`
-    const extractedBinaryPath = join(tempBinaryDir, binaryFileName)
-    await Deno.writeFile(extractedBinaryPath, binaryData)
+    // Extract the binary using our utility function
+    await decompress(currentZipPath, tempBinaryDir)
 
     // Make sure binary is executable
     if (Deno.build.os !== 'windows') {
@@ -160,26 +132,37 @@ Deno.test('Build and run kit binary', async () => {
     }
     logger.log('=== End Debug ===\n')
 
-    // Define the path to the templates.zip created by the build
+    // Define the path to the templates.zip created by the build and extract it
     const templatesZipPath = join(binDir, 'templates.zip')
     const templatesZipExists = await exists(templatesZipPath)
     assert(templatesZipExists, `templates.zip should exist at ${templatesZipPath} after build`)
 
-    // Run the init command with workspace flag from the temp binary directory
+    // Extract templates.zip to the temporary templates directory
+    await decompress(templatesZipPath, tempTemplatesDir)
+
+    logger.log('\n=== Debug: Checking extracted templates directory ===')
+    for await (const entry of Deno.readDir(tempTemplatesDir)) {
+      logger.log(`- ${entry.name}`)
+    }
+    logger.log('=== End Debug ===\n')
+
+    // Setup environment variables for the test
+    const testEnv: Record<string, string> = {
+      TEMPLATES_PATH: tempTemplatesDir, // Use extracted templates path
+      DENO_KIT_PACKAGE_NAME: '@test/project',
+      DENO_KIT_PACKAGE_VERSION: '0.1.0',
+      DENO_KIT_PACKAGE_AUTHOR_NAME: 'Test User',
+      DENO_KIT_PACKAGE_AUTHOR_EMAIL: 'test@example.com',
+      DENO_KIT_PACKAGE_DESCRIPTION: 'Test project description',
+      DENO_KIT_PACKAGE_GITHUB_USER: 'test-org',
+    }
+
+    // Run the init command with workspace flag
     const initProcess = new Deno.Command(extractedBinaryPath, {
       args: ['init', '--workspace', tempWorkspaceDir],
       stdout: 'piped',
       stderr: 'piped',
-      env: {
-        DENO_KIT_ENV: 'test',
-        DENO_KIT_TEST_TEMPLATES_ZIP_PATH: templatesZipPath,
-        DENO_KIT_PACKAGE_NAME: '@test/project',
-        DENO_KIT_PACKAGE_VERSION: '0.1.0',
-        DENO_KIT_PACKAGE_AUTHOR_NAME: 'Test User',
-        DENO_KIT_PACKAGE_AUTHOR_EMAIL: 'test@example.com',
-        DENO_KIT_PACKAGE_DESCRIPTION: 'Test project description',
-        DENO_KIT_PACKAGE_GITHUB_USER: 'test-org',
-      },
+      env: testEnv,
     }).spawn()
 
     // Run the init process and stream its output
@@ -198,39 +181,9 @@ Deno.test('Build and run kit binary', async () => {
   } finally {
     // Clean up the temp directories
     try {
-      if (zipReader) {
-        try {
-          await zipReader.close()
-          // Set to null to help with garbage collection
-          zipReader = null
-          logger.log('Closed test zip reader.')
-
-          // Ensure all timers and resources from zip-js are properly cleaned up
-          await new Promise<void>((resolve) => {
-            // Force a short delay to give time for cleanup
-            setTimeout(() => {
-              // Clean up any pending operations
-              try {
-                // Force garbage collection if available
-                // @ts-expect-error - Accessing Deno.gc which may exist in certain environments
-                if (typeof Deno.gc === 'function') {
-                  // @ts-expect-error - Using non-standard API
-                  Deno.gc()
-                }
-              } catch (_) {
-                // Ignore if gc is not available
-              }
-              resolve()
-            }, 100)
-          })
-        } catch (closeError) {
-          logger.warn(`Error closing zip reader: ${closeError}`)
-        }
-      }
-
-      // Clean up temp directories after ensuring all zip operations are complete
       await Deno.remove(tempWorkspaceDir, { recursive: true })
       await Deno.remove(tempBinaryDir, { recursive: true })
+      await Deno.remove(tempTemplatesDir, { recursive: true })
     } catch (error) {
       logger.warn(`Failed to clean up temporary directories: ${error}`)
     }

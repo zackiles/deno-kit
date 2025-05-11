@@ -1,11 +1,21 @@
 import { assert, assertEquals, assertStringIncludes } from '@std/assert'
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd'
 import { dirname, fromFileUrl, join } from '@std/path'
-import { stripAnsiCode } from '@std/fmt/colors'
 import { exists } from '@std/fs'
+import { stripAnsi } from '../src/utils/formatting.ts'
+import type { DenoKitConfig } from '../src/types.ts'
+import { getConfig } from '../src/config.ts'
+
+const config = await getConfig()
+// Extended config type for testing that includes additional test-specific environment variables
+interface TestConfig extends DenoKitConfig {
+  // Project type is used in tests but not in the official DenoKitConfig
+  DENO_KIT_TEMPLATE_PROJECT_TYPE?: string
+  // Any other test-specific env vars can be added here
+  [key: string]: string | undefined
+}
 
 const CLI_PATH = join(dirname(fromFileUrl(import.meta.url)), '../src/main.ts')
-const TEST_DIR = dirname(fromFileUrl(import.meta.url))
 
 /**
  * Helper function to run the CLI with given arguments and environment variables
@@ -15,33 +25,35 @@ const TEST_DIR = dirname(fromFileUrl(import.meta.url))
  */
 async function runCLI(
   args: string[] = [],
-  env: Record<string, string> = {},
+  env: Partial<TestConfig> = {},
 ): Promise<{ output: string; success: boolean }> {
+  // Create the environment with proper typing
+  const testEnv: Partial<TestConfig> = {
+    // Set test mode to avoid interactive prompts
+    DENO_KIT_ENV: 'test',
+    // Set path to templates directory
+    DENO_KIT_TEMPLATES_PATH: join(dirname(fromFileUrl(import.meta.url)), '../templates'),
+    // Default values that would normally be prompted
+    DENO_KIT_PACKAGE_NAME: '@test/project',
+    DENO_KIT_PACKAGE_VERSION: '0.1.0',
+    DENO_KIT_PACKAGE_AUTHOR_NAME: 'Test User',
+    DENO_KIT_PACKAGE_AUTHOR_EMAIL: 'test@example.com',
+    DENO_KIT_PACKAGE_DESCRIPTION: 'Test project description',
+    DENO_KIT_PACKAGE_GITHUB_USER: 'test-org',
+    ...env,
+  }
+
   const command = new Deno.Command(Deno.execPath(), {
     args: ['run', '-A', CLI_PATH, ...args],
     stdout: 'piped',
     stderr: 'piped',
-    env: {
-      // Set test mode to avoid interactive prompts
-      DENO_KIT_ENV: 'test',
-      // Force using local files instead of JSR downloads
-      DENO_KIT_USE_LOCAL_FILES: 'true',
-      // Set up path to mocks
-      DENO_PATH: `${join(TEST_DIR, 'mocks')}:${Deno.env.get('DENO_PATH') || ''}`,
-      // Default values that would normally be prompted
-      DENO_KIT_PACKAGE_NAME: '@test/project',
-      DENO_KIT_PACKAGE_VERSION: '0.1.0',
-      DENO_KIT_PACKAGE_AUTHOR_NAME: 'Test User',
-      DENO_KIT_PACKAGE_AUTHOR_EMAIL: 'test@example.com',
-      DENO_KIT_PACKAGE_DESCRIPTION: 'Test project description',
-      DENO_KIT_PACKAGE_GITHUB_USER: 'test-org',
-      ...env,
-    },
+    // Convert to Record<string, string> only when passing to Deno.Command
+    env: testEnv as Record<string, string>,
   })
 
   const { success, stdout, stderr } = await command.output()
   const output = new TextDecoder().decode(success ? stdout : stderr)
-  return { output: stripAnsiCode(output), success }
+  return { output: stripAnsi(output), success }
 }
 
 describe('init command', () => {
@@ -92,13 +104,19 @@ describe('init command', () => {
     const readmeContent = await Deno.readTextFile(join(tempDir, 'README.md'))
     assertStringIncludes(readmeContent, 'Test project description')
 
-    // Verify kit.json exists and contains correct package name
-    const kitJsonExists = await exists(join(tempDir, 'kit.json'))
-    assert(kitJsonExists, 'kit.json should exist')
+    // Verify workspace config file exists and contains correct package name
+    const kitJsonExists = await exists(join(tempDir, config.DENO_KIT_WORKSPACE_CONFIG_FILE_NAME))
+    assert(kitJsonExists, `${config.DENO_KIT_WORKSPACE_CONFIG_FILE_NAME} should exist`)
 
-    const kitJsonContent = await Deno.readTextFile(join(tempDir, 'kit.json'))
+    const kitJsonContent = await Deno.readTextFile(
+      join(tempDir, config.DENO_KIT_WORKSPACE_CONFIG_FILE_NAME),
+    )
     const kitJson = JSON.parse(kitJsonContent)
-    assertEquals(kitJson.name, '@test/project', 'kit.json should contain the correct name field')
+    assertEquals(
+      kitJson.name,
+      '@test/project',
+      `${config.DENO_KIT_WORKSPACE_CONFIG_FILE_NAME} should contain the correct name field`,
+    )
   })
 
   it('should initialize a Library project with correct files', async () => {
@@ -122,13 +140,19 @@ describe('init command', () => {
     const readmeContent = await Deno.readTextFile(join(tempDir, 'README.md'))
     assertStringIncludes(readmeContent, 'Modern Deno Features')
 
-    // Verify kit.json exists and contains correct package name
-    const kitJsonExists = await exists(join(tempDir, 'kit.json'))
-    assert(kitJsonExists, 'kit.json should exist')
+    // Verify workspace config file exists and contains correct package name
+    const kitJsonExists = await exists(join(tempDir, config.DENO_KIT_WORKSPACE_CONFIG_FILE_NAME))
+    assert(kitJsonExists, `${config.DENO_KIT_WORKSPACE_CONFIG_FILE_NAME} should exist`)
 
-    const kitJsonContent = await Deno.readTextFile(join(tempDir, 'kit.json'))
+    const kitJsonContent = await Deno.readTextFile(
+      join(tempDir, config.DENO_KIT_WORKSPACE_CONFIG_FILE_NAME),
+    )
     const kitJson = JSON.parse(kitJsonContent)
-    assertEquals(kitJson.name, '@test/project', 'kit.json should contain the correct name field')
+    assertEquals(
+      kitJson.name,
+      '@test/project',
+      `${config.DENO_KIT_WORKSPACE_CONFIG_FILE_NAME} should contain the correct name field`,
+    )
   })
 
   it('should verify template loading priority - project templates override shared templates', async () => {
@@ -204,8 +228,13 @@ describe('init command', () => {
       )
 
       // Verify workspace was created in positional directory
-      const positionalKitJson = await exists(join(positionalDir, 'kit.json'))
-      assert(positionalKitJson, 'kit.json should exist in positional argument directory')
+      const positionalKitJson = await exists(
+        join(positionalDir, config.DENO_KIT_WORKSPACE_CONFIG_FILE_NAME),
+      )
+      assert(
+        positionalKitJson,
+        `${config.DENO_KIT_WORKSPACE_CONFIG_FILE_NAME} should exist in positional argument directory`,
+      )
 
       // Test --workspace flag
       const flagResult = await runCLI(
@@ -215,8 +244,11 @@ describe('init command', () => {
       assert(flagResult.success, `Command with --workspace flag failed: ${flagResult.output}`)
 
       // Verify workspace was created in flag directory
-      const flagKitJson = await exists(join(flagDir, 'kit.json'))
-      assert(flagKitJson, 'kit.json should exist in --workspace flag directory')
+      const flagKitJson = await exists(join(flagDir, config.DENO_KIT_WORKSPACE_CONFIG_FILE_NAME))
+      assert(
+        flagKitJson,
+        `${config.DENO_KIT_WORKSPACE_CONFIG_FILE_NAME} should exist in --workspace flag directory`,
+      )
 
       // Verify both workspaces have the same structure
       const [positionalFiles, flagFiles] = await Promise.all([

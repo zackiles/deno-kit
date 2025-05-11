@@ -14,9 +14,9 @@
  * @see {@link https://docs.deno.com/runtime/reference/cli/compile} - Deno compile command
  */
 
-import { Uint8ArrayReader, Uint8ArrayWriter, ZipWriter } from '@zip-js/zip-js/data-uri'
 import { dirname, fromFileUrl, join, relative } from '@std/path'
 import { exists } from '@std/fs'
+import { compress } from '../src/utils/compression.ts'
 
 // Get the absolute path to the project root directory
 const PROJECT_ROOT = dirname(dirname(fromFileUrl(import.meta.url)))
@@ -36,47 +36,6 @@ const RESOURCES = {
 const RESOLVED_PATHS = Object.fromEntries(
   Object.entries(RESOURCES).map(([key, path]) => [key, join(PROJECT_ROOT, path)]),
 ) as Record<keyof typeof RESOURCES, string>
-
-/**
- * Creates a zip file containing the binary and environment file
- */
-async function createZipFile(sourcePath: string, targetPath: string): Promise<void> {
-  const [fileData, fileName] = await Promise.all([
-    Deno.readFile(sourcePath),
-    Promise.resolve(sourcePath.split('/').pop() || 'binary'),
-  ])
-
-  const zipWriter = new ZipWriter(new Uint8ArrayWriter())
-  await zipWriter.add(fileName, new Uint8ArrayReader(fileData))
-
-  const zipData = await zipWriter.close()
-  await Deno.writeFile(targetPath, zipData)
-}
-
-/**
- * Creates a zip file from a directory while preserving structure
- */
-async function createDirectoryZip(sourceDir: string, targetPath: string): Promise<void> {
-  const zipWriter = new ZipWriter(new Uint8ArrayWriter())
-
-  async function addFilesToZip(dir: string, baseDir: string) {
-    for await (const entry of Deno.readDir(dir)) {
-      const entryPath = join(dir, entry.name)
-      const relativePath = entryPath.slice(baseDir.length + 1)
-
-      if (entry.isDirectory) {
-        await addFilesToZip(entryPath, baseDir)
-      } else {
-        const fileData = await Deno.readFile(entryPath)
-        await zipWriter.add(relativePath, new Uint8ArrayReader(fileData))
-      }
-    }
-  }
-
-  await addFilesToZip(sourceDir, sourceDir)
-  const zipData = await zipWriter.close()
-  await Deno.writeFile(targetPath, zipData)
-}
 
 /**
  * Lists directory contents recursively for verification
@@ -107,7 +66,7 @@ async function build() {
       }
     }
 
-    await createDirectoryZip(RESOLVED_PATHS.templates, RESOLVED_PATHS.templatesZip)
+    await compress(RESOLVED_PATHS.templates, RESOLVED_PATHS.templatesZip)
     console.log(`Created templates zip at: ${RESOURCES.templatesZip}`)
 
     const config = {
@@ -198,7 +157,7 @@ async function build() {
         const zipFileName = `deno-kit-${platform.name}.zip`
         const zipFilePath = join(config.outputDir, zipFileName)
 
-        await createZipFile(outputPath, zipFilePath)
+        await compress(outputPath, zipFilePath)
         console.log(`✅ Created zip archive: ${zipFilePath}`)
 
         outputs.push({ platform: platform.name, binaryPath: outputPath, zipPath: zipFilePath })
@@ -214,43 +173,11 @@ async function build() {
       for (const { platform, zipPath } of outputs) {
         console.log(`- ${zipPath} (${platform})`)
       }
-
-      // Clean up temporary files
-      // const cleanupFiles = [
-      //   // join(dirname(RESOLVED_PATHS.templatesZip), '.env'),
-      // ]
-
-      // for (const fileOrDir of cleanupFiles) {
-      //   try {
-      //     if (await exists(fileOrDir)) {
-      //       // Use recursive remove for directories
-      //       await Deno.remove(fileOrDir, { recursive: true })
-      //       console.log(`\nCleaned up temporary file/dir: ${relative(PROJECT_ROOT, fileOrDir)}`)
-      //     }
-      //   } catch (error) {
-      //     console.error(`Error cleaning up file/dir ${relative(PROJECT_ROOT, fileOrDir)}:`, error)
-      //   }
-      // }
     } else {
       throw new Error('No builds were successful.')
     }
   } catch (error) {
     console.error('Error during build:', error)
-    // Clean up temporary files even if build fails
-    // const cleanupFiles = [
-    //   // join(dirname(RESOLVED_PATHS.templatesZip), '.env'),
-    // ]
-
-    // for (const fileOrDir of cleanupFiles) {
-    //   try {
-    //     if (await exists(fileOrDir)) {
-    //       await Deno.remove(fileOrDir, { recursive: true }) // Use recursive remove
-    //       console.log(`\nCleaned up temporary file/dir: ${relative(PROJECT_ROOT, fileOrDir)}`)
-    //     }
-    //   } catch (_) {
-    //     // Ignore cleanup errors on build failure
-    //   }
-    // }
     Deno.exit(1)
   }
 }

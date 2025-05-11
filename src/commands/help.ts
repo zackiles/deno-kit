@@ -1,28 +1,22 @@
-#!/usr/bin/env -S deno run -A
-import { type Args, parseArgs } from '@std/cli'
 import type { CommandRouteDefinition, CommandRouteOptions } from '../utils/command-router.ts'
 import printHelpMenu from '../utils/print-help-menu.ts'
-import loadConfig from '../config.ts'
+import { getConfig } from '../config.ts'
+import type { DenoKitConfig } from '../types.ts'
 
-const config = await loadConfig()
-const CLI_NAME = 'Deno-Kit'
+const config = await getConfig() as DenoKitConfig
 
 const commandRoute: CommandRouteDefinition = {
   name: 'help',
-  command: displayHelp,
+  command: command,
   description: 'Display this help message',
 }
 
-function displayHelp({ routes = [] }: CommandRouteOptions): void {
-  const formattedCliName = CLI_NAME.split(' ')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ')
-
+function command({ routes = [] }: CommandRouteOptions): void {
   const maxCommandLength = Math.max(...routes.map((cmd: CommandRouteDefinition) => cmd.name.length))
 
   printHelpMenu({
-    title: { text: `${formattedCliName} - Usage:` },
-    usage: { text: '  kit <command> [options]' },
+    title: { text: `${config.DENO_KIT_NAME} - Usage:` },
+    usage: { text: `  ${config.DENO_KIT_NAME.toLowerCase()} <command> [options]` },
     section: { text: 'Commands:' },
   })
 
@@ -38,13 +32,8 @@ function displayHelp({ routes = [] }: CommandRouteOptions): void {
 
   printHelpMenu({
     note: { text: `If no command is provided, the "help" command will be executed.` },
-    workspace: { text: config.workspace },
+    workspace: { text: config.DENO_KIT_WORKSPACE_PATH },
   })
-}
-
-if (import.meta.main) {
-  const args: Args = parseArgs(Deno.args, commandRoute.options)
-  await commandRoute.command({ args, routes: [commandRoute] })
 }
 
 export default commandRoute

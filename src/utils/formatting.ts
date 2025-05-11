@@ -334,6 +334,12 @@ function formatErrorDetails(error: Error): string {
   return details
 }
 
+function toTitleCase(str: string): string {
+  return str
+    .replace(/-/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase())
+}
+
 // Export all functions as named exports
 export {
   camelToTitleCase,
@@ -348,6 +354,7 @@ export {
   indent,
   padString,
   stripAnsi,
+  toTitleCase,
   truncate,
   wrapText,
 }

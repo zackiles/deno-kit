@@ -6,7 +6,7 @@
 import { basename, join } from '@std/path'
 import { copy, ensureDir, exists } from '@std/fs'
 import { isBannedDirectory } from '../utils/banned-directories.ts'
-import { getCommonBasePath } from '../utils/fs-extra.ts'
+import { getMostCommonBasePath } from '../utils/fs-extra.ts'
 import type { WorkspaceLogger } from './workspace-types.ts'
 
 const DEFAULT_BACKUPS_PREFIX = 'workspace-backups-'
@@ -156,7 +156,7 @@ export class WorkspaceBackups {
 
     // Update backupsPath if we have backup files to ensure we use the common base path
     if (backupFilesMap.size > 0) {
-      this.#backupsPath = getCommonBasePath(Array.from(backupFilesMap.keys()))
+      this.#backupsPath = getMostCommonBasePath(Array.from(backupFilesMap.keys()))
     }
 
     return backupFilesMap

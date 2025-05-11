@@ -1,36 +1,30 @@
-#!/usr/bin/env -S deno run -A
-import { type Args, parseArgs } from '@std/cli'
 import type { CommandRouteDefinition } from '../utils/command-router.ts'
-import { getPackageForPath } from '../utils/package-info.ts'
+import { findPackagePathFromPath } from '../utils/package-info.ts'
 import logger from '../utils/logger.ts'
-import loadConfig from '../config.ts'
+import { getConfig } from '../config.ts'
+import type { DenoKitConfig } from '../types.ts'
 
-const config = await loadConfig()
+const config = await getConfig() as DenoKitConfig
 
 const commandRoute: CommandRouteDefinition = {
   name: 'remove',
   command: command,
-  description: 'Remove Deno-Kit from the current workspace',
+  description: 'Remove deno-kit from the current workspace',
 }
 
 async function command(): Promise<void> {
-  logger.debug(`Removing Deno-Kit from workspace: ${config.workspace}`)
+  logger.debug(`Removing Deno-Kit from workspace: ${config.DENO_KIT_WORKSPACE_PATH}`)
 
-  const packageInfo = await getPackageForPath(config.workspace, {
-    packageConfigFiles: ['kit.json'],
+  const packageInfo = await findPackagePathFromPath(config.DENO_KIT_WORKSPACE_PATH || '', {
+    packageConfigFiles: [config.DENO_KIT_WORKSPACE_CONFIG_FILE_NAME],
   })
 
   if (packageInfo) {
     await Deno.remove(packageInfo)
-    logger.info(`Removed Deno-Kit from workspace: ${config.workspace}`)
+    logger.info(`Removed Deno-Kit from workspace: ${config.DENO_KIT_WORKSPACE_PATH}`)
   } else {
-    throw new Error(`Deno-Kit not found in workspace: ${config.workspace}`)
+    throw new Error(`Deno-Kit not found in workspace: ${config.DENO_KIT_WORKSPACE_PATH}`)
   }
-}
-
-if (import.meta.main) {
-  const args: Args = parseArgs(Deno.args, commandRoute.options)
-  await commandRoute.command({ args, routes: [commandRoute] })
 }
 
 export default commandRoute

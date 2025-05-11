@@ -12,35 +12,20 @@
  * await main() // Execute CLI command
  * ```
  */
-import { loadConfig } from './config.ts'
-import logger, { LogLevel } from './utils/logger.ts'
+import { getConfig, setConfig } from './config.ts'
+import logger from './utils/logger.ts'
 import gracefulShutdown from './utils/graceful-shutdown.ts'
 import CommandRouter from './utils/command-router.ts'
 import type { CommandRouteDefinition, CommandRouteOptions } from './utils/command-router.ts'
+import type { DenoKitConfig } from './types.ts'
 
-const CLI_NAME = 'Deno-Kit'
-const config = await loadConfig()
+const config = await getConfig() as DenoKitConfig
 
-// Convert numeric log level to LogLevel enum
-const logLevel = (() => {
-  const numericLevel = config.DENO_KIT_LOG_LEVEL as number
-  switch (numericLevel) {
-    case 0:
-      return LogLevel.DEBUG
-    case 1:
-      return LogLevel.INFO
-    case 2:
-      return LogLevel.WARN
-    case 3:
-      return LogLevel.ERROR
-    case 4:
-      return LogLevel.SILENT
-    default:
-      return LogLevel.INFO
-  }
-})()
-
-logger.setConfig({ level: logLevel })
+// Set log level based on config value from loadConfig
+// This will have already incorporated any DENO_KIT_LOG_LEVEL env variable
+if (config.DENO_KIT_LOG_LEVEL) {
+  logger.setLogLevel(config.DENO_KIT_LOG_LEVEL)
+}
 
 /**
  * Static mapping of CLI commands to their implementations.
@@ -48,16 +33,21 @@ logger.setConfig({ level: logLevel })
  *
  * @see {@link ./commands/template.ts} Example command implementation
  */
-const COMMANDS: Record<string, CommandRouteDefinition> = {
+const AVAILABLE_COMMANDS = {
   help: (await import('./commands/help.ts')).default,
   init: (await import('./commands/init.ts')).default,
   cli: (await import('./commands/cli.ts')).default,
   version: (await import('./commands/version.ts')).default,
   remove: (await import('./commands/remove.ts')).default,
   reset: (await import('./commands/reset.ts')).default,
-  // Temporarily disabled
-  // server: (await import('./commands/reset.ts')).default,
+  template: (await import('./commands/template.ts')).default,
 }
+
+// Remove any commands that match DENO_KIT_DISABLED_COMMANDS
+const COMMANDS: Record<string, CommandRouteDefinition> = Object.fromEntries(
+  Object.entries(AVAILABLE_COMMANDS)
+    .filter(([key]) => !config.DENO_KIT_DISABLED_COMMANDS.includes(key)),
+)
 
 /**
  * Loads and executes the appropriate CLI command.
@@ -86,6 +76,3 @@ async function main(): Promise<void> {
 if (import.meta.main) {
   await gracefulShutdown.startAndWrap(main, logger)
 }
-
-export { CLI_NAME, main }
-export default main

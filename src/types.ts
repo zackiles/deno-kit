@@ -2,25 +2,82 @@
  * @module types
  * @description Core type definitions for the deno-kit library
  */
-import type { CommandRouteDefinition } from './utils/command-router.ts'
 
 /**
- * Type guard to validate if a module exports a valid CommandDefinition.
- *
- * @param value - The value to check, typically a module's default export
- * @returns True if the value matches the CommandDefinition interface
+ * Configuration interface representing all environment variables used in deno-kit
  */
-function isCommandDefinition(value: unknown): value is CommandRouteDefinition {
-  return (
-    !!value &&
-    typeof value === 'object' &&
-    'name' in value &&
-    typeof (value as CommandRouteDefinition).name === 'string' &&
-    'command' in value &&
-    typeof (value as CommandRouteDefinition).command === 'function' &&
-    'description' in value &&
-    typeof (value as CommandRouteDefinition).description === 'string'
+interface DenoKitConfig {
+  DENO_KIT_NAME: string
+  /** Current execution environment (development, production, or test) */
+  DENO_KIT_ENV: string
+  /** GitHub repository name (e.g., "zackiles/deno-kit") */
+  DENO_KIT_GITHUB_REPO: string
+  /** Name of the workspace config file (e.g., "kit.json") */
+  DENO_KIT_WORKSPACE_CONFIG_FILE_NAME: string
+  /** Path to the deno-kit main module or CLI executable */
+  DENO_KIT_PATH: string
+  /** Comma-separated list of disabled commands. This is helpful when Deno-Kit is used in MCP Servers that need to limit tool calls/commands */
+  DENO_KIT_DISABLED_COMMANDS: string
+  /** Path to templates directory */
+  DENO_KIT_TEMPLATES_PATH: string
+  /** Path to workspace directory */
+  DENO_KIT_WORKSPACE_PATH: string
+  /** Comma-separated list of supported project types */
+  DENO_KIT_PROJECT_TYPES: string
+  /** Log level for controlling verbosity (DEBUG, INFO, WARN, ERROR, SILENT) */
+  DENO_KIT_LOG_LEVEL: string
+  /** Full package name including scope (e.g., "@deno/example") */
+  DENO_KIT_TEMPLATE_PACKAGE_NAME?: string
+
+  /** Package version */
+  DENO_KIT_TEMPLATE_PACKAGE_VERSION?: string
+  /** Author's full name */
+  DENO_KIT_TEMPLATE_AUTHOR_NAME?: string
+  /** Author's email address */
+  DENO_KIT_TEMPLATE_AUTHOR_EMAIL?: string
+  /** Short description of the package */
+  DENO_KIT_TEMPLATE_DESCRIPTION?: string
+  /** GitHub username or organization without @ */
+  DENO_KIT_TEMPLATE_GITHUB_USER?: string
+}
+
+/**
+ * Ensures an object matches the DenoKitConfig interface
+ * @param config The object to validate
+ * @returns True if valid, throws error if invalid
+ * @throws {Error} with details about missing required configuration
+ */
+function assertDenoKitConfig(config: unknown): config is DenoKitConfig {
+  if (!config || typeof config !== 'object') {
+    throw new Error('Configuration must be a non-null object')
+  }
+
+  const requiredKeys: (keyof DenoKitConfig)[] = [
+    'DENO_KIT_NAME',
+    'DENO_KIT_PATH',
+    'DENO_KIT_GITHUB_REPO',
+    'DENO_KIT_WORKSPACE_CONFIG_FILE_NAME',
+    'DENO_KIT_DISABLED_COMMANDS',
+    'DENO_KIT_ENV',
+    'DENO_KIT_TEMPLATES_PATH',
+    'DENO_KIT_WORKSPACE_PATH',
+    'DENO_KIT_PROJECT_TYPES',
+    'DENO_KIT_LOG_LEVEL',
+  ]
+
+  const missingKeys = requiredKeys.filter((key) =>
+    !(key in config) ||
+    typeof (config as Record<string, unknown>)[key] !== 'string' ||
+    (config as Record<string, unknown>)[key] === ''
   )
+
+  if (missingKeys.length > 0) {
+    throw new Error(
+      `Invalid configuration: missing or invalid required fields:\n${missingKeys.join('\n')}`,
+    )
+  }
+
+  return true
 }
 
 /**
@@ -61,5 +118,6 @@ interface TemplateValues {
   [key: string]: string
 }
 
-export type { TemplateValues }
-export { isCommandDefinition }
+// Export all types at the bottom of the file
+export type { DenoKitConfig, TemplateValues }
+export { assertDenoKitConfig }

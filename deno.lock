@@ -14,7 +14,8 @@
     "jsr:@std/path@^1.0.9": "1.0.9",
     "jsr:@std/semver@^1.0.5": "1.0.5",
     "jsr:@std/testing@1": "1.0.11",
-    "jsr:@zip-js/zip-js@2": "2.7.60"
+    "jsr:@zip-js/zip-js@2": "2.7.60",
+    "npm:@types/node@*": "22.5.4"
   },
   "jsr": {
     "@std/assert@1.0.13": {
@@ -65,6 +66,17 @@
     },
     "@zip-js/zip-js@2.7.60": {
       "integrity": "6bb6cf0d02b64ca9acba8c7bc072293609ec3bad584db2b5cf3bb089e031ea0e"
+    }
+  },
+  "npm": {
+    "@types/node@22.5.4": {
+      "integrity": "sha512-FDuKUJQm/ju9fT/SeX/6+gBzoPzlVCzfzmGkwKvRHQVxi4BntVbyIwf6a4Xn62mrvndLiml6z/UBXIdEVjQLXg==",
+      "dependencies": [
+        "undici-types"
+      ]
+    },
+    "undici-types@6.19.8": {
+      "integrity": "sha512-ve2KP6f/JnbPBFyobGHuerC9g1FYGn/F8n1LWTwNxCEzd6IfqTwUQcNXgEtmmQ6DlRrC1hrSrBnCZPokRrDHjw=="
     }
   },
   "workspace": {

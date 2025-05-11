@@ -1,11 +1,10 @@
-#!/usr/bin/env -S deno run -A
-import { type Args, parseArgs } from '@std/cli'
 import type { CommandRouteDefinition } from '../utils/command-router.ts'
 import { getMainExportPath } from '../utils/package-info.ts'
 import logger from '../utils/logger.ts'
-import loadConfig from '../config.ts'
+import { getConfig } from '../config.ts'
+import type { DenoKitConfig } from '../types.ts'
 
-const config = await loadConfig()
+const config = await getConfig() as DenoKitConfig
 
 const commandRoute: CommandRouteDefinition = {
   name: 'cli',
@@ -18,10 +17,12 @@ const commandRoute: CommandRouteDefinition = {
 }
 
 async function command(): Promise<void> {
-  logger.debug(`Running your library through a CLI in the workspace: ${config.workspace}`)
+  logger.debug(
+    `Running your library through a CLI in the workspace: ${config.DENO_KIT_WORKSPACE_PATH}`,
+  )
 
   try {
-    const mainExportPath = await getMainExportPath(config.workspace)
+    const mainExportPath = await getMainExportPath(config.DENO_KIT_WORKSPACE_PATH || '')
     const moduleToCLIArgs = Deno.args.slice(Deno.args.indexOf(commandRoute.name) + 1)
     logger.info(mainExportPath, moduleToCLIArgs)
 
@@ -43,8 +44,4 @@ async function command(): Promise<void> {
   }
 }
 
-if (import.meta.main) {
-  const args: Args = parseArgs(Deno.args, commandRoute.options)
-  await commandRoute.command({ args, routes: [commandRoute] })
-}
 export default commandRoute

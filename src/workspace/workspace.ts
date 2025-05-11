@@ -27,12 +27,10 @@
 import { basename, dirname, fromFileUrl, join, relative } from '@std/path'
 import { parse as parseJSONC } from '@std/jsonc'
 import { exists } from '@std/fs'
-
+import { findPackageFromPath, PACKAGE_CONFIG_FILES } from '../utils/package-info.ts'
 import {
   checkDirectoryWriteAccess,
-  getCommonBasePath,
-  getPackageForPath,
-  PACKAGE_CONFIG_FILES,
+  getMostCommonBasePath,
   readFilesRecursively,
   validateCommonBasePath,
 } from '../utils/fs-extra.ts'
@@ -120,22 +118,63 @@ export class Workspace {
       Workspace.logger = logger
     }
 
-    this.path = getCommonBasePath(workspaceFilePaths)
-    this.templatesPath = getCommonBasePath(templateFilePaths)
-    const backupsPath = backupFilePaths.length > 0 ? getCommonBasePath(backupFilePaths) : ''
+    // Using these values before awaiting will cause type errors
+    // We'll initialize them to empty strings first then update them in an async init method
+    this.path = ''
+    this.templatesPath = ''
+    this.configFileName = configFileName || DEFAULT_WORKSPACE_CONFIG_FILE_NAME
 
-    validateCommonBasePath(workspaceFilePaths, this.path)
-    validateCommonBasePath(templateFilePaths, this.templatesPath)
+    // Initialize with placeholders, we'll update them after initializing the paths
+    this.#files = new WorkspaceFiles('', Workspace.logger)
+    this.#templates = new WorkspaceTemplates('', '', Workspace.logger)
+    this.#backups = new WorkspaceBackups('', '', Workspace.logger)
+
+    // Immediately invoke async initialization
+    this.#init(
+      workspaceFilePaths,
+      templateFilePaths,
+      backupFilePaths,
+      workspaceFiles,
+      templateFiles,
+      backupFiles,
+      templateValues,
+    )
+  }
+
+  /**
+   * Async initialization to handle the async operations needed in constructor
+   */
+  async #init(
+    workspaceFilePaths: string[],
+    templateFilePaths: string[],
+    backupFilePaths: string[],
+    workspaceFiles: Map<string, string>,
+    templateFiles: Map<string, string>,
+    backupFiles?: Map<string, string>,
+    templateValues?: { [key: string]: string },
+  ): Promise<void> {
+    // Now we can properly await these async functions
+    const workspacePath = await getMostCommonBasePath(workspaceFilePaths)
+    const templatesPath = await getMostCommonBasePath(templateFilePaths)
+    const backupsPath = backupFilePaths.length > 0
+      ? await getMostCommonBasePath(backupFilePaths)
+      : ''
+
+    // Update the instance properties
+    Object.defineProperty(this, 'path', { value: workspacePath, writable: false })
+    Object.defineProperty(this, 'templatesPath', { value: templatesPath, writable: false })
+
+    // Validate paths
+    validateCommonBasePath(workspaceFilePaths, workspacePath)
+    validateCommonBasePath(templateFilePaths, templatesPath)
     if (backupFilePaths.length > 0) {
       validateCommonBasePath(backupFilePaths, backupsPath)
     }
 
-    this.configFileName = configFileName || DEFAULT_WORKSPACE_CONFIG_FILE_NAME
-
-    // Initialize components
-    this.#files = new WorkspaceFiles(this.path, Workspace.logger)
-    this.#templates = new WorkspaceTemplates(this.templatesPath, this.path, Workspace.logger)
-    this.#backups = new WorkspaceBackups(this.path, backupsPath, Workspace.logger)
+    // Reinitialize components with proper paths
+    this.#files = new WorkspaceFiles(workspacePath, Workspace.logger)
+    this.#templates = new WorkspaceTemplates(templatesPath, workspacePath, Workspace.logger)
+    this.#backups = new WorkspaceBackups(workspacePath, backupsPath, Workspace.logger)
 
     // Set initial state
     this.#files.files = workspaceFiles
@@ -275,17 +314,18 @@ export class Workspace {
     workspaceFiles: Map<string, string>
     baseTemplatesPath: string
   }): Promise<void> {
-    // packageConfigPath is the path of the package config file for the process or package currently executing this module.
-    const packageConfigPath = await getPackageForPath()
+    // Get package data for the process or package currently executing this module
+    const packageData = await findPackageFromPath()
     // Ensure the user-supplied workspace configFileName ends with .json
     configFileName = configFileName.endsWith('.json') ? configFileName : `${configFileName}.json`
 
-    if (!packageConfigPath) {
+    if (!packageData.path) {
       throw new Error(
         'Workspace.initializeEmptyWorkspace: Missing package config file for this process. Looking for: deno.json, deno.jsonc, package.json, package.jsonc, jsr.json',
       )
     }
 
+    const packageConfigPath = packageData.path as string
     const packageConfig = parseJSONC(await Deno.readTextFile(packageConfigPath)) as {
       name?: string
       version?: string
@@ -388,23 +428,23 @@ export class Workspace {
       // If we don't need to check for a config file we can return the path now
       if (withConfigFile === false) return path
 
-      // Get package config file path of the process or package currently executing this module.
-      const packageConfigPath = await getPackageForPath(path, {
-        packageConfigFiles: ['deno.jsonc'],
-      })
-      if (!packageConfigPath) {
+      // Get package config data for the process or package currently executing this module
+      const packageData = await findPackageFromPath()
+      if (!packageData.path) {
         throw new Error(
           `Workspace.#validateWorkspacePath: Cannot find package configuration. Looking for: ${
             PACKAGE_CONFIG_FILES.join(', ')
           }`,
         )
       }
+      const packageConfigPath = packageData.path as string
 
-      // Get workspace file of the current workspace (if it exists). We'll compare to the package at packageConfigPath
-      // to ensure we're not attempting to create a workspace in the same directory as this code itself.
-      const workspaceConfigPath = await getPackageForPath(path, {
-        packageConfigFiles: ['deno.jsonc'],
-      })
+      // Get workspace file data from the current workspace path (if it exists)
+      // We'll compare to the package at packageConfigPath to ensure we're not attempting
+      // to create a workspace in the same directory as this code itself.
+      const workspaceData = await findPackageFromPath(path)
+      const workspaceConfigPath = workspaceData.path as string
+
       const isDenoKitSource = await (async () => {
         try {
           // ----------------------------------------------------------------
@@ -489,7 +529,8 @@ export class Workspace {
    *
    * @param command The command to execute (e.g. 'git', 'npm')
    * @param args Command arguments (e.g. ['config', 'user.name'])
-   * @param options.useWorkspacePath If true, uses the workspace path; if false, uses current directory
+   * @param options.cwd Directory to run the command in (defaults to workspace path)
+   * @param options.env Optional environment variables to pass to the command
    * @returns The trimmed stdout output of the command
    * @throws Error If the command fails to execute or produces stderr output
    * @example
@@ -499,62 +540,34 @@ export class Workspace {
    *
    * // Static usage (uses current directory)
    * const output = await Workspace.runCommand('git', ['status']);
+   *
+   * // With custom directory
+   * const output = await Workspace.runCommand('git', ['status'], { cwd: '/custom/path' });
+   *
+   * // With custom environment variables
+   * const output = await workspace.runCommand('deno', ['run', 'script.ts'], {
+   *   env: { CUSTOM_VAR: 'value' }
+   * });
    * ```
    */
   static async runCommand(
     command: string,
     args: string[] = [],
-    options?: { useWorkspacePath?: boolean },
+    options?: { cwd?: string; env?: Record<string, string> },
   ): Promise<string> {
     // biome-ignore lint/complexity/noThisInStatic: Required for dual static/instance functionality
-    const path = options?.useWorkspacePath ? (this as unknown as Workspace).path : Deno.cwd()
+    const cwd = options?.cwd || ((this as unknown as Workspace).path || Deno.cwd())
 
-    if (await isBannedDirectory(path)) {
-      throw new Error(`Cannot run command in banned directory: ${path}`)
+    if (await isBannedDirectory(cwd)) {
+      throw new Error(`Cannot run command in banned directory: ${cwd}`)
     }
 
-    // Handle special case for deno commands in test mode
-    if (command === 'deno' && Deno.env.get('DENO_KIT_ENV') === 'test') {
-      // Use a special environment to make deno use local files
-      // instead of attempting to download from JSR
-      const env: Record<string, string> = {
-        DENO_KIT_USE_LOCAL_FILES: 'true',
-      }
-
-      const cmdOptions = {
-        args,
-        stdout: 'piped',
-        stderr: 'piped',
-        cwd: path,
-        env,
-      } as const
-
-      try {
-        const { stdout, stderr } = await new Deno.Command(command, cmdOptions).output()
-        const decoder = new TextDecoder()
-
-        const error = decoder.decode(stderr).trim()
-        if (error) throw new Error(`Command '${command}' failed with error: ${error}`)
-
-        return decoder.decode(stdout).trim()
-      } catch (error) {
-        const errorMessage = error instanceof Error
-          ? `${error.message}${error.stack ? `\nStack trace: ${error.stack}` : ''}`
-          : String(error)
-        throw new Error(
-          `Failed to execute command ${
-            options?.useWorkspacePath ? 'in workspace' : ''
-          } '${command}': ${errorMessage}`,
-        )
-      }
-    }
-
-    // Regular command handling for non-deno or non-test cases
     const cmdOptions = {
       args,
       stdout: 'piped',
       stderr: 'piped',
-      cwd: path,
+      cwd,
+      ...(options?.env && { env: options.env }),
     } as const
 
     try {
@@ -570,22 +583,28 @@ export class Workspace {
         ? `${error.message}${error.stack ? `\nStack trace: ${error.stack}` : ''}`
         : String(error)
       throw new Error(
-        `Failed to execute command ${
-          options?.useWorkspacePath ? 'in workspace' : ''
-        } '${command}': ${errorMessage}`,
+        `Failed to execute command '${command}': ${errorMessage}`,
       )
     }
   }
 
   // Instance method implementation
-  runCommand(command: string, args: string[] = []): Promise<string> {
-    return Workspace.runCommand.call(this, command, args, { useWorkspacePath: true })
+  runCommand(
+    command: string,
+    args: string[] = [],
+    options?: { cwd?: string; env?: Record<string, string> },
+  ): Promise<string> {
+    // Use the workspace path as the default cwd
+    return Workspace.runCommand.call(this, command, args, {
+      cwd: options?.cwd || this.path,
+      ...(options?.env && { env: options.env }),
+    })
   }
 
   /**
    * Gets the git user name from git config
    *
-   * @param options.useWorkspacePath If true, uses the workspace path; if false, uses current directory
+   * @param options.cwd If provided, runs command in this directory; otherwise uses current directory
    * @returns The git user name or empty string if not found
    * @example
    * ```ts
@@ -596,7 +615,7 @@ export class Workspace {
    * const name = await Workspace.getGitUserName();
    * ```
    */
-  static async getGitUserName(options?: { useWorkspacePath?: boolean }): Promise<string> {
+  static async getGitUserName(options?: { cwd?: string }): Promise<string> {
     try {
       return await Workspace.runCommand.call(
         // biome-ignore lint/complexity/noThisInStatic: Required for dual static/instance functionality
@@ -612,13 +631,13 @@ export class Workspace {
 
   // Instance method implementation
   getGitUserName(): Promise<string> {
-    return Workspace.getGitUserName.call(this, { useWorkspacePath: true })
+    return Workspace.getGitUserName.call(this, { cwd: this.path })
   }
 
   /**
    * Gets the git user email from git config
    *
-   * @param options.useWorkspacePath If true, uses the workspace path; if false, uses current directory
+   * @param options.cwd If provided, runs command in this directory; otherwise uses current directory
    * @returns The git user email or empty string if not found
    * @example
    * ```ts
@@ -629,7 +648,7 @@ export class Workspace {
    * const email = await Workspace.getGitUserEmail();
    * ```
    */
-  static async getGitUserEmail(options?: { useWorkspacePath?: boolean }): Promise<string> {
+  static async getGitUserEmail(options?: { cwd?: string }): Promise<string> {
     try {
       return await Workspace.runCommand.call(
         // biome-ignore lint/complexity/noThisInStatic: Required for dual static/instance functionality
@@ -645,7 +664,7 @@ export class Workspace {
 
   // Instance method implementation
   getGitUserEmail(): Promise<string> {
-    return Workspace.getGitUserEmail.call(this, { useWorkspacePath: true })
+    return Workspace.getGitUserEmail.call(this, { cwd: this.path })
   }
 
   /**
@@ -683,7 +702,8 @@ export class Workspace {
    * @throws Error If package configuration cannot be found or loaded
    */
   async toJSON(): Promise<string> {
-    const packageConfigPath = await getPackageForPath()
+    const packageData = await findPackageFromPath()
+    const packageConfigPath = packageData.path as string
 
     if (!packageConfigPath) {
       throw new Error(
@@ -692,7 +712,7 @@ export class Workspace {
     }
 
     try {
-      const content = Deno.readTextFileSync(packageConfigPath)
+      const content = await Deno.readTextFile(packageConfigPath)
       const packageConfig = parseJSONC(content) as { name?: string; version?: string }
 
       if (!packageConfig.name || !packageConfig.version) {

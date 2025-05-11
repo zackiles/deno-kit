@@ -1,7 +1,7 @@
 import { assertStringIncludes } from '@std/assert'
 import { describe, it } from '@std/testing/bdd'
 import { dirname, fromFileUrl, join } from '@std/path'
-import { stripAnsiCode } from '@std/fmt/colors'
+import { stripAnsi } from '../src/utils/formatting.ts'
 
 const CLI_PATH = join(dirname(fromFileUrl(import.meta.url)), '../src/main.ts')
 
@@ -19,7 +19,7 @@ async function runCLI(args: string[] = []): Promise<{ output: string; success: b
 
   const { success, stdout, stderr } = await command.output()
   const output = new TextDecoder().decode(success ? stdout : stderr)
-  return { output: stripAnsiCode(output), success }
+  return { output: stripAnsi(output), success }
 }
 
 describe('main.ts CLI', () => {

@@ -26,6 +26,25 @@ type CommandRouteOptions = {
 }
 
 /**
+ * Type guard to validate if a module exports a valid CommandDefinition.
+ *
+ * @param value - The value to check, typically a module's default export
+ * @returns True if the value matches the CommandDefinition interface
+ */
+function isCommandDefinition(value: unknown): value is CommandRouteDefinition {
+  return (
+    !!value &&
+    typeof value === 'object' &&
+    'name' in value &&
+    typeof (value as CommandRouteDefinition).name === 'string' &&
+    'command' in value &&
+    typeof (value as CommandRouteDefinition).command === 'function' &&
+    'description' in value &&
+    typeof (value as CommandRouteDefinition).description === 'string'
+  )
+}
+
+/**
  * Handles CLI command routing and option parsing
  */
 class CommandRouter {
@@ -48,6 +67,13 @@ class CommandRouter {
    */
   getRoutes(): CommandRouteDefinition[] {
     return this.routes
+  }
+
+  /**
+   * Gets all command names from available routes
+   */
+  getCommandNames(): string[] {
+    return this.routes.map((route) => route.name)
   }
 
   /**
@@ -89,4 +115,5 @@ class CommandRouter {
 }
 
 export default CommandRouter
+export { CommandRouter, isCommandDefinition }
 export type { CommandRouteDefinition, CommandRouteOptions }
