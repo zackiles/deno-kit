@@ -33,7 +33,7 @@ import { load as loadEnv } from '@std/dotenv'
 import { parseArgs } from '@std/cli'
 import { exists } from '@std/fs'
 import { dirname, fromFileUrl, join } from '@std/path'
-import { LogLevel } from './utils/logger.ts'
+import type { LogLevel } from './utils/logger.ts'
 
 /**
  * Interface for a logger object compatible with the standard Console API.
@@ -101,34 +101,6 @@ function logger(method: keyof Logger, ...args: unknown[]): void {
       `[CONFIG] Logger method '${method}' not found on provided logger instance. Falling back to console.log.`,
     )
     console.log('[CONFIG]', ...args)
-  }
-}
-
-/**
- * Parses a string value to the corresponding LogLevel enum
- */
-const parseLogLevel = (level: string | undefined): LogLevel => {
-  if (!level) return LogLevel.INFO
-
-  switch (level.toUpperCase()) {
-    case 'DEBUG':
-      return LogLevel.DEBUG
-    case 'INFO':
-      return LogLevel.INFO
-    case 'WARN':
-      return LogLevel.WARN
-    case 'ERROR':
-      return LogLevel.ERROR
-    case 'SILENT':
-      return LogLevel.SILENT
-    default: {
-      // Try to parse as number if not a recognized string
-      const numLevel = Number.parseInt(level, 10)
-      if (!Number.isNaN(numLevel) && numLevel >= 0 && numLevel <= 4) {
-        return numLevel as LogLevel
-      }
-      return LogLevel.INFO
-    }
   }
 }
 

@@ -12,7 +12,7 @@ const commandRouteDefinition: CommandRouteDefinition = {
 	description: 'Display help menu',
 }
 
-async function command({ routes }: CommandRouteOptions): Promise<void> {
+function command({ routes }: CommandRouteOptions): void {
 	logger.print(`${config.PACKAGE_NAME} - ${config.PACKAGE_DESCRIPTION}
 
 Usage:

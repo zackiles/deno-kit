@@ -16,7 +16,7 @@ const commandRouteDefinition: CommandRouteDefinition = {
 	},
 };
 
-async function command({ args, routes }: CommandRouteOptions): Promise<void> {
+function command({ args, routes }: CommandRouteOptions): void {
 	logger.print(`Command ${commandRouteDefinition.name} executed`, {
 		args,
 		config,

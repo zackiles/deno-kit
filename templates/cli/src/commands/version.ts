@@ -12,7 +12,7 @@ const commandRouteDefinition: CommandRouteDefinition = {
 	description: 'Show version',
 };
 
-async function command(): Promise<void> {
+function command(): void {
 	logger.print(`${config.PACKAGE_VERSION}`)
 }
 
