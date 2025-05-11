@@ -12,7 +12,7 @@
  * await main() // Execute CLI command
  * ```
  */
-import { getConfig, setConfig } from './config.ts'
+import { getConfig } from './config.ts'
 import logger from './utils/logger.ts'
 import gracefulShutdown from './utils/graceful-shutdown.ts'
 import CommandRouter from './utils/command-router.ts'

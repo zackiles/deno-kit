@@ -586,11 +586,6 @@ Deno.test('findPackagePathFromPath - skips directories marked as excludable', as
 Deno.test('findPackagePathFromPath - handles non-existent paths gracefully', async () => {
   // Non-existent absolute path
   const nonExistentPath = join(tempDir, 'does-not-exist', 'some-file.ts')
-
-  // Test with traverseUp = true (default)
-  const upwardResult = await findPackagePathFromPath(nonExistentPath)
-  // Should fall back to parent directory, potentially finding the tempDir package.json
-
   // Test with traverseUp = false
   const downwardResult = await findPackagePathFromPath(nonExistentPath, undefined, false)
   assertEquals(
