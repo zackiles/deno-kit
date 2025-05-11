@@ -20,6 +20,7 @@ const PACKAGE_CONFIG_FILES = [
   'package.json',
   'package.jsonc',
   'jsr.json',
+  // 'kit.json', // Ensure 'kit.json' is not here for this approach
 ] as const
 
 /**
@@ -98,7 +99,7 @@ const determinePathType = (path?: string) => {
  */
 const findRemotePackagePath = async (
   url: URL,
-  configFiles = PACKAGE_CONFIG_FILES,
+  configFiles: ReadonlyArray<string> = PACKAGE_CONFIG_FILES,
   traverseUp = true,
 ): Promise<string> => {
   const checkUrl = async (fileUrl: string): Promise<string> => {
@@ -160,7 +161,7 @@ const findRemotePackagePath = async (
  */
 const findLocalPackagePath = async (
   initialPath: string,
-  configFiles = PACKAGE_CONFIG_FILES,
+  configFiles: ReadonlyArray<string> = PACKAGE_CONFIG_FILES,
   traverseUp = true,
   maxDepth = Number.POSITIVE_INFINITY,
 ): Promise<string> => {
@@ -269,7 +270,7 @@ const findLocalPackagePath = async (
  */
 async function findPackagePathFromPath(
   path?: string,
-  configFiles = PACKAGE_CONFIG_FILES,
+  configFiles: ReadonlyArray<string> = PACKAGE_CONFIG_FILES,
   traverseUp = true,
   maxDepth = Number.POSITIVE_INFINITY,
 ): Promise<string> {

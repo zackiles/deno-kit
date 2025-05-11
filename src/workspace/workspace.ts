@@ -96,6 +96,8 @@ export class Workspace {
       templateValues,
       configFileName,
       logger,
+      workspacePath,
+      templatesPath,
     }: {
       id: string
       name?: string
@@ -105,78 +107,50 @@ export class Workspace {
       templateValues?: { [key: string]: string }
       configFileName: string
       logger?: WorkspaceLogger
+      workspacePath: string
+      templatesPath: string
     },
   ) {
     this.id = id
     this.name = name ?? ''
-    const workspaceFilePaths = Array.from(workspaceFiles.keys())
-    const templateFilePaths = Array.from(templateFiles.keys())
-    const backupFilePaths = backupFiles ? Array.from(backupFiles.keys()) : []
+    this.configFileName = configFileName || DEFAULT_WORKSPACE_CONFIG_FILE_NAME
 
-    // Set the static logger if provided
     if (logger) {
       Workspace.logger = logger
     }
 
-    // Using these values before awaiting will cause type errors
-    // We'll initialize them to empty strings first then update them in an async init method
-    this.path = ''
-    this.templatesPath = ''
-    this.configFileName = configFileName || DEFAULT_WORKSPACE_CONFIG_FILE_NAME
+    this.path = workspacePath
+    this.templatesPath = templatesPath
 
-    // Initialize with placeholders, we'll update them after initializing the paths
-    this.#files = new WorkspaceFiles('', Workspace.logger)
-    this.#templates = new WorkspaceTemplates('', '', Workspace.logger)
-    this.#backups = new WorkspaceBackups('', '', Workspace.logger)
-
-    // Immediately invoke async initialization
-    this.#init(
-      workspaceFilePaths,
-      templateFilePaths,
-      backupFilePaths,
-      workspaceFiles,
-      templateFiles,
-      backupFiles,
-      templateValues,
+    Workspace.logger.debug(
+      `Workspace instance path assigned by constructor: ${this.path}`,
     )
-  }
+    Workspace.logger.debug(
+      `Workspace instance templates path assigned by constructor: ${this.templatesPath}`,
+    )
 
-  /**
-   * Async initialization to handle the async operations needed in constructor
-   */
-  async #init(
-    workspaceFilePaths: string[],
-    templateFilePaths: string[],
-    backupFilePaths: string[],
-    workspaceFiles: Map<string, string>,
-    templateFiles: Map<string, string>,
-    backupFiles?: Map<string, string>,
-    templateValues?: { [key: string]: string },
-  ): Promise<void> {
-    // Now we can properly await these async functions
-    const workspacePath = await getMostCommonBasePath(workspaceFilePaths)
-    const templatesPath = await getMostCommonBasePath(templateFilePaths)
-    const backupsPath = backupFilePaths.length > 0
-      ? await getMostCommonBasePath(backupFilePaths)
-      : ''
+    const currentWorkspaceFilePaths = Array.from(workspaceFiles.keys())
+    const currentTemplateFilePaths = Array.from(templateFiles.keys())
+    const currentBackupFilePathsArg = backupFiles ? Array.from(backupFiles.keys()) : []
 
-    // Update the instance properties
-    Object.defineProperty(this, 'path', { value: workspacePath, writable: false })
-    Object.defineProperty(this, 'templatesPath', { value: templatesPath, writable: false })
+    validateCommonBasePath(currentWorkspaceFilePaths, this.path)
+    validateCommonBasePath(currentTemplateFilePaths, this.templatesPath)
 
-    // Validate paths
-    validateCommonBasePath(workspaceFilePaths, workspacePath)
-    validateCommonBasePath(templateFilePaths, templatesPath)
-    if (backupFilePaths.length > 0) {
-      validateCommonBasePath(backupFilePaths, backupsPath)
+    const resolvedBackupsPathForComponent = ''
+    if (currentBackupFilePathsArg.length > 0) {
+      // If backupFiles were provided, their common path could be validated here
+      // if resolvedBackupsPathForComponent were pre-calculated and passed.
+      // For now, WorkspaceBackups manages this internally if path is empty.
     }
 
-    // Reinitialize components with proper paths
-    this.#files = new WorkspaceFiles(workspacePath, Workspace.logger)
-    this.#templates = new WorkspaceTemplates(templatesPath, workspacePath, Workspace.logger)
-    this.#backups = new WorkspaceBackups(workspacePath, backupsPath, Workspace.logger)
+    this.#files = new WorkspaceFiles(this.path, Workspace.logger)
+    this.#templates = new WorkspaceTemplates(this.templatesPath, this.path, Workspace.logger)
+    this.#backups = new WorkspaceBackups(
+      this.path,
+      resolvedBackupsPathForComponent,
+      Workspace.logger,
+    )
 
-    // Set initial state
     this.#files.files = workspaceFiles
     this.#templates.setTemplates(templateFiles)
 
@@ -206,8 +180,8 @@ export class Workspace {
    * @throws Error if provided workspacePath doesn't exist or doesn't have write access
    */
   static async create({
-    workspacePath,
-    templatesPath,
+    workspacePath: inputWorkspacePathOpt,
+    templatesPath: inputTemplatesPathOpt,
     templatesValues,
     name = 'default-workspace',
     configFileName = DEFAULT_WORKSPACE_CONFIG_FILE_NAME,
@@ -220,70 +194,86 @@ export class Workspace {
     configFileName?: string
     logger?: WorkspaceLogger
   } = {}): Promise<Workspace> {
-    // Set the static logger if provided
     if (logger) {
       Workspace.logger = logger
     }
 
     const currentDir = join(fromFileUrl(import.meta.url), '../..')
-    // Ensure the user-supplied workspace configFileName ends with .json
     configFileName = configFileName.endsWith('.json') ? configFileName : `${configFileName}.json`
 
-    // Validate workspace path of fallback to temporary directory to create paths
-    const validWorkspacePath = workspacePath
-      ? await Workspace.#validateWorkspacePath(workspacePath, false)
+    const initialWorkspaceDir = inputWorkspacePathOpt
+      ? await Workspace.#validateWorkspacePath(inputWorkspacePathOpt, false)
       : await Deno.makeTempDir({ prefix: DEFAULT_TEMP_PREFIX })
+    Workspace.logger.debug(`Initial workspace directory determined: ${initialWorkspaceDir}`)
 
-    // Validate templates path of fallback to templates directory in same folder as this code file
-    const validTemplatesPath = templatesPath
-      ? await Workspace.#validateTemplatesPath(templatesPath)
+    const initialTemplatesDir = inputTemplatesPathOpt
+      ? await Workspace.#validateTemplatesPath(inputTemplatesPathOpt)
       : await Workspace.#validateTemplatesPath(join(currentDir, 'templates'))
+    Workspace.logger.debug(`Initial templates directory determined: ${initialTemplatesDir}`)
 
-    // Read all workspace and template files
-    const [workspaceFiles, templateFilesFromFileSystem] = await Promise.all([
-      readFilesRecursively(validWorkspacePath),
-      readFilesRecursively(validTemplatesPath),
+    const [workspaceFilesMap, templateFilesMap] = await Promise.all([
+      readFilesRecursively(initialWorkspaceDir),
+      readFilesRecursively(initialTemplatesDir),
     ])
 
-    const id = await Workspace.#createIdFromPath(validWorkspacePath)
+    const id = await Workspace.#createIdFromPath(initialWorkspaceDir)
+    Workspace.logger.debug(`Created workspace id: ${id}`)
 
-    // Check if a workspace config file already exists
-    const hasConfigFile = Array.from(workspaceFiles.keys()).some((path) =>
-      basename(path) === configFileName
-    )
-    if (hasConfigFile) {
+    if (Array.from(workspaceFilesMap.keys()).some((path) => basename(path) === configFileName)) {
       throw new Error(
-        `Can't create workspace ${name || id}. Workspace already exists at ${validWorkspacePath}`,
+        `Can't create workspace ${name || id}. Workspace already exists at ${initialWorkspaceDir}`,
       )
     }
 
-    // Initialize empty workspace if needed
-    if (workspaceFiles.size === 0) {
+    if (workspaceFilesMap.size === 0) {
+      Workspace.logger.debug(`Initializing empty workspace in: ${initialWorkspaceDir}`)
       await Workspace.#initializeEmptyWorkspace({
-        workspacePath: validWorkspacePath,
-        templateFiles: templateFilesFromFileSystem, // Pass the Map of templates read from FS
+        workspacePath: initialWorkspaceDir,
+        templateFiles: templateFilesMap,
         id,
         name,
         templatesValues: templatesValues ?? undefined,
         configFileName,
-        workspaceFiles, // Pass the (empty) workspaceFiles Map to be populated
-        baseTemplatesPath: validTemplatesPath, // Pass the base path of the templates
+        workspaceFiles: workspaceFilesMap,
+        baseTemplatesPath: initialTemplatesDir,
       })
     }
 
-    // Create and initialize the workspace
+    const finalWorkspacePath = await getMostCommonBasePath(
+      Array.from(workspaceFilesMap.keys()).length > 0
+        ? Array.from(workspaceFilesMap.keys())
+        : [initialWorkspaceDir],
+    )
+    const finalTemplatesPath = await getMostCommonBasePath(
+      Array.from(templateFilesMap.keys()).length > 0
+        ? Array.from(templateFilesMap.keys())
+        : [initialTemplatesDir],
+    )
+    Workspace.logger.debug(`Final workspace path for constructor: ${finalWorkspacePath}`)
+    Workspace.logger.debug(`Final templates path for constructor: ${finalTemplatesPath}`)
+
     const workspace = new Workspace({
       id,
       name,
-      workspaceFiles,
-      templateFiles: templateFilesFromFileSystem,
+      workspaceFiles: workspaceFilesMap,
+      templateFiles: templateFilesMap,
+      workspacePath: finalWorkspacePath,
+      templatesPath: finalTemplatesPath,
       ...(templatesValues && { templateValues: templatesValues }),
       configFileName,
       ...(logger && { logger }),
     })
 
+    Workspace.logger.debug(
+      `Workspace instance created. Path: ${workspace.path}, TemplatesPath: ${workspace.templatesPath}`,
+    )
+    Workspace.logger.debug(
+      `Saving workspace config to: ${join(workspace.path, workspace.configFileName)}`,
+    )
     await workspace.save()
+    Workspace.logger.debug(`Created workspace in: ${workspace.path}`)
     await workspace.backup()
+    Workspace.logger.debug(`Workspace backup created in: ${workspace.backupsPath}`)
 
     return workspace
   }
@@ -520,8 +510,7 @@ export class Workspace {
    * Preserves the original file extension (.json or .jsonc).
    */
   async save(): Promise<void> {
-    const configFilePath = this.configFileName
-    await this.#files.writeFile(configFilePath, await this.toJSON())
+    await this.#files.writeFile(this.configFileName, await this.toJSON())
   }
 
   /**
@@ -575,7 +564,10 @@ export class Workspace {
       const decoder = new TextDecoder()
 
       const error = decoder.decode(stderr).trim()
-      if (error) throw new Error(`Command '${command}' failed with error: ${error}`)
+      if (error) {
+        Workspace.logger.error(`Command '${command}'}`, error)
+        throw new Error(`Command '${command}' failed with error: ${error}`)
+      }
 
       return decoder.decode(stdout).trim()
     } catch (error) {
@@ -785,83 +777,71 @@ export class Workspace {
       const configContent = await Deno.readTextFile(configFilePath)
       const parsedConfig = parseJSONC(configContent)
 
-      // Validate the config structure
       if (!Workspace.isConfigFile(parsedConfig)) {
         throw new Error(`Workspace configuration file ${configFilePath} is not valid.`)
       }
 
-      // Extract the config file name
       const configFileName = basename(configFilePath)
       const configDir = dirname(configFilePath)
 
-      // Read files listed in the config file
-      const workspaceFiles = new Map<string, string>()
-      const templateFiles = new Map<string, string>()
-      const _backupFiles = new Map<string, string>()
+      const loadedWorkspaceFilesMap = new Map<string, string>()
+      const loadedTemplateFilesMap = new Map<string, string>()
 
-      // Load the files from the paths specified in the config
       await Promise.all([
-        // Load workspace files
         ...parsedConfig.workspaceFiles.map(async (relativePath) => {
           const absolutePath = join(configDir, relativePath)
           try {
-            const content = await Deno.readTextFile(absolutePath)
-            workspaceFiles.set(absolutePath, content)
+            loadedWorkspaceFilesMap.set(absolutePath, await Deno.readTextFile(absolutePath))
           } catch (error) {
             Workspace.logger.warn(`Failed to read workspace file ${absolutePath}: ${error}`)
           }
         }),
-        // Load template files
         ...parsedConfig.templateFiles.map(async (relativePath) => {
           const absolutePath = join(configDir, relativePath)
           try {
-            const content = await Deno.readTextFile(absolutePath)
-            templateFiles.set(absolutePath, content)
+            loadedTemplateFilesMap.set(absolutePath, await Deno.readTextFile(absolutePath))
           } catch (error) {
             Workspace.logger.warn(`Failed to read template file ${absolutePath}: ${error}`)
-            // Add a placeholder content for missing template files to prevent issues
-            templateFiles.set(absolutePath, `# Template placeholder for ${relativePath}`)
+            loadedTemplateFilesMap.set(absolutePath, `# Template placeholder for ${relativePath}`)
           }
         }),
-        // Backup files listed in config are original paths, not copies.
-        // We will store these original paths (made absolute) for later use if backup() is called.
-        // The actual backup copies are not loaded from config by default.
       ])
 
-      // Verify we loaded at least the workspace files
-      if (workspaceFiles.size === 0 && parsedConfig.workspaceFiles.length > 0) {
-        Workspace.logger.warn(
-          'Workspace configuration listed workspace files, but none could be loaded.',
-        )
-        // Allow loading an empty workspace if workspaceFiles in config is empty
-        if (parsedConfig.workspaceFiles.length > 0) {
-          throw new Error('No workspace files could be loaded from configuration')
-        }
+      if (loadedWorkspaceFilesMap.size === 0 && parsedConfig.workspaceFiles.length > 0) {
+        Workspace.logger.warn('Workspace configuration listed files, but none could be loaded.')
+        throw new Error('No workspace files could be loaded from configuration')
       }
+      if (loadedWorkspaceFilesMap.size === 0) {
+        loadedWorkspaceFilesMap.set(configFilePath, configContent)
+      }
+
+      const finalWorkspacePath = await getMostCommonBasePath(
+        Array.from(loadedWorkspaceFilesMap.keys()),
+      )
+      const finalTemplatesPath = Array.from(loadedTemplateFilesMap.keys()).length > 0
+        ? await getMostCommonBasePath(Array.from(loadedTemplateFilesMap.keys()))
+        : configDir
+
+      Workspace.logger.debug(`Loaded final workspace path for constructor: ${finalWorkspacePath}`)
+      Workspace.logger.debug(`Loaded final templates path for constructor: ${finalTemplatesPath}`)
 
       const originalBackupPaths = parsedConfig.backupFiles.map((relativePath) =>
         join(configDir, relativePath)
       )
 
-      // If we have no workspace files, set config dir as workspace path to avoid empty path errors
-      if (workspaceFiles.size === 0) {
-        workspaceFiles.set(configFilePath, configContent)
-      }
-
-      // Create and return a new workspace instance
       const workspace = new Workspace({
         id: parsedConfig.id,
         ...(parsedConfig.name && { name: parsedConfig.name }),
-        workspaceFiles,
-        templateFiles,
-        // backupFiles Map is not populated here from config, only #originalPathsForBackup
+        workspaceFiles: loadedWorkspaceFilesMap,
+        templateFiles: loadedTemplateFilesMap,
+        workspacePath: finalWorkspacePath,
+        templatesPath: finalTemplatesPath,
         ...(parsedConfig.templateValues && Object.keys(parsedConfig.templateValues).length > 0 && {
           templateValues: parsedConfig.templateValues,
         }),
         configFileName,
       })
 
-      // Set the original backup paths
       workspace.#backups.setOriginalPathsForBackup(originalBackupPaths)
 
       return workspace

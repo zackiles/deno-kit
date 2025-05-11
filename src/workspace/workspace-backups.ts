@@ -156,7 +156,7 @@ export class WorkspaceBackups {
 
     // Update backupsPath if we have backup files to ensure we use the common base path
     if (backupFilesMap.size > 0) {
-      this.#backupsPath = getMostCommonBasePath(Array.from(backupFilesMap.keys()))
+      this.#backupsPath = await getMostCommonBasePath(Array.from(backupFilesMap.keys()))
     }
 
     return backupFilesMap

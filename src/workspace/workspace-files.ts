@@ -59,6 +59,7 @@ export class WorkspaceFiles {
    */
   async writeFile(path: string, content: string, create = true): Promise<void> {
     const absolutePath = path.startsWith('/') ? path : join(this.path, path)
+    this.logger.debug(`Writing content to: ${absolutePath} in workspace: ${this.path}`)
 
     if (!absolutePath.startsWith(this.path)) {
       throw new Error(`Cannot write file outside of workspace: ${absolutePath}`)

@@ -5,7 +5,7 @@ import { setupOrUpdateCursorConfig } from '../utils/cursor-config.ts'
 import { ensureDir, exists } from '@std/fs'
 import getTemplateValues from '../template-values.ts'
 import { getConfig } from '../config.ts'
-import { dirname, fromFileUrl, join } from '@std/path'
+import { join } from '@std/path'
 import { compress, decompress } from '../utils/compression.ts'
 import type { DenoKitConfig } from '../types.ts'
 
@@ -46,10 +46,13 @@ async function command(): Promise<void> {
   try {
     temporaryTemplatesPath = await Deno.makeTempDir({ prefix: 'deno-kit-templates-' })
     await prepareTemplates(temporaryTemplatesPath)
+    logger.debug(`Templates prepared successfully in: ${temporaryTemplatesPath}`)
+    logger.debug(`Creating workspace in: ${config.DENO_KIT_WORKSPACE_PATH}`)
     workspace = await createWorkspace({
       name: templateValues.PACKAGE_NAME,
       workspacePath: config.DENO_KIT_WORKSPACE_PATH,
       templatesPath: temporaryTemplatesPath,
+      logger: logger,
       configFileName: config.DENO_KIT_WORKSPACE_CONFIG_FILE_NAME,
     })
 
@@ -98,12 +101,11 @@ async function command(): Promise<void> {
     }
 
     const prepareLocalTemplates = async () => {
-      const rootDir = dirname(dirname(fromFileUrl(import.meta.url)))
-      const zipPath = join(rootDir, 'bin', `templates-${config.DENO_KIT_ENV}.zip`)
+      const zipPath = join(config.DENO_KIT_PATH, 'bin', `templates-${config.DENO_KIT_ENV}.zip`)
 
       try {
-        logger.debug(`Compressing local templates from: ${join(rootDir, 'templates')}`)
-        await compress(join(rootDir, 'templates'), zipPath)
+        logger.debug(`Compressing local templates from: ${config.DENO_KIT_TEMPLATES_PATH}`)
+        await compress(config.DENO_KIT_TEMPLATES_PATH, zipPath)
 
         if (!await exists(zipPath)) throw new Error(`Templates zip file not found: ${zipPath}`)
         await decompressTemplates(zipPath, false)

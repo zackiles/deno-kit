@@ -31,7 +31,6 @@
     "@std/net": "jsr:@std/net@1",
     "@std/testing": "jsr:@std/testing@1",
     "@std/semver": "jsr:@std/semver@1",
-    "@deno-kit/kit": "jsr:@deno-kit/kit@0",
     "@deno-kit/module-to-cli": "jsr:@deno-kit/module-to-cli@0"
     // </@deno-kit IMPORTS END>
   },

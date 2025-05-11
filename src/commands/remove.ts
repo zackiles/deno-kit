@@ -15,9 +15,10 @@ const commandRoute: CommandRouteDefinition = {
 async function command(): Promise<void> {
   logger.debug(`Removing Deno-Kit from workspace: ${config.DENO_KIT_WORKSPACE_PATH}`)
 
-  const packageInfo = await findPackagePathFromPath(config.DENO_KIT_WORKSPACE_PATH || '', {
-    packageConfigFiles: [config.DENO_KIT_WORKSPACE_CONFIG_FILE_NAME],
-  })
+  const packageInfo = await findPackagePathFromPath(
+    config.DENO_KIT_WORKSPACE_PATH,
+    ['kit.json'],
+  )
 
   if (packageInfo) {
     await Deno.remove(packageInfo)

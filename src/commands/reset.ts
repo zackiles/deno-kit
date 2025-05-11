@@ -18,9 +18,14 @@ async function command(): Promise<void> {
     `Resetting and restoring backup files for workspace: ${config.DENO_KIT_WORKSPACE_PATH}`,
   )
 
-  const packageInfo = await findPackagePathFromPath(config.DENO_KIT_WORKSPACE_PATH || '', {
-    packageConfigFiles: ['kit.json'],
-  })
+  const packageInfo = await findPackagePathFromPath(
+    config.DENO_KIT_WORKSPACE_PATH,
+    ['kit.json'],
+  )
+
+  if (!packageInfo) {
+    throw new Error(`Deno-Kit not found in workspace: ${config.DENO_KIT_WORKSPACE_PATH}`)
+  }
 
   const workspace: Workspace = await loadWorkspace(packageInfo)
   await workspace.reset()
