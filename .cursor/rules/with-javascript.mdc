@@ -6,15 +6,19 @@ alwaysApply: false
 ## CODING STYLE GUIDE - JAVASCRIPT AND TYPESCRIPT (MANDATORY OR STRONGLY ENCOURAGED)
 
 ### Naming
-- **snake_case**: for file names.  
-- **camelCase**: for instance names.  
-- **PascalCase**: for class and symbol names.  
+- **kebab-case**: for file and folder names.
+- **camelCase**: for instance names.
+- **PascalCase**: for class and symbol names.
 - **UPPER_SNAKE_CASE**: for constants.
 - **Consistent**: When naming things, always review the naming patterns and conventions of similar this and follow that those
 - **Evolve Names Over Time**: When refactoring previous code, look for opporutnities to rename not only the things you're working on but related things where renaming both would provide an overall better pattern, convention, or abstraction for the broader code base.
+- **Files and Folders**:
+  - Single simple words until there are conflicts. Examples: `config.ts`, `commands/`, `logger.ts`, `data/', `auth.ts` etc...
+  - Folder names should be conventional, idiomatic, and shared-domain-neutral. Examples: `src/utils`, `scripts/`, `docs/`, `types.ts`, `src/core` etc...
+  - Avoid deeply nesting folders, keep flat structures as long as possible.
 
 #### Naming Specificity
-- Broad or abstracted names for top-level things such as: namespaces, classes, types shared by multiple files, or global conceps and terms.
+- Broad and abstract names for: namespaces, classes, types shared by multiple files, global concepts, project terms.
 - Narrow or specific or descriptive names for local or specific things, or when other rules, instructions, or consistency in the codebase requires it.
 
 #### Renaming and Refactoring Names
@@ -25,24 +29,24 @@ alwaysApply: false
 
 ### Code Ordering
 When generating, refactoring, or reviewing code files, you will prefer the following ordering of its top-level items:
-- **Remote Imports**  
-- **Local Imports**  
-- **Hoisted Variables and References**  
-- **Methods**  
+- **Remote Imports**
+- **Local Imports**
+- **Hoisted Variables and References**
+- **Methods**
 - **Exports**: should be declared according to the rules and instructions defined in the "### Exports" section.
 
 ### Syntax
-- Favor modern ECMAScript features and patterns:  
-  - Object & array **destructuring**  
-  - **Optional chaining** (`?.`) & **nullish coalescing** (`??`)  
-  - **Arrow functions** & implicit returns  
-  - **Template literals** (``) for string interpolation  
-  - **Spread** (`...`) & rest parameters  
-  - **Proxy** and **Reflect**  
-  - **Private class fields**  
-  - **Atomics** for concurrency  
-  - **Logical assignment operators**  
-  - **WeakRefs**, **BigInt**, **Crypto**, **SharedArrayBuffer**  
+- Favor the latest ECMAScript features and patterns:
+  - Object & array **destructuring**
+  - **Optional chaining** (`?.`) & **nullish coalescing** (`??`)
+  - **Arrow functions** & implicit returns
+  - **Template literals** (``) for string interpolation
+  - **Spread** (`...`) & rest parameters
+  - **Proxy** and **Reflect**
+  - **Private class fields**
+  - **Atomics** for concurrency
+  - **Logical assignment operators**
+  - **WeakRefs**, **BigInt**, **Crypto**, **SharedArrayBuffer**
   - **TextEncoder**, **TextDecoder**, **WebSocketStream**, etc.
 - **Semicolon Usage**
   - **Always** follow the existing codebase's semicolon style
@@ -57,8 +61,8 @@ When generating, refactoring, or reviewing code files, you will prefer the follo
   - Where possible (and where it doesn't harm readability) instead of defining multiple variables, collapse that variables into a only a single one or a few where it's value is the result of several chained methods.
 
 ### Functional & Compositional Approach
-- Within functions, prefer **functional** over imperative control flows.  
-- Avoid deeply nested callbacks or chains.  
+- Within functions, prefer **functional** over imperative control flows.
+- Avoid deeply nested callbacks or chains.
 - When designing classes or relationships, use **composition** over generalization/inheritance.
 
 **Examples:**
@@ -95,15 +99,15 @@ this.on('some action', eventHandler)
 - **DANGER**: When updating code, never remove JSDoc or linting comments unless explicitly requested. If changes break comments, update them accurately.
 
 ### Object and Functional Programming vs. OOP
-- If entities have large state or define strict interfaces, consider using classes.  
+- If entities have large state or define strict interfaces, consider using classes.
 - Otherwise, default to simple, pure functions and straightforward code.
 
 ### New Code, Pragmatic Solutions, and Proofs of Concepts (PoCs)
-- For new codebases or prototypes:  
-  - Use a **flat file/folder structure**  
-  - Write minimal or no tests (maybe one smoke test)  
-  - Choose **unopinionated, flexible designs**  
-  - Prefer **modern open-source libraries**  
+- For new codebases or prototypes:
+  - Use a **flat file/folder structure**
+  - Write minimal or no tests (maybe one smoke test)
+  - Choose **unopinionated, flexible designs**
+  - Prefer **modern open-source libraries**
   - If fewer than 5 main JS/TS files exist, keep everything as minimal as possible.
 
 ### TypeScript Types
@@ -112,7 +116,7 @@ this.on('some action', eventHandler)
 - **Examples of WHY to use Typescript**: Review the section named "Examples of Boundaries: Module, Package, Project, Application, Boundaries" for examples that demonstrate WHY we use Typescript in this project or codebase.
 - **Examples of Typescript Syntax**: Review the section named "Examples of Proper Usage and Syntax" to understand how to integrate types into the codebase to enhance simplicity, readability, maintainability, and cleanliness of code.
 
-**1) CRITICAL**: You MUSN'T and will NEVER use Typescript types or Typescript functionality when the following is true: 
+**1) CRITICAL**: You MUSN'T and will NEVER use Typescript types or Typescript functionality when the following is true:
 
 - The type is used for anything that the consumer of the module or code file does not interact with. This includes types found in: method or class interfaces, return values, arguments, variables, exports, and anywhere else a Typescript symbol is used.
 - The type is similar to or could be similar to another type if one or both were refactored. In this case, use the other type or refactor one or both instead of creating an additional type.
@@ -123,7 +127,7 @@ this.on('some action', eventHandler)
 - When using native Deno imports that provide easy to access types for class or method arguments or their return types, then you MUST use that type for MINIMAL type-casting or type-guarding, as long as doing so wouldn't introduce relatively significant complexity compared to the code that currrently exists.
 
 **2) CRITICAL**: You MUST and will ALWAYS use Typescript types or Typescript functionality when the following is true:
-- There is a public exported method, class, module, or variable exported by the main entry point of the project that would benefit from its arguments, return values, and object or function interface defined by a Typescript type or utilizing Typescript functionality. Examples: anything defined in the main export file such as `mod.ts` or `index.ts` or `types.ts` file. Review the `deno.json` or `deno.jsonc` or another package config file to determine the main export or exports used in the project. 
+- There is a public exported method, class, module, or variable exported by the main entry point of the project that would benefit from its arguments, return values, and object or function interface defined by a Typescript type or utilizing Typescript functionality. Examples: anything defined in the main export file such as `mod.ts` or `index.ts` or `types.ts` file. Review the `deno.json` or `deno.jsonc` or another package config file to determine the main export or exports used in the project.
 - Where a thing is shared across many files in the codebase or project and introducing and writing a type for the thing would singficantly reduce the amount of code needed to do the same thing if the type didn't exist.
 - When you've been specifically instructed to create a Typescript type or use methods or syntax from Typescript itself.
 - When a third-party or external package is imported that comes with types we should ALWAYS and MUST import those types and use them for basic type-casting and type-guarding.
@@ -146,131 +150,131 @@ Unless explicitly asked, we will only consider and generate Typescript types for
 
 **Examples of Proper Usage**
 
-• Use utility types to reduce code and duplication  
-  ✅ GOOD:  
+• Use utility types to reduce code and duplication
+  ✅ GOOD:
   ```typescript
   function process<T extends Partial<User>>(data: T) {
     return data
   }
-  ```  
-  ❌ BAD:  
+  ```
+  ❌ BAD:
   ```typescript
   function processUserData(data: { name?: string; age?: number; email?: string }) {
     return data
   }
-  ```  
+  ```
 
-• Simplify index signatures with Record  
-  ✅ GOOD:  
+• Simplify index signatures with Record
+  ✅ GOOD:
   ```typescript
   const dataStore: Record<string, number> = {}
-  ```  
-  ❌ BAD:  
+  ```
+  ❌ BAD:
   ```typescript
   interface DataStore {
     [k: string]: number
   }
   const dataStore: DataStore = {}
-  ```  
+  ```
 
-• Use minimal casting, trust inferred types  
-  ✅ GOOD:  
+• Use minimal casting, trust inferred types
+  ✅ GOOD:
   ```typescript
   const propKey = incoming as keyof MyType
-  ```  
-  ❌ BAD:  
+  ```
+  ❌ BAD:
   ```typescript
   const propKey = incoming as keyof MyType // repeated across multiple places
-  ```  
+  ```
 
-• Embrace mapped types for consistent transformations  
-  ✅ GOOD:  
+• Embrace mapped types for consistent transformations
+  ✅ GOOD:
   ```typescript
   type ReadOnly<T> = {
     readonly [P in keyof T]: T[P]
   }
-  ```  
-  ❌ BAD:  
+  ```
+  ❌ BAD:
   ```typescript
   type ReadOnlyUser = {
     readonly name: string
     readonly age: number
   }
-  ```  
+  ```
 
-• Create reusable type utilities to unify logic  
-  ✅ GOOD:  
+• Create reusable type utilities to unify logic
+  ✅ GOOD:
   ```typescript
   type ConfigKeys = keyof SomeConfig
   function retrieve(key: ConfigKeys) {}
-  ```  
-  ❌ BAD:  
+  ```
+  ❌ BAD:
   ```typescript
   function retrieve(key: 'optionA' | 'optionB' | 'optionC') {}
-  ```  
+  ```
 
-• Write generic functions instead of duplicating  
-  ✅ GOOD:  
+• Write generic functions instead of duplicating
+  ✅ GOOD:
   ```typescript
   function update<T extends object>(obj: T): T {
     // ...
     return obj
   }
-  ```  
-  ❌ BAD:  
+  ```
+  ❌ BAD:
   ```typescript
   function updateUser(obj: { name: string; age: number }) {}
   function updateOrder(obj: { id: number; total: number }) {}
-  ```  
+  ```
 
-• Leverage type guards to refine logic  
-  ✅ GOOD:  
+• Leverage type guards to refine logic
+  ✅ GOOD:
   ```typescript
   function isNumber(val: unknown): val is number {
     return typeof val === 'number'
   }
-  ```  
-  ❌ BAD:  
+  ```
+  ❌ BAD:
   ```typescript
   function process(val: any) {
     if (typeof val === 'number') {}
   }
-  ```  
+  ```
 
-• Extract return types and parameters from definitions  
-  ✅ GOOD:  
+• Extract return types and parameters from definitions
+  ✅ GOOD:
   ```typescript
   type ReturnVal = ReturnType<typeof compute>
   type ParamList = Parameters<typeof compute>
-  ```  
-  ❌ BAD:  
+  ```
+  ❌ BAD:
   ```typescript
   type ReturnVal = number
   type ParamList = [number, string]
-  ```  
+  ```
 
-• Use `const enum` for read-only, compile-time constants  
-  ✅ GOOD:  
+• Use `const enum` for read-only, compile-time constants
+  ✅ GOOD:
   ```typescript
   const enum StatusCode {
     SUCCESS = 200,
     NOT_FOUND = 404
   }
-  ```  
-  ❌ BAD:  
+  ```
+  ❌ BAD:
   ```typescript
   enum StatusCode {
     SUCCESS = 200,
     NOT_FOUND = 404
   }
-  ```  
+  ```
 
-• Favor unions over enums when values are few and simple  
-  ✅ GOOD:  
+• Favor unions over enums when values are few and simple
+  ✅ GOOD:
   ```typescript
   type Status = 'SUCCESS' | 'FAIL'
-  ```  
-  ❌ BAD:  
+  ```
+  ❌ BAD:
   ```typescript
   enum Status {
     SUCCESS = 'SUCCESS',
@@ -279,8 +283,8 @@ Unless explicitly asked, we will only consider and generate Typescript types for
   ```
 
 ### Private / Public Interfaces
-- Mark private fields or functions clearly.  
-- For public interfaces, ensure a clean, well-documented user experience.  
+- Mark private fields or functions clearly.
+- For public interfaces, ensure a clean, well-documented user experience.
 - Patterns may include private fields, singletons, factories, prototypes, observers, or dependency injection.
 
 ### Imports
@@ -368,13 +372,13 @@ If the issue isn't obvious, follow the instructions in "##### Tools, Cocumentati
 - Always try to reduce the amount of code or lines of code needed to do the same thing
 - If multiple variables are required and shared in a method or module, consider grouping them into logcal objects and hoisting them so they can be accessed, instead of declaring multiple variables over several lines of code. This will ensure less code is needed to do the same thing.
 - Avoid repeated or deeply nested try/catch or if/else blocks inside module or class methods. Instead find ways to compose the code in more a more functional manner such as chaining or hoisting nested arrow functions within methods so that it improves readability, reduces the amount of code needed to do accomplish what we need, and reduces deep nesting inside module or class methods.
-- When refactoring, find alternative solutions, patterns, methods and code that can be used instead of the current code that would reduce the total amount of code or lines of code if it was used instead. Always look to redopportunities to 
+- When refactoring, find alternative solutions, patterns, methods and code that can be used instead of the current code that would reduce the total amount of code or lines of code if it was used instead. Always look to redopportunities to
 - Only define large multi-line strings at the top of files instead of inside methods.
 - Define important static variables and configuration at the highest points reasonable to their scope, such as the top of the method or the top of a class or file (but after imported or module jsdoc descriptions).
 
 ### KEEP IT SIMPLE STUPID (K.I.S.S)
 - **Less Code is Better**: When generating, reviewing, or refactoring code, almost aim for the simplest solution in terms of overall code or lines of code needed to implement.
-- **Avoid Inline Comments**: 
+- **Avoid Inline Comments**:
 
 ### Rules for Maintainable Code
 - **Keep similar code together**: Function callers and callees should be kept close.
@@ -393,49 +397,48 @@ If the issue isn't obvious, follow the instructions in "##### Tools, Cocumentati
 ### Rules for Readable Code
 Simple, compact, and elegant code is easier for the reader to read as it doesn't force them to scroll or read many lines of the code to understand what's going on. Some examples:
 
-- Use arrow functions for concise callbacks and implicit returns:  
+- Use arrow functions for concise callbacks and implicit returns:
   ```
   const add = (a, b) => a + b
-  ```  
-- Apply default and destructured parameters to reduce boilerplate:  
+  ```
+- Apply default and destructured parameters to reduce boilerplate:
   ```
   function greet({ name = 'Guest' } = {}) {
     return `Hello, ${name}`
   }
-  ```  
-- Employ higher-order functions for composability:  
+  ```
+- Employ higher-order functions for composability:
   ```
   const compose = (...fns) => x => fns.reduceRight((v, f) => f(v), x)
-  ```  
-- Embrace point-free style to reduce explicit parameters:  
+  ```
+- Embrace point-free style to reduce explicit parameters:
   ```
   const double = x => x * 2
   const increment = x => x + 1
   const process = compose(increment, double)
-  ```  
-- Use partial application or currying for reusability:  
+  ```
+- Use partial application or currying for reusability:
   ```
   const partialAdd = a => b => a + b
   const addFive = partialAdd(5)
   addFive(10)
-  ```  
-- Prefer immutable operations (map, filter, reduce) over loops:  
+  ```
+- Prefer immutable operations (map, filter, reduce) over loops:
   ```
   const squares = [1,2,3].map(x => x*x)
-  ```  
-- Leverage optional chaining for safe property access:  
+  ```
+- Leverage optional chaining for safe property access:
   ```
   const streetName = person?.address?.street
-  ```  
-- In TypeScript, exploit type inference and generics to minimize annotations:  
+  ```
+- In TypeScript, exploit type inference and generics to minimize annotations:
   ```
   function identity<T>(value: T): T {
     return value
   }
-  ```  
-- Combine utility types (Partial, Pick, Omit) to reduce type verbosity:  
+  ```
+- Combine utility types (Partial, Pick, Omit) to reduce type verbosity:
   ```
   type PartialUser = Partial<User>
-  ```  
-- Export small, focused modules rather than monolithic ones to keep code modular and concise  
-
+  ```
+- Export small, focused modules rather than monolithic ones to keep code modular and concise
