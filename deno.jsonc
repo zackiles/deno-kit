@@ -1,5 +1,5 @@
 {
-  // Schema deno.jsonc: @https://github.com/denoland/deno/blob/main/cli/schemas/config-file.v1.json
+  "$schema": "https://raw.githubusercontent.com/denoland/deno/refs/heads/main/cli/schemas/config-file.v1.json",
   "name": "@deno-kit/kit",
   "version": "0.0.31",
   "description": "The modern, unopinionated, and AI-native way to quickly scaffold and maintain Deno projects.",

@@ -1,5 +1,5 @@
 /**
- * @module package_info
+ * @module package-info
  * Utilities for reading and interpreting package configuration files (like deno.json, package.json)
  * from local file systems or remote URLs. Provides functions to find package files,
  * extract metadata (name, version, exports), and resolve main export paths.
@@ -20,7 +20,6 @@ const PACKAGE_CONFIG_FILES = [
   'package.json',
   'package.jsonc',
   'jsr.json',
-  // 'kit.json', // Ensure 'kit.json' is not here for this approach
 ] as const
 
 /**

@@ -27,6 +27,9 @@
   "editor.detectIndentation": false,
   "editor.indentSize": 2,
   "editor.insertSpaces": true,
+  "files.associations": {
+    "repomix.config.json": "json5"
+  },
   "[json][jsonc]": {
     "editor.defaultFormatter": "vscode.json-language-features"
   },
@@ -69,6 +72,7 @@
     "pids",
     "USERPROFILE",
     "unvalidated",
-    "somevalue"
+    "somevalue",
+    "repomix"
   ]
 }

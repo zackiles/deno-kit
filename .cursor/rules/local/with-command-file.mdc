@@ -1,0 +1,32 @@
+---
+description:
+globs: src/commands/*.ts,src/cli.ts
+alwaysApply: false
+---
+
+# Instructions For Reading and Modifying Command Files In `src/commands`
+
+Before you read or modify any files in `src/commands` ensure you read and understand how command files work by doing the following:
+- Review how commands are loaded and executed in [cli.ts](mdc:src/cli.ts)
+- Review how commands are routed and arguments handled
+  - Command file names map to CLI commands. Examples: `src/commands/version.ts` maps to `deno run -A src/main.ts version` or `deno task dev version` if you're in development mode
+  - Commands can configure and use optional arguments. Examples: `src/commands/version.ts` maps to `deno run -A src/main.ts some-command --verbose` or `deno task dev some-command --verbose` if you're in development mode
+- Review how commands can import and utilize any of the app config in [config.ts](mdc:src/config.ts)
+- Review the entrypoint of the application in [main.ts](mdc:src/main.ts) which calls [cli.ts](mdc:src/cli.ts) which further invokves one of the commands in `src/commands`
+- Review the general commands available (shown as Deno Tasks) in [deno.json](mdc:deno.json)
+- If you haven't already, review the project readme in [README.md](mdc:README.md) to understand the overall application architecture
+- **CREATING NEW COMMANDS**: Review the example template command in the file [example.disabled.ts](mdc:src/commands/example.disabled.ts)
+
+## Involved Files
+- [main.ts](mdc:src/main.ts) : Entry point for the CLI. Initializes global app config and state before executing `cli.ts`
+- [cli.ts](mdc:src/cli.ts) : Loads commands with `command-router.ts` and executes them
+- [command-router.ts](mdc:src/utils/command-router.ts) : Configures commands
+- [example.disabled.ts](mdc:src/commands/example.disabled.ts) : Example template command for reference
+
+## Extra Related Utilities
+- [logger.ts](mdc:src/logger.ts) : Logging for application and system messages (NOT FOR CLI MESSAGES TO USER)
+- [config.ts](mdc:src/config.ts) : Global application configuration. Contains values such as: application name and version, current working directory, environemnt variables etc...
+
+## Summary
+
+Reviewing how commands work in the application will ensure any changes you might make to them will adhere to the standards and patterns of this codebase, and ensure consistency in code across the commands.

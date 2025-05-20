@@ -334,7 +334,6 @@ function formatErrorDetails(error: Error): string {
   return details
 }
 
-// Export all functions as named exports
 export {
   camelToTitleCase,
   centerString,

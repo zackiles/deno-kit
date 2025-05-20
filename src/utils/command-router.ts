@@ -1,7 +1,6 @@
 /**
- * CLI Command Router for handling command routing and execution.
- *
- * @module
+ * @module command-router
+ * @description CLI Command Router for handling command routing and execution.
  */
 import { type Args, parseArgs, type ParseOptions } from '@std/cli'
 

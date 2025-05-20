@@ -1,5 +1,5 @@
 {
-  // Schema deno.jsonc: @https://github.com/denoland/deno/blob/main/cli/schemas/config-file.v1.json
+  "$schema": "https://raw.githubusercontent.com/denoland/deno/refs/heads/main/cli/schemas/config-file.v1.json",
   "name": "{PACKAGE_NAME}",
   "version": "{PACKAGE_VERSION}",
   "description": "{PACKAGE_DESCRIPTION}",

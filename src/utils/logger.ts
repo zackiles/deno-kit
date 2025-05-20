@@ -53,7 +53,7 @@ export function parseLogLevel(level: string | undefined): LogLevel {
       if (!Number.isNaN(numLevel) && numLevel >= 0 && numLevel <= 4) {
         return numLevel
       }
-      return LogLevel.INFO // INFO as default
+      return LogLevel.INFO
     }
   }
 }
@@ -140,7 +140,5 @@ class Logger {
   }
 }
 
-// Create singleton logger instance
 export const logger = new Logger()
-
 export default logger

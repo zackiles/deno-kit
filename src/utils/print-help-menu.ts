@@ -1,3 +1,6 @@
+/**
+ * @module print-help-menu
+ */
 import { bold, dim, green } from '@std/fmt/colors'
 import logger from './logger.ts'
 

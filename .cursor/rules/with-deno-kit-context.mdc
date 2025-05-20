@@ -1,0 +1,15 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Context on this Project
+- This codebase represents a CLI-based project scaffolder for Deno 2 projects (not Deno 1)
+- The CLI supports several types of projects such as an http-server, CLI, library etc...
+- Files in the folder `<project-root>/src/` represent the CLI code
+- Files in the folder `<project-root>/templates/` represent template files that are used to scaffold a users project and contain placeholders that the CLI replaces with values when compiling them in the users workspace for their new project
+- There is a top-level sub-folder in `<project-root>/templates/` for each type of project the CLI can scaffold. E.g there is a folder named `<project-root>/templates/cli` that contains templates for a CLI project.
+- Templates that are shared across scaffold projects can be found in the `<project-root>/templates/shared` folder. If there is a conflict between a shared template and project-specifc template, the project specific template takes precedence. For example, `<project-root>/templates/cli/README.md` and `<project-root>/templates/shared/README.md` both exist, and so the project-specific one of `<project-root>/templates/cli/README.md` takes precesdence
+- The command file that compiles templates and scaffolds a user's project is in `src/commands/init.ts`. In production it will download the github release templates.zip folder which contains all the templates in `templates/` as they are shown now in the codebase, unzips them, compiles them with the runtime values a user provides, and then assembles a project with them (using some of the shared templates, with some of the project-specific ones)
+- **IMPORTANT**: because of the nature of the templates in `templates/` local development of the templates is difficult and error prone. This is because of templates having either a) placeholders and b) paths that don't represent the final compiled path on a users machine. We don't get proper intellisense and linting or typechecking the files will not work.
+- Template files deno.jsonc config file when developing locally obviously also don't work as they can't properly resolve local files such as the entry point as they don't exist when developing localling. These files only work once compiled.

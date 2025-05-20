@@ -41,6 +41,13 @@
   "cSpell.dictionaries": [
     "!typescript"
   ],
+  "json.validate.enable": true,
+  "json.schemas": [
+    {
+      "fileMatch": ["deno.jsonc", "deno.json"],
+      "url": "https://raw.githubusercontent.com/denoland/deno/main/cli/schemas/config-file.v1.json"
+    }
+  ],
   "cSpell.words": [
     "deno",
     "typeof",
