@@ -1,0 +1,9 @@
+.cursor
+.vscode
+assets/
+bin/
+node_modules
+LICENSE
+deno.lock
+CURSOR-RULES.md
+scripts/
