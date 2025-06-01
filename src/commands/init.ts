@@ -1,4 +1,7 @@
-import { create as createWorkspace, type Workspace } from '../workspace/workspace.ts'
+import {
+  create as createWorkspace,
+  type Workspace,
+} from '../workspace/workspace.ts'
 import type { CommandRouteDefinition } from '../utils/command-router.ts'
 import logger from '../utils/logger.ts'
 import { setupOrUpdateCursorConfig } from '../utils/cursor-config.ts'
@@ -44,9 +47,13 @@ async function command(): Promise<void> {
   const templateValues = await getTemplateValues()
 
   try {
-    temporaryTemplatesPath = await Deno.makeTempDir({ prefix: 'deno-kit-templates-' })
+    temporaryTemplatesPath = await Deno.makeTempDir({
+      prefix: 'deno-kit-templates-',
+    })
     await prepareTemplates(temporaryTemplatesPath)
-    logger.debug(`Templates prepared successfully in: ${temporaryTemplatesPath}`)
+    logger.debug(
+      `Templates prepared successfully in: ${temporaryTemplatesPath}`,
+    )
     logger.debug(`Creating workspace in: ${config.DENO_KIT_WORKSPACE_PATH}`)
     workspace = await createWorkspace({
       name: templateValues.PACKAGE_NAME,
@@ -56,6 +63,12 @@ async function command(): Promise<void> {
       configFileName: config.DENO_KIT_WORKSPACE_CONFIG_FILE_NAME,
     })
 
+    if (workspace.path.startsWith(config.DENO_KIT_PATH)) {
+      throw new Error(
+        'Workspace path cannot be the same as the main module path',
+      )
+    }
+
     await workspace.compileAndWriteTemplates(templateValues)
     await workspace.save()
 
@@ -64,7 +77,8 @@ async function command(): Promise<void> {
     })
 
     // Set up Cursor config (in all environments)
-    await setupOrUpdateCursorConfig(workspace.path)
+    // TODO: fix the installer and build in the cursor-config project so we can re-enable it here
+    //await setupOrUpdateCursorConfig(workspace.path)
 
     logger.info(
       `✅ Setup ${templateValues.PROJECT_TYPE} project in ${config.DENO_KIT_WORKSPACE_PATH}`,
@@ -72,7 +86,11 @@ async function command(): Promise<void> {
   } finally {
     if (temporaryTemplatesPath) {
       await Deno.remove(temporaryTemplatesPath, { recursive: true })
-        .catch((err) => logger.warn(`Cleanup failed: ${err instanceof Error ? err.message : err}`))
+        .catch((err) =>
+          logger.warn(
+            `Cleanup failed: ${err instanceof Error ? err.message : err}`,
+          )
+        )
     }
   }
 
@@ -82,39 +100,81 @@ async function command(): Promise<void> {
   async function prepareTemplates(
     templatesDir: string,
   ): Promise<void> {
-    logger.debug(`Using configured templates path: ${config.DENO_KIT_TEMPLATES_PATH}`)
+    logger.debug(
+      `Using configured templates path: ${config.DENO_KIT_TEMPLATES_PATH}`,
+    )
 
-    // Create transform path function for template handling
-    const transformTemplatePath = (filename: string): string =>
-      filename.startsWith('shared/')
-        ? filename.slice(7) // 'shared/'.length
-        : filename.match(new RegExp(`^(${config.DENO_KIT_PROJECT_TYPES.replace(/,/g, '|')})/(.+)`))
-          ?.[2] ?? filename
+    // Get the user-selected project type for filtering
+    const selectedProjectType = templateValues.PROJECT_TYPE
 
     // Function to decompress templates from a source to the templates directory
     const decompressTemplates = async (source: string, isUrl = false) => {
-      logger.debug(`Decompressing templates from ${isUrl ? 'URL' : 'file'}: ${source}`)
+      logger.debug(
+        `Decompressing templates from ${isUrl ? 'URL' : 'file'}: ${source}`,
+      )
+
+      const newTransformTemplatePath = (
+        archiveMemberPath: string,
+      ): string | null => {
+        // Allow files from 'shared/'
+        if (archiveMemberPath.startsWith('shared/')) {
+          // Remove 'shared/' prefix
+          const newPath = archiveMemberPath.substring('shared/'.length)
+          logger.debug(
+            `Transforming shared path: ${archiveMemberPath} -> ${newPath}`,
+          )
+          return newPath
+        }
+
+        // Allow files from the selected project type's folder
+        const projectTypePrefix = `${selectedProjectType}/`
+        if (archiveMemberPath.startsWith(projectTypePrefix)) {
+          // Remove the selected project type's prefix
+          const newPath = archiveMemberPath.substring(projectTypePrefix.length)
+          logger.debug(
+            `Transforming project type path: ${archiveMemberPath} -> ${newPath}`,
+          )
+          return newPath
+        }
+
+        // For any other file/path, return null to signal it should be skipped
+        logger.debug(
+          `Skipping path: ${archiveMemberPath} (does not match shared/ or ${projectTypePrefix})`,
+        )
+        return null
+      }
+
       await decompress(source, templatesDir, {
         isUrl,
-        transformPath: transformTemplatePath,
+        transformPath: newTransformTemplatePath,
       })
     }
 
     const prepareLocalTemplates = async () => {
-      const zipPath = join(config.DENO_KIT_PATH, 'bin', `templates-${config.DENO_KIT_ENV}.zip`)
+      const zipPath = join(
+        config.DENO_KIT_PATH,
+        'bin',
+        `templates-${config.DENO_KIT_ENV}.zip`,
+      )
 
       try {
-        logger.debug(`Compressing local templates from: ${config.DENO_KIT_TEMPLATES_PATH}`)
+        logger.debug(
+          `Compressing local templates from: ${config.DENO_KIT_TEMPLATES_PATH}`,
+        )
         await compress(config.DENO_KIT_TEMPLATES_PATH, zipPath)
 
-        if (!await exists(zipPath)) throw new Error(`Templates zip file not found: ${zipPath}`)
+        if (!await exists(zipPath)) {
+          throw new Error(`Templates zip file not found: ${zipPath}`)
+        }
         await decompressTemplates(zipPath, false)
       } finally {
         // Clean up the temporary zip file
         await Deno.remove(zipPath)
           .catch((err) =>
             logger.warn(
-              `Failed to clean up templates zip: ${err instanceof Error ? err.message : err}`,
+              `Failed to clean up templates zip: ${
+                err instanceof Error ? err.message : err
+              }`,
             )
           )
       }
@@ -139,7 +199,9 @@ async function command(): Promise<void> {
     try {
       if (config.DENO_KIT_ENV === 'production') {
         await prepareRemoteTemplates()
-      } else if (config.DENO_KIT_ENV === 'test' || config.DENO_KIT_ENV === 'development') {
+      } else if (
+        config.DENO_KIT_ENV === 'test' || config.DENO_KIT_ENV === 'development'
+      ) {
         await prepareLocalTemplates()
       } else {
         throw new Error(
@@ -148,7 +210,9 @@ async function command(): Promise<void> {
       }
     } catch (error) {
       logger.warn(
-        `Failed to process templates: ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to process templates: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
       )
       throw error
     }

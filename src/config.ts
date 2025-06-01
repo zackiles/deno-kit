@@ -12,9 +12,10 @@
  */
 
 import { parseArgs } from '@std/cli'
-import { dirname, join } from '@std/path'
+import { realPath } from '@std/fs/unstable-real-path'
+import { join, normalize } from '@std/path'
 import { assertDenoKitConfig, type DenoKitConfig } from './types.ts'
-import { findPackagePathFromPath } from './utils/package-info.ts'
+import { findPackageDirectoryFromPath } from './utils/package-info.ts'
 
 const CONFIG_SUFFIX = 'DENO_KIT_'
 // Singleton config instance
@@ -24,7 +25,8 @@ let initPromise: Promise<DenoKitConfig> | null = null
 
 // Finds this binary or project directory, both locally and remotely by searching for the nearest deno.jsonc
 // NOTE: for deno compile binaries, this will be the directory of the deno executable and deno.jsonc **MUST** be an embedded resource
-const kitPath = async () => dirname(await findPackagePathFromPath())
+const cwd = await realPath(Deno.cwd())
+const kitPath = await findPackageDirectoryFromPath(cwd, undefined, false)
 
 // Default configuration values
 const DEFAULT_VALUES = {
@@ -33,11 +35,12 @@ const DEFAULT_VALUES = {
   DENO_KIT_WORKSPACE_CONFIG_FILE_NAME: 'kit.json',
   DENO_KIT_ENV: 'production',
   DENO_KIT_LOG_LEVEL: 'info',
-  DENO_KIT_PROJECT_TYPES: 'cli,library,http-server,websocket-server,sse-server,mcp-server',
-  DENO_KIT_WORKSPACE_PATH: Deno.cwd(),
+  DENO_KIT_PROJECT_TYPES:
+    'cli,library,http-server,websocket-server,sse-server,mcp-server',
+  DENO_KIT_WORKSPACE_PATH: cwd,
   DENO_KIT_DISABLED_COMMANDS: 'template', // template is disabled by default, it's the example command
-  DENO_KIT_PATH: kitPath,
-  DENO_KIT_TEMPLATES_PATH: async () => join(await kitPath(), 'templates'),
+  DENO_KIT_PATH: await realPath(normalize(kitPath)),
+  DENO_KIT_TEMPLATES_PATH: join(kitPath, 'templates'),
 }
 
 /**
@@ -53,7 +56,9 @@ async function resolveAsyncValues(
         // Resolve all functions and promises or return the plain value
         const resolved = await (
           typeof value === 'function'
-            ? Promise.resolve(value()).then((result) => result instanceof Promise ? result : result)
+            ? Promise.resolve(value()).then((result) =>
+              result instanceof Promise ? result : result
+            )
             : value instanceof Promise
             ? value
             : Promise.resolve(value)
@@ -98,7 +103,9 @@ function createParseOptions(
  * @param config Optional partial configuration to override defaults
  * @returns Complete DenoKitConfig object
  */
-async function initConfig(config: Partial<DenoKitConfig> = {}): Promise<DenoKitConfig> {
+async function initConfig(
+  config: Partial<DenoKitConfig> = {},
+): Promise<DenoKitConfig> {
   // Start with defaults and resolve any async values
   const foundConfig = await resolveAsyncValues(DEFAULT_VALUES)
 
@@ -106,13 +113,16 @@ async function initConfig(config: Partial<DenoKitConfig> = {}): Promise<DenoKitC
   const envFilter = ([key, value]: [string, string]) =>
     key.startsWith(CONFIG_SUFFIX) && value !== '' && value != null
 
-  for (const [key, value] of Object.entries(Deno.env.toObject()).filter(envFilter)) {
+  for (
+    const [key, value] of Object.entries(Deno.env.toObject()).filter(envFilter)
+  ) {
     foundConfig[key] = value
   }
 
   // Add configuration passed to this function (e.g., from setConfig)
   if (config) {
-    const configFilter = ([_, value]: [string, unknown]) => value !== '' && value != null
+    const configFilter = ([_, value]: [string, unknown]) =>
+      value !== '' && value != null
 
     for (const [key, value] of Object.entries(config).filter(configFilter)) {
       foundConfig[key] = String(value)
@@ -128,7 +138,9 @@ async function initConfig(config: Partial<DenoKitConfig> = {}): Promise<DenoKitC
       key !== '_' && key !== '--' && // Standard ignored keys from parseArgs
       typeof value === 'string' && value !== ''
 
-    for (const [parsedArgKey, value] of Object.entries(args).filter(argsFilter)) {
+    for (
+      const [parsedArgKey, value] of Object.entries(args).filter(argsFilter)
+    ) {
       // Convert parsed arg key (kebab-case, e.g., "workspace-path")
       // back to internal config key format (DENO_KIT_WORKSPACE_PATH)
       const snakeCaseKey = parsedArgKey.replace(/-/g, '_')
@@ -140,9 +152,26 @@ async function initConfig(config: Partial<DenoKitConfig> = {}): Promise<DenoKitC
     // console.error("Failed to parse command line arguments:", e);
   }
 
-  // Validate the config
   try {
     assertDenoKitConfig(foundConfig)
+
+    // IMPORTANT: I've blown out unstaged changes enough times with destructive
+    // actions running the deno-kit CLI by mistake in this repo that I'm going
+    // out-of-my-way to make sure that {workspace path != CLI path}.
+    foundConfig.DENO_KIT_WORKSPACE_PATH = await realPath(
+      normalize(foundConfig.DENO_KIT_WORKSPACE_PATH),
+    )
+
+    if (foundConfig.DENO_KIT_WORKSPACE_PATH === foundConfig.DENO_KIT_PATH) {
+      console.error(
+        'Workspace path cannot be the same as the Deno-Kit binary path',
+        {
+          workspacePath: foundConfig.DENO_KIT_WORKSPACE_PATH,
+          kitPath: foundConfig.DENO_KIT_PATH,
+        },
+      )
+      Deno.exit(1)
+    }
     return foundConfig as unknown as DenoKitConfig
   } catch (err) {
     throw new Error(
@@ -175,7 +204,10 @@ async function getConfig(): Promise<DenoKitConfig> {
  * @param configUpdates Optional partial configuration to override defaults/previous values.
  * @returns The DenoKitConfig object.
  */
-async function setConfig(configUpdates: Partial<DenoKitConfig> = {}): Promise<DenoKitConfig> {
+async function setConfig(
+  configUpdates: Partial<DenoKitConfig> = {},
+): Promise<DenoKitConfig> {
+  // TODO: If I cared more I might do something about this.
   // If configInstance is already set for this module scope, it means initConfig has run.
   // Return the existing instance to ensure idempotency for this module's setConfig.
   if (configInstance) {

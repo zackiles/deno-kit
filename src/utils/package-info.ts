@@ -287,6 +287,32 @@ async function findPackagePathFromPath(
 }
 
 /**
+ * Finds the absolute local or remote path to the nearest package directory
+ * by traversing up or down from the given path.
+ *
+ * @param {string | undefined} path Optional file or directory path to start the search from.
+ *   If not provided, defaults to the current module's URL (`import.meta.url`).
+ *   For file URLs, must use three forward slashes (file:///) for absolute paths.
+ * @param {ReadonlyArray<string>} [configFiles=PACKAGE_CONFIG_FILES] Optional array of package config filenames to search for.
+ *   Defaults to `PACKAGE_CONFIG_FILES`.
+ * @param {boolean} [traverseUp=true] If true, search upwards from the given path. If false, search downwards.
+ *   Defaults to true (upward traversal).
+ * @param {number} [maxDepth=Number.POSITIVE_INFINITY] For downward searches (traverseUp: false), limits recursion depth.
+ *   Defaults to Number.POSITIVE_INFINITY (unlimited depth).
+ * @returns {Promise<string>} Absolute path to the found config file, or an empty string if none is found.
+ * @async
+ */
+async function findPackageDirectoryFromPath(
+  path?: string,
+  configFiles: ReadonlyArray<string> = PACKAGE_CONFIG_FILES,
+  traverseUp = true,
+  maxDepth = Number.POSITIVE_INFINITY,
+): Promise<string> {
+  const packageDirectory = await findPackagePathFromPath(path, configFiles, traverseUp, maxDepth)
+  return dirname(packageDirectory)
+}
+
+/**
  * Finds and returns the full package object from a package configuration file.
  *
  * @param {string | undefined} initialPath Optional path to a package file or a directory containing one.
@@ -548,6 +574,7 @@ export {
   DIRS_TO_SKIP,
   extractProjectName,
   extractScope,
+  findPackageDirectoryFromPath,
   findPackageFromPath,
   findPackagePathFromPath,
   getMainExportPath,

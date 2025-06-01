@@ -39,7 +39,7 @@ async function decompress(
   options: {
     isUrl?: boolean
     filter?: (entry: Entry) => boolean
-    transformPath?: (path: string) => string
+    transformPath?: (path: string) => string | null
   } = {},
 ): Promise<void> {
   const { isUrl = false, filter, transformPath } = options
@@ -49,7 +49,11 @@ async function decompress(
       ? new Uint8Array(await (await fetch(source.toString())).arrayBuffer())
       : await Deno.readFile(source.toString())
 
-    logger.debug(`Successfully read ${zipData.byteLength} bytes from ${isUrl ? 'URL' : 'file'}`)
+    logger.debug(
+      `Successfully read ${zipData.byteLength} bytes from ${
+        isUrl ? 'URL' : 'file'
+      }`,
+    )
 
     const zipReader = new ZipReader(new Uint8ArrayReader(zipData))
 
@@ -66,7 +70,14 @@ async function decompress(
         let targetPath = join(targetDir, entry.filename)
 
         if (transformPath) {
-          targetPath = join(targetDir, transformPath(entry.filename))
+          const transformedPath = transformPath(entry.filename)
+          if (transformedPath === null) {
+            logger.debug(
+              `Skipping entry due to transformPath: ${entry.filename}`,
+            )
+            continue // Skip this entry
+          }
+          targetPath = join(targetDir, transformedPath)
         }
 
         await ensureDir(dirname(targetPath))
@@ -82,7 +93,9 @@ async function decompress(
   } catch (error) {
     const errorType = isUrl ? 'download' : 'read'
     const message = error instanceof Error ? error.message : String(error)
-    throw new Error(`Failed to ${errorType} or extract from ${source}: ${message}`)
+    throw new Error(
+      `Failed to ${errorType} or extract from ${source}: ${message}`,
+    )
   }
 }
 
@@ -140,9 +153,13 @@ async function compress(
     const zipData = await zipWriter.close()
     await Deno.writeFile(targetPath, zipData)
 
-    logger.debug(`Created zip file at ${targetPath} from directory ${sourcePath}`)
+    logger.debug(
+      `Created zip file at ${targetPath} from directory ${sourcePath}`,
+    )
   } else {
-    throw new Error(`Source path ${sourcePath} is neither a file nor a directory`)
+    throw new Error(
+      `Source path ${sourcePath} is neither a file nor a directory`,
+    )
   }
 }
 

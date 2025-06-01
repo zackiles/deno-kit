@@ -19,7 +19,7 @@
   "deno.codeLens.referencesAllFunctions": true,
   "deno.codeLens.test": true,
   "deno.internalDebug": true,
-  "deno.internalInspect": true,
+  "deno.internalInspect": false,
   "deno.maxTsServerMemory": 6000,
   "files.eol": "\n",
   "files.insertFinalNewline": true,
@@ -27,8 +27,12 @@
   "editor.detectIndentation": false,
   "editor.indentSize": 2,
   "editor.insertSpaces": true,
+  "json.schemaDownload.enable": true,
   "files.associations": {
     "repomix.config.json": "json5"
+  },
+  "workbench.editorAssociations": {
+    "*.mdc": "default",
   },
   "[json][jsonc]": {
     "editor.defaultFormatter": "vscode.json-language-features"

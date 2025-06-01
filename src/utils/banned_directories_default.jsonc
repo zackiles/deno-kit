@@ -21,8 +21,22 @@
     "/[A-Za-z0-9]*/$",
     // Application bundles - prevents modification of app folder structures
     "/Applications/*.app/",
-    // System private folder
-    "/private/",
+    // System private folder - specific subdirectories that should be protected
+    "/private/etc/**",
+    "/private/tftpboot/**",
+    "/private/var/audit/**",
+    "/private/var/backups/**",
+    "/private/var/db/**",
+    "/private/var/empty/**",
+    "/private/var/log/**",
+    "/private/var/mail/**",
+    "/private/var/msgs/**",
+    "/private/var/root/**",
+    "/private/var/run/**",
+    "/private/var/spool/**",
+    "/private/var/vm/**",
+    "/private/var/yp/**",
+    "/private/sbin/**",
     // Package manager installation directories
     "/opt/homebrew/",
     "/opt/local/",

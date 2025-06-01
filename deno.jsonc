@@ -12,7 +12,7 @@
   },
   "tasks": {
     "test": "deno run -A scripts/test.ts",
-    "dev": "DENO_KIT_ENV=development DENO_KIT_LOG_LEVEL=debug deno run -A src/main.ts",
+    "dev": "deno run -A scripts/dev.ts",
     "pre-publish": "deno run -A scripts/pre-publish.ts",
     "test:build": "deno test -A --reload test/build.test.ts",
     "build": "deno run -A scripts/build.ts",
@@ -49,7 +49,7 @@
   "lock": true,
   "nodeModulesDir": "none",
   "fmt": {
-    "lineWidth": 100,
+    "lineWidth": 80,
     "semiColons": false,
     "useTabs": false,
     "indentWidth": 2,

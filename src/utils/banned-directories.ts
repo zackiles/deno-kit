@@ -25,7 +25,11 @@ type BannedDirectoriesConfig = {
 /**
  * Supported platforms for banned directory configurations
  */
-const PLATFORMS: Array<keyof BannedDirectoriesConfig> = ['windows', 'darwin', 'linux']
+const PLATFORMS: Array<keyof BannedDirectoriesConfig> = [
+  'windows',
+  'darwin',
+  'linux',
+]
 
 /**
  * Handler function type for custom directory validation
@@ -73,11 +77,14 @@ function checkPatternMatch(pathToCheck: string, patterns: string[]): boolean {
 
   return patterns.some((pattern) => {
     if (hasGlobChars(pattern)) {
-      return globToRegExp(pattern, { extended: true, globstar: true }).test(pathToCheck)
+      return globToRegExp(pattern, { extended: true, globstar: true }).test(
+        pathToCheck,
+      )
     }
 
     const normalizedPattern = resolve(pattern)
-    return pathToCheck.startsWith(normalizedPattern) || normalizedPattern.startsWith(pathToCheck)
+    return pathToCheck.startsWith(normalizedPattern) ||
+      normalizedPattern.startsWith(pathToCheck)
   })
 }
 
@@ -97,10 +104,21 @@ async function isBannedDirectory(
 ): Promise<boolean> {
   const { defaultDirectoriesConfig, customDirectoriesConfig, handler } = options
   const pathsArray = Array.isArray(paths) ? paths : [paths]
-  const bannedPatterns = await getConfig(defaultDirectoriesConfig, customDirectoriesConfig)
+  const bannedPatterns = await getConfig(
+    defaultDirectoriesConfig,
+    customDirectoriesConfig,
+  )
 
   for (const path of pathsArray) {
     if (checkPatternMatch(path, bannedPatterns)) {
+      console.log(
+        'BANNED PATH',
+        path,
+        'paths',
+        pathsArray,
+        'sBANNED PATTERNS',
+        bannedPatterns,
+      )
       return true
     }
 
@@ -143,8 +161,10 @@ async function loadBannedDirectories(
   { defaultPath, customPath, customConfig }: LoadBannedDirectoriesOptions = {},
 ): Promise<BannedDirectoriesConfig> {
   const moduleDir = dirname(new URL(import.meta.url).pathname)
-  const resolvedDefaultPath = defaultPath || join(moduleDir, 'banned_directories_default.jsonc')
-  const resolvedCustomPath = customPath || join(moduleDir, 'banned_directories_custom.jsonc')
+  const resolvedDefaultPath = defaultPath ||
+    join(moduleDir, 'banned_directories_default.jsonc')
+  const resolvedCustomPath = customPath ||
+    join(moduleDir, 'banned_directories_custom.jsonc')
 
   // Create empty config with the correct type structure
   const emptyConfig = (): BannedDirectoriesConfig =>
@@ -160,14 +180,21 @@ async function loadBannedDirectories(
   ): Promise<BannedDirectoriesConfig> => {
     try {
       const result = await loadJsonFile(path)
-      if (isRequired && !result) throw new Error(`Required file not found: ${path}`)
+      if (isRequired && !result) {
+        throw new Error(`Required file not found: ${path}`)
+      }
       return result || emptyConfig()
     } catch (error) {
       // Return empty config for non-existent optional files
-      if (!isRequired && error instanceof Deno.errors.NotFound) return emptyConfig()
+      if (!isRequired && error instanceof Deno.errors.NotFound) {
+        return emptyConfig()
+      }
 
       // Add context for other errors in optional files
-      if (!isRequired && !(error instanceof Error && error.message.includes('Required file'))) {
+      if (
+        !isRequired &&
+        !(error instanceof Error && error.message.includes('Required file'))
+      ) {
         throw new Error(
           `Failed to load banned directories from ${path}: ${
             error instanceof Error ? error.message : String(error)
@@ -182,7 +209,8 @@ async function loadBannedDirectories(
 
   // Load and merge configs
   const defaultDirs = await processConfigFile(resolvedDefaultPath, true)
-  const customDirs = customConfig ?? await processConfigFile(resolvedCustomPath, false)
+  const customDirs = customConfig ??
+    await processConfigFile(resolvedCustomPath, false)
 
   return mergeConfigs(defaultDirs, customDirs)
 }
@@ -194,7 +222,9 @@ async function loadBannedDirectories(
  * @returns Parsed JSONC content or null if file doesn't exist
  * @private
  */
-async function loadJsonFile(path: string): Promise<BannedDirectoriesConfig | null> {
+async function loadJsonFile(
+  path: string,
+): Promise<BannedDirectoriesConfig | null> {
   try {
     const content = await Deno.readTextFile(path)
     return parseJSONC(content) as BannedDirectoriesConfig
@@ -222,10 +252,16 @@ function mergeConfigs(
     const defaultPlatformDirs = defaultDirs[platform] || []
     const customPlatformDirs = customDirs[platform] || []
 
-    result[platform] = [...new Set([...defaultPlatformDirs, ...customPlatformDirs])]
+    result[platform] = [
+      ...new Set([...defaultPlatformDirs, ...customPlatformDirs]),
+    ]
     return result
   }, {} as BannedDirectoriesConfig)
 }
 
 export { isBannedDirectory }
-export type { BannedDirectoriesConfig, BannedDirectoryHandler, IsBannedDirectoryOptions }
+export type {
+  BannedDirectoriesConfig,
+  BannedDirectoryHandler,
+  IsBannedDirectoryOptions,
+}

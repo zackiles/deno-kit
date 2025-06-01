@@ -11,10 +11,12 @@
     "url": "https://github.com/{PACKAGE_GITHUB_USER}/{PROJECT_NAME}.git"
   },
   "tasks": {
-    "dev": "deno run -A scripts/dev.ts",
-    "test": "deno run -A scripts/test.ts",
+    "dev": "DENO_ENV=development deno run -A scripts/dev.ts",
+    "test": "DENO_ENV=test deno run -A scripts/test.ts",
     "pre-publish": "deno fmt && deno check -r src/ && deno lint",
-    "tag": "deno run -A scripts/tag.ts"
+    "tag": "deno run -A scripts/tag.ts",
+    "build:docs": "deno doc --html --name={PROJECT_NAME} --output=./docs/{PROJECT_NAME} src/**/*.ts",
+    "serve-docs": "deno run -A scripts/serve-docs.ts"
   },
   // Import maps. Prefer import "@scope/package" syntax in code.
   // NOTE: uses the import maps standard see https://github.com/WICG/import-maps
@@ -77,6 +79,7 @@
       ]
     },
     "include": [
+      "deno.jsonc",
       "src/**",
       "scripts/**",
       "test/**",

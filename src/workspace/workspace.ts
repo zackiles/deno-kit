@@ -27,7 +27,10 @@
 import { basename, dirname, fromFileUrl, join, relative } from '@std/path'
 import { parse as parseJSONC } from '@std/jsonc'
 import { exists } from '@std/fs'
-import { findPackageFromPath, PACKAGE_CONFIG_FILES } from '../utils/package-info.ts'
+import {
+  findPackageFromPath,
+  PACKAGE_CONFIG_FILES,
+} from '../utils/package-info.ts'
 import {
   checkDirectoryWriteAccess,
   getMostCommonBasePath,
@@ -131,7 +134,9 @@ export class Workspace {
 
     const currentWorkspaceFilePaths = Array.from(workspaceFiles.keys())
     const currentTemplateFilePaths = Array.from(templateFiles.keys())
-    const currentBackupFilePathsArg = backupFiles ? Array.from(backupFiles.keys()) : []
+    const currentBackupFilePathsArg = backupFiles
+      ? Array.from(backupFiles.keys())
+      : []
 
     validateCommonBasePath(currentWorkspaceFilePaths, this.path)
     validateCommonBasePath(currentTemplateFilePaths, this.templatesPath)
@@ -144,7 +149,11 @@ export class Workspace {
     }
 
     this.#files = new WorkspaceFiles(this.path, Workspace.logger)
-    this.#templates = new WorkspaceTemplates(this.templatesPath, this.path, Workspace.logger)
+    this.#templates = new WorkspaceTemplates(
+      this.templatesPath,
+      this.path,
+      Workspace.logger,
+    )
     this.#backups = new WorkspaceBackups(
       this.path,
       resolvedBackupsPathForComponent,
@@ -199,17 +208,23 @@ export class Workspace {
     }
 
     const currentDir = join(fromFileUrl(import.meta.url), '../..')
-    configFileName = configFileName.endsWith('.json') ? configFileName : `${configFileName}.json`
+    configFileName = configFileName.endsWith('.json')
+      ? configFileName
+      : `${configFileName}.json`
 
     const initialWorkspaceDir = inputWorkspacePathOpt
       ? await Workspace.#validateWorkspacePath(inputWorkspacePathOpt, false)
       : await Deno.makeTempDir({ prefix: DEFAULT_TEMP_PREFIX })
-    Workspace.logger.debug(`Initial workspace directory determined: ${initialWorkspaceDir}`)
+    Workspace.logger.debug(
+      `Initial workspace directory determined: ${initialWorkspaceDir}`,
+    )
 
     const initialTemplatesDir = inputTemplatesPathOpt
       ? await Workspace.#validateTemplatesPath(inputTemplatesPathOpt)
       : await Workspace.#validateTemplatesPath(join(currentDir, 'templates'))
-    Workspace.logger.debug(`Initial templates directory determined: ${initialTemplatesDir}`)
+    Workspace.logger.debug(
+      `Initial templates directory determined: ${initialTemplatesDir}`,
+    )
 
     const [workspaceFilesMap, templateFilesMap] = await Promise.all([
       readFilesRecursively(initialWorkspaceDir),
@@ -219,14 +234,22 @@ export class Workspace {
     const id = await Workspace.#createIdFromPath(initialWorkspaceDir)
     Workspace.logger.debug(`Created workspace id: ${id}`)
 
-    if (Array.from(workspaceFilesMap.keys()).some((path) => basename(path) === configFileName)) {
+    if (
+      Array.from(workspaceFilesMap.keys()).some((path) =>
+        basename(path) === configFileName
+      )
+    ) {
       throw new Error(
-        `Can't create workspace ${name || id}. Workspace already exists at ${initialWorkspaceDir}`,
+        `Can't create workspace ${
+          name || id
+        }. Workspace already exists at ${initialWorkspaceDir}`,
       )
     }
 
     if (workspaceFilesMap.size === 0) {
-      Workspace.logger.debug(`Initializing empty workspace in: ${initialWorkspaceDir}`)
+      Workspace.logger.debug(
+        `Initializing empty workspace in: ${initialWorkspaceDir}`,
+      )
       await Workspace.#initializeEmptyWorkspace({
         workspacePath: initialWorkspaceDir,
         templateFiles: templateFilesMap,
@@ -249,8 +272,12 @@ export class Workspace {
         ? Array.from(templateFilesMap.keys())
         : [initialTemplatesDir],
     )
-    Workspace.logger.debug(`Final workspace path for constructor: ${finalWorkspacePath}`)
-    Workspace.logger.debug(`Final templates path for constructor: ${finalTemplatesPath}`)
+    Workspace.logger.debug(
+      `Final workspace path for constructor: ${finalWorkspacePath}`,
+    )
+    Workspace.logger.debug(
+      `Final templates path for constructor: ${finalTemplatesPath}`,
+    )
 
     const workspace = new Workspace({
       id,
@@ -268,12 +295,16 @@ export class Workspace {
       `Workspace instance created. Path: ${workspace.path}, TemplatesPath: ${workspace.templatesPath}`,
     )
     Workspace.logger.debug(
-      `Saving workspace config to: ${join(workspace.path, workspace.configFileName)}`,
+      `Saving workspace config to: ${
+        join(workspace.path, workspace.configFileName)
+      }`,
     )
     await workspace.save()
     Workspace.logger.debug(`Created workspace in: ${workspace.path}`)
     await workspace.backup()
-    Workspace.logger.debug(`Workspace backup created in: ${workspace.backupsPath}`)
+    Workspace.logger.debug(
+      `Workspace backup created in: ${workspace.backupsPath}`,
+    )
 
     return workspace
   }
@@ -307,7 +338,9 @@ export class Workspace {
     // Get package data for the process or package currently executing this module
     const packageData = await findPackageFromPath()
     // Ensure the user-supplied workspace configFileName ends with .json
-    configFileName = configFileName.endsWith('.json') ? configFileName : `${configFileName}.json`
+    configFileName = configFileName.endsWith('.json')
+      ? configFileName
+      : `${configFileName}.json`
 
     if (!packageData.path) {
       throw new Error(
@@ -316,7 +349,9 @@ export class Workspace {
     }
 
     const packageConfigPath = packageData.path as string
-    const packageConfig = parseJSONC(await Deno.readTextFile(packageConfigPath)) as {
+    const packageConfig = parseJSONC(
+      await Deno.readTextFile(packageConfigPath),
+    ) as {
       name?: string
       version?: string
     }
@@ -406,7 +441,10 @@ export class Workspace {
    * @returns The validated workspace path
    * @throws Error if the directory doesn't exist, lacks write access, or is the deno-kit source project
    */
-  static async #validateWorkspacePath(path: string, withConfigFile = true): Promise<string> {
+  static async #validateWorkspacePath(
+    path: string,
+    withConfigFile = true,
+  ): Promise<string> {
     try {
       // Check if the path is a banned directory (e.g system directories)
       if (await isBannedDirectory(path)) {
@@ -444,10 +482,14 @@ export class Workspace {
           // It is not fun to have the repo deleted on you along with its git
           // history, so we raise an error if this happens.
           // ----------------------------------------------------------------
-          const workspaceConfig = parseJSONC(await Deno.readTextFile(workspaceConfigPath)) as {
+          const workspaceConfig = parseJSONC(
+            await Deno.readTextFile(workspaceConfigPath),
+          ) as {
             name?: string
           }
-          const packageConfig = parseJSONC(await Deno.readTextFile(packageConfigPath)) as {
+          const packageConfig = parseJSONC(
+            await Deno.readTextFile(packageConfigPath),
+          ) as {
             name?: string
           }
           // Is the deno.jsonc file in the workspace the same of this source code?
@@ -465,7 +507,9 @@ export class Workspace {
       })()
 
       if (isDenoKitSource) {
-        throw new Error('Cannot use the same directory this code is located in as a workspace')
+        throw new Error(
+          'Cannot use the same directory this code is located in as a workspace',
+        )
       }
 
       return path
@@ -544,8 +588,9 @@ export class Workspace {
     args: string[] = [],
     options?: { cwd?: string; env?: Record<string, string> },
   ): Promise<string> {
-    // biome-ignore lint/complexity/noThisInStatic: Required for dual static/instance functionality
-    const cwd = options?.cwd || ((this as unknown as Workspace).path || Deno.cwd())
+    const cwd = options?.cwd ||
+      // biome-ignore lint/complexity/noThisInStatic: Required for dual static/instance functionality
+      ((this as unknown as Workspace).path || Deno.cwd())
 
     if (await isBannedDirectory(cwd)) {
       throw new Error(`Cannot run command in banned directory: ${cwd}`)
@@ -560,7 +605,8 @@ export class Workspace {
     } as const
 
     try {
-      const { stdout, stderr } = await new Deno.Command(command, cmdOptions).output()
+      const { stdout, stderr } = await new Deno.Command(command, cmdOptions)
+        .output()
       const decoder = new TextDecoder()
 
       const error = decoder.decode(stderr).trim()
@@ -572,7 +618,9 @@ export class Workspace {
       return decoder.decode(stdout).trim()
     } catch (error) {
       const errorMessage = error instanceof Error
-        ? `${error.message}${error.stack ? `\nStack trace: ${error.stack}` : ''}`
+        ? `${error.message}${
+          error.stack ? `\nStack trace: ${error.stack}` : ''
+        }`
         : String(error)
       throw new Error(
         `Failed to execute command '${command}': ${errorMessage}`,
@@ -673,7 +721,10 @@ export class Workspace {
     templateValues?: { [key: string]: string },
     templateFiles?: Map<string, string>,
   ): Promise<void> {
-    await this.#templates.compileAndWriteTemplates(templateValues, templateFiles)
+    await this.#templates.compileAndWriteTemplates(
+      templateValues,
+      templateFiles,
+    )
     await this.save()
   }
 
@@ -705,7 +756,10 @@ export class Workspace {
 
     try {
       const content = await Deno.readTextFile(packageConfigPath)
-      const packageConfig = parseJSONC(content) as { name?: string; version?: string }
+      const packageConfig = parseJSONC(content) as {
+        name?: string
+        version?: string
+      }
 
       if (!packageConfig.name || !packageConfig.version) {
         throw new Error(
@@ -715,24 +769,32 @@ export class Workspace {
 
       // Get template paths and ensure they are relative
       // Fix overly-escaped paths by simplifying to base filename if needed
-      const templateFiles = this.#templates.getRelativeTemplatePaths().map((path) => {
-        // If the path starts with "../", it's likely a path that couldn't be properly relativized
-        // In this case, extract just the filename
-        if (path.startsWith('../') || path.includes(':/')) {
-          const parts = path.split('/')
-          return parts[parts.length - 1]
-        }
-        return path
-      })
+      const templateFiles = this.#templates.getRelativeTemplatePaths().map(
+        (path) => {
+          // If the path starts with "../", it's likely a path that couldn't be properly relativized
+          // In this case, extract just the filename
+          if (path.startsWith('../') || path.includes(':/')) {
+            const parts = path.split('/')
+            return parts[parts.length - 1]
+          }
+          return path
+        },
+      )
 
       const workspaceSpecification: WorkspaceConfigFile = {
         [packageConfig.name]: packageConfig.version,
         id: this.id,
         name: this.name,
-        workspaceFiles: Array.from(this.#files.files.keys()).map((p) => relative(this.path, p)),
+        workspaceFiles: Array.from(this.#files.files.keys()).map((p) =>
+          relative(this.path, p)
+        ),
         templateFiles,
-        backupFiles: this.#backups.originalPathsForBackup.map((p) => relative(this.path, p)),
-        templateValues: Object.fromEntries(this.#templates.templateValues.entries()) as {
+        backupFiles: this.#backups.originalPathsForBackup.map((p) =>
+          relative(this.path, p)
+        ),
+        templateValues: Object.fromEntries(
+          this.#templates.templateValues.entries(),
+        ) as {
           [key: string]: string
         },
       }
@@ -778,7 +840,9 @@ export class Workspace {
       const parsedConfig = parseJSONC(configContent)
 
       if (!Workspace.isConfigFile(parsedConfig)) {
-        throw new Error(`Workspace configuration file ${configFilePath} is not valid.`)
+        throw new Error(
+          `Workspace configuration file ${configFilePath} is not valid.`,
+        )
       }
 
       const configFileName = basename(configFilePath)
@@ -791,24 +855,42 @@ export class Workspace {
         ...parsedConfig.workspaceFiles.map(async (relativePath) => {
           const absolutePath = join(configDir, relativePath)
           try {
-            loadedWorkspaceFilesMap.set(absolutePath, await Deno.readTextFile(absolutePath))
+            loadedWorkspaceFilesMap.set(
+              absolutePath,
+              await Deno.readTextFile(absolutePath),
+            )
           } catch (error) {
-            Workspace.logger.warn(`Failed to read workspace file ${absolutePath}: ${error}`)
+            Workspace.logger.warn(
+              `Failed to read workspace file ${absolutePath}: ${error}`,
+            )
           }
         }),
         ...parsedConfig.templateFiles.map(async (relativePath) => {
           const absolutePath = join(configDir, relativePath)
           try {
-            loadedTemplateFilesMap.set(absolutePath, await Deno.readTextFile(absolutePath))
+            loadedTemplateFilesMap.set(
+              absolutePath,
+              await Deno.readTextFile(absolutePath),
+            )
           } catch (error) {
-            Workspace.logger.warn(`Failed to read template file ${absolutePath}: ${error}`)
-            loadedTemplateFilesMap.set(absolutePath, `# Template placeholder for ${relativePath}`)
+            Workspace.logger.warn(
+              `Failed to read template file ${absolutePath}: ${error}`,
+            )
+            loadedTemplateFilesMap.set(
+              absolutePath,
+              `# Template placeholder for ${relativePath}`,
+            )
           }
         }),
       ])
 
-      if (loadedWorkspaceFilesMap.size === 0 && parsedConfig.workspaceFiles.length > 0) {
-        Workspace.logger.warn('Workspace configuration listed files, but none could be loaded.')
+      if (
+        loadedWorkspaceFilesMap.size === 0 &&
+        parsedConfig.workspaceFiles.length > 0
+      ) {
+        Workspace.logger.warn(
+          'Workspace configuration listed files, but none could be loaded.',
+        )
         throw new Error('No workspace files could be loaded from configuration')
       }
       if (loadedWorkspaceFilesMap.size === 0) {
@@ -818,12 +900,19 @@ export class Workspace {
       const finalWorkspacePath = await getMostCommonBasePath(
         Array.from(loadedWorkspaceFilesMap.keys()),
       )
-      const finalTemplatesPath = Array.from(loadedTemplateFilesMap.keys()).length > 0
-        ? await getMostCommonBasePath(Array.from(loadedTemplateFilesMap.keys()))
-        : configDir
+      const finalTemplatesPath =
+        Array.from(loadedTemplateFilesMap.keys()).length > 0
+          ? await getMostCommonBasePath(
+            Array.from(loadedTemplateFilesMap.keys()),
+          )
+          : configDir
 
-      Workspace.logger.debug(`Loaded final workspace path for constructor: ${finalWorkspacePath}`)
-      Workspace.logger.debug(`Loaded final templates path for constructor: ${finalTemplatesPath}`)
+      Workspace.logger.debug(
+        `Loaded final workspace path for constructor: ${finalWorkspacePath}`,
+      )
+      Workspace.logger.debug(
+        `Loaded final templates path for constructor: ${finalTemplatesPath}`,
+      )
 
       const originalBackupPaths = parsedConfig.backupFiles.map((relativePath) =>
         join(configDir, relativePath)
@@ -836,7 +925,8 @@ export class Workspace {
         templateFiles: loadedTemplateFilesMap,
         workspacePath: finalWorkspacePath,
         templatesPath: finalTemplatesPath,
-        ...(parsedConfig.templateValues && Object.keys(parsedConfig.templateValues).length > 0 && {
+        ...(parsedConfig.templateValues &&
+          Object.keys(parsedConfig.templateValues).length > 0 && {
           templateValues: parsedConfig.templateValues,
         }),
         configFileName,
@@ -847,7 +937,9 @@ export class Workspace {
       return workspace
     } catch (error) {
       if (error instanceof Deno.errors.NotFound) {
-        throw new Error(`Workspace configuration file not found: ${configFilePath}`)
+        throw new Error(
+          `Workspace configuration file not found: ${configFilePath}`,
+        )
       }
       throw new Error(
         `Failed to load workspace from configuration file '${configFilePath}': ${
@@ -865,5 +957,6 @@ export class Workspace {
   }
 }
 
-export const { create, load, isConfigFile, getGitUserName, getGitUserEmail } = Workspace
+export const { create, load, isConfigFile, getGitUserName, getGitUserEmail } =
+  Workspace
 export type { WorkspaceConfigFile }

@@ -16,7 +16,10 @@ import { getConfig } from './config.ts'
 import logger from './utils/logger.ts'
 import gracefulShutdown from './utils/graceful-shutdown.ts'
 import CommandRouter from './utils/command-router.ts'
-import type { CommandRouteDefinition, CommandRouteOptions } from './utils/command-router.ts'
+import type {
+  CommandRouteDefinition,
+  CommandRouteOptions,
+} from './utils/command-router.ts'
 import type { DenoKitConfig } from './types.ts'
 
 const config = await getConfig() as DenoKitConfig
@@ -59,10 +62,6 @@ const COMMANDS: Record<string, CommandRouteDefinition> = Object.fromEntries(
 async function main(): Promise<void> {
   const router = new CommandRouter(COMMANDS)
   const route: CommandRouteDefinition = router.getRoute(Deno.args)
-
-  if (!route) {
-    throw new Error('Command not found and no help command available')
-  }
 
   try {
     const options: CommandRouteOptions = router.getOptions(route)
