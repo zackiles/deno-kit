@@ -37,7 +37,7 @@ const DEFAULT_VALUES = {
   DENO_KIT_LOG_LEVEL: 'info',
   DENO_KIT_PROJECT_TYPES:
     'cli,library,http-server,websocket-server,sse-server,mcp-server',
-  DENO_KIT_WORKSPACE_PATH: cwd,
+  DENO_KIT_WORKSPACE_PATH: cwd, // IMPORTANT: if you change this you need to change src/commands/init.ts as it does a hacky check against this value and expects cwd as the default unless a user specifies a different path
   DENO_KIT_DISABLED_COMMANDS: 'template', // template is disabled by default, it's the example command
   DENO_KIT_PATH: await realPath(normalize(kitPath)),
   DENO_KIT_TEMPLATES_PATH: join(kitPath, 'templates'),
@@ -155,23 +155,6 @@ async function initConfig(
   try {
     assertDenoKitConfig(foundConfig)
 
-    // IMPORTANT: I've blown out unstaged changes enough times with destructive
-    // actions running the deno-kit CLI by mistake in this repo that I'm going
-    // out-of-my-way to make sure that {workspace path != CLI path}.
-    foundConfig.DENO_KIT_WORKSPACE_PATH = await realPath(
-      normalize(foundConfig.DENO_KIT_WORKSPACE_PATH),
-    )
-
-    if (foundConfig.DENO_KIT_WORKSPACE_PATH === foundConfig.DENO_KIT_PATH) {
-      console.error(
-        'Workspace path cannot be the same as the Deno-Kit binary path',
-        {
-          workspacePath: foundConfig.DENO_KIT_WORKSPACE_PATH,
-          kitPath: foundConfig.DENO_KIT_PATH,
-        },
-      )
-      Deno.exit(1)
-    }
     return foundConfig as unknown as DenoKitConfig
   } catch (err) {
     throw new Error(

@@ -5,7 +5,9 @@ import {
 import type { CommandRouteDefinition } from '../utils/command-router.ts'
 import logger from '../utils/logger.ts'
 import { setupOrUpdateCursorConfig } from '../utils/cursor-config.ts'
+import { normalize } from '@std/path'
 import { ensureDir, exists } from '@std/fs'
+import { realPath } from '@std/fs/unstable-real-path'
 import getTemplateValues from '../template-values.ts'
 import { getConfig } from '../config.ts'
 import { join } from '@std/path'
@@ -63,10 +65,23 @@ async function command(): Promise<void> {
       configFileName: config.DENO_KIT_WORKSPACE_CONFIG_FILE_NAME,
     })
 
-    if (workspace.path.startsWith(config.DENO_KIT_PATH)) {
-      throw new Error(
-        'Workspace path cannot be the same as the main module path',
+    // TODO: Likely a better way and a different place to make this check
+    // IMPORTANT: I've blown out unstaged changes enough times with destructive
+    // actions running the deno-kit CLI by mistake in this repo that I'm going
+    // out-of-my-way to make sure that {workspace path != CLI path}.
+    config.DENO_KIT_WORKSPACE_PATH = await realPath(
+      normalize(config.DENO_KIT_WORKSPACE_PATH),
+    )
+
+    if (config.DENO_KIT_WORKSPACE_PATH === config.DENO_KIT_PATH) {
+      console.error(
+        'Workspace path cannot be the same as the Deno-Kit binary path',
+        {
+          workspacePath: config.DENO_KIT_WORKSPACE_PATH,
+          kitPath: config.DENO_KIT_PATH,
+        },
       )
+      Deno.exit(1)
     }
 
     await workspace.compileAndWriteTemplates(templateValues)
@@ -96,6 +111,12 @@ async function command(): Promise<void> {
 
   /**
    * Prepares templates based on the current environment
+   * How this works: takes user's selected project type and decompresses the templates from the shared/ and the project type's folder
+   * into the templates directory. This essentially merges shared templates with the project-specific templates to create a complete project.
+   *
+   * If the user is in a development environment, it will compress the templates from the templates directory into a zip file and decompress it into the templates directory.
+   *
+   * If the user is in a production environment, it will decompress the templates from the remote URL into the templates directory.
    */
   async function prepareTemplates(
     templatesDir: string,
@@ -113,13 +134,14 @@ async function command(): Promise<void> {
         `Decompressing templates from ${isUrl ? 'URL' : 'file'}: ${source}`,
       )
 
-      const newTransformTemplatePath = (
+      const transformTemplatePath = (
         archiveMemberPath: string,
       ): string | null => {
         // Allow files from 'shared/'
         if (archiveMemberPath.startsWith('shared/')) {
-          // Remove 'shared/' prefix
-          const newPath = archiveMemberPath.substring('shared/'.length)
+          // Remove 'shared/' prefix and normalize for platform
+          const relativePath = archiveMemberPath.substring('shared/'.length)
+          const newPath = normalize(relativePath)
           logger.debug(
             `Transforming shared path: ${archiveMemberPath} -> ${newPath}`,
           )
@@ -129,8 +151,11 @@ async function command(): Promise<void> {
         // Allow files from the selected project type's folder
         const projectTypePrefix = `${selectedProjectType}/`
         if (archiveMemberPath.startsWith(projectTypePrefix)) {
-          // Remove the selected project type's prefix
-          const newPath = archiveMemberPath.substring(projectTypePrefix.length)
+          // Remove the selected project type's prefix and normalize for platform
+          const relativePath = archiveMemberPath.substring(
+            projectTypePrefix.length,
+          )
+          const newPath = normalize(relativePath)
           logger.debug(
             `Transforming project type path: ${archiveMemberPath} -> ${newPath}`,
           )
@@ -146,7 +171,7 @@ async function command(): Promise<void> {
 
       await decompress(source, templatesDir, {
         isUrl,
-        transformPath: newTransformTemplatePath,
+        transformPath: transformTemplatePath,
       })
     }
 
