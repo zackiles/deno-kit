@@ -20,7 +20,11 @@ console.log(`Temporary directory created: ${tempDir}`)
 
 // Ensure the temporary directory exists
 await ensureDir(tempDir)
-console.log(`Directory exists: ${await Deno.stat(tempDir).then(() => true).catch(() => false)}`)
+console.log(
+  `Directory exists: ${await Deno.stat(tempDir).then(() => true).catch(() =>
+    false
+  )}`,
+)
 
 // Test data setup
 const validPackageJson = {
@@ -35,7 +39,9 @@ const validPackageJsonPath = join(tempDir, 'package.json')
 await Deno.writeTextFile(validPackageJsonPath, JSON.stringify(validPackageJson))
 console.log(`Test package.json written to: ${validPackageJsonPath}`)
 console.log(
-  `File exists: ${await Deno.stat(validPackageJsonPath).then(() => true).catch(() => false)}`,
+  `File exists: ${await Deno.stat(validPackageJsonPath).then(() => true).catch(
+    () => false,
+  )}`,
 )
 
 // Mock remote fetch implementation factory
@@ -74,7 +80,8 @@ const cleanupTempFiles = async () => {
 Deno.test('findPackageFromPath - retrieves package information from valid package.json file', async () => {
   console.log(`Testing with package file: ${validPackageJsonPath}`)
   console.log(
-    `File exists: ${await Deno.stat(validPackageJsonPath).then(() => true).catch(() => false)}`,
+    `File exists: ${await Deno.stat(validPackageJsonPath).then(() => true)
+      .catch(() => false)}`,
   )
 
   const packageData = await findPackageFromPath(validPackageJsonPath)
@@ -83,7 +90,10 @@ Deno.test('findPackageFromPath - retrieves package information from valid packag
   assertEquals(packageData.path, validPackageJsonPath)
   assertEquals(packageData.name, 'test-package')
   assertEquals(packageData.version, '1.0.0')
-  assertEquals((packageData.exports as Record<string, unknown>)?.['.'], './src/index.ts')
+  assertEquals(
+    (packageData.exports as Record<string, unknown>)?.['.'],
+    './src/index.ts',
+  )
 })
 
 Deno.test('findPackageFromPath - throws error when file is not a valid package config', async () => {
@@ -95,7 +105,9 @@ Deno.test('findPackageFromPath - throws error when file is not a valid package c
 
   await Deno.writeTextFile(invalidFilePath, 'Not a valid package file')
   console.log(
-    `File exists: ${await Deno.stat(invalidFilePath).then(() => true).catch(() => false)}`,
+    `File exists: ${await Deno.stat(invalidFilePath).then(() => true).catch(
+      () => false,
+    )}`,
   )
 
   await assertRejects(
@@ -114,7 +126,11 @@ Deno.test('findPackageFromPath - throws error when no package file is found', as
 
   // Create the empty directory
   await Deno.mkdir(emptyDir)
-  console.log(`Directory exists: ${await Deno.stat(emptyDir).then(() => true).catch(() => false)}`)
+  console.log(
+    `Directory exists: ${await Deno.stat(emptyDir).then(() => true).catch(() =>
+      false
+    )}`,
+  )
 
   // Testing with direct path to empty directory
   await assertRejects(
@@ -143,13 +159,20 @@ Deno.test('findPackageFromPath - handles JSONC files with comments', async () =>
   await ensureDir(tempDir)
 
   await Deno.writeTextFile(jsonCPath, jsonWithComments)
-  console.log(`File exists: ${await Deno.stat(jsonCPath).then(() => true).catch(() => false)}`)
+  console.log(
+    `File exists: ${await Deno.stat(jsonCPath).then(() => true).catch(() =>
+      false
+    )}`,
+  )
 
   const packageData = await findPackageFromPath(jsonCPath)
 
   assertEquals(packageData.name, 'test-jsonc-package')
   assertEquals(packageData.version, '2.0.0')
-  assertEquals((packageData.exports as Record<string, unknown>)?.['.'], './mod.ts')
+  assertEquals(
+    (packageData.exports as Record<string, unknown>)?.['.'],
+    './mod.ts',
+  )
 })
 
 Deno.test('findPackageFromPath - handles missing optional fields', async () => {
@@ -161,7 +184,11 @@ Deno.test('findPackageFromPath - handles missing optional fields', async () => {
   await ensureDir(tempDir)
 
   await Deno.writeTextFile(minimalPath, JSON.stringify(minimalPackage))
-  console.log(`File exists: ${await Deno.stat(minimalPath).then(() => true).catch(() => false)}`)
+  console.log(
+    `File exists: ${await Deno.stat(minimalPath).then(() => true).catch(() =>
+      false
+    )}`,
+  )
 
   const packageData = await findPackageFromPath(minimalPath)
 
@@ -175,7 +202,8 @@ Deno.test('findPackageFromPath - handles "remote" URLs correctly', async () => {
 
   // Define response handlers for various URL patterns
   const mockHandlers: Record<string, () => Response> = {
-    'HEAD:https://example.com/remote-package.json': () => new Response('', { status: 200 }),
+    'HEAD:https://example.com/remote-package.json': () =>
+      new Response('', { status: 200 }),
     'GET:https://example.com/remote-package.json': () =>
       new Response(
         JSON.stringify({
@@ -203,7 +231,9 @@ Deno.test('findPackageFromPath - handles "remote" URLs correctly', async () => {
   try {
     globalThis.fetch = createMockFetch(mockHandlers)
 
-    const packageData = await findPackageFromPath('https://example.com/remote-package.json')
+    const packageData = await findPackageFromPath(
+      'https://example.com/remote-package.json',
+    )
 
     assertEquals(packageData.name, 'remote-package')
     assertEquals(packageData.version, '3.0.0')
@@ -216,7 +246,8 @@ Deno.test('findPackageFromPath - traverses up URL structure to find package file
   const originalFetch = globalThis.fetch
 
   const mockHandlers: Record<string, () => Response> = {
-    'HEAD:https://example.com/package.json': () => new Response('', { status: 200 }),
+    'HEAD:https://example.com/package.json': () =>
+      new Response('', { status: 200 }),
     'GET:https://example.com/package.json': () =>
       new Response(
         JSON.stringify({
@@ -230,7 +261,9 @@ Deno.test('findPackageFromPath - traverses up URL structure to find package file
   try {
     globalThis.fetch = createMockFetch(mockHandlers)
 
-    const packageData = await findPackageFromPath('https://example.com/subdir/nested/some-file.ts')
+    const packageData = await findPackageFromPath(
+      'https://example.com/subdir/nested/some-file.ts',
+    )
 
     assertEquals(packageData.name, 'parent-package')
     assertEquals(packageData.version, '1.0.0')
@@ -249,7 +282,10 @@ Deno.test('findPackageFromPath - handles symlinks correctly', async () => {
     version: '2.0.0',
   }
   const symlinkPackagePath = join(packageDir, 'package.json')
-  await Deno.writeTextFile(symlinkPackagePath, JSON.stringify(symlinkPackageJson))
+  await Deno.writeTextFile(
+    symlinkPackagePath,
+    JSON.stringify(symlinkPackageJson),
+  )
 
   const symlinkDir = join(tempDir, 'symlink-dir')
 
@@ -294,13 +330,17 @@ Deno.test('findPackagePathFromPath - traverses local directory structure to find
 Deno.test('findPackagePathFromPath - handles remote URLs and traverses up correctly', async () => {
   const originalFetch = globalThis.fetch
   const mockHandlers: Record<string, () => Response> = {
-    'HEAD:https://example.com/deep/nested/package.json': () => new Response('', { status: 404 }),
-    'HEAD:https://example.com/deep/package.json': () => new Response('', { status: 200 }),
+    'HEAD:https://example.com/deep/nested/package.json': () =>
+      new Response('', { status: 404 }),
+    'HEAD:https://example.com/deep/package.json': () =>
+      new Response('', { status: 200 }),
   }
 
   try {
     globalThis.fetch = createMockFetch(mockHandlers)
-    const foundPath = await findPackagePathFromPath('https://example.com/deep/nested/code.ts')
+    const foundPath = await findPackagePathFromPath(
+      'https://example.com/deep/nested/code.ts',
+    )
     assertEquals(foundPath, 'https://example.com/deep/package.json')
   } finally {
     globalThis.fetch = originalFetch
@@ -316,7 +356,11 @@ Deno.test('findPackagePathFromPath - converts file URLs to local paths correctly
 
   // Ensure the file exists before testing
   console.log(`Testing file URL conversion with package at: ${packagePath}`)
-  console.log(`File exists: ${await Deno.stat(packagePath).then(() => true).catch(() => false)}`)
+  console.log(
+    `File exists: ${await Deno.stat(packagePath).then(() => true).catch(() =>
+      false
+    )}`,
+  )
 
   // Convert to file URL with three forward slashes for absolute paths
   const fileUrl = `file:///${packagePath.replace(/^\//, '')}`
@@ -346,7 +390,11 @@ Deno.test('findPackagePathFromPath - traverses down from the current directory w
 
   // Test downward traversal from the base directory
   const foundPath = await findPackagePathFromPath(baseDir, undefined, false)
-  assertEquals(foundPath, subPackagePath, 'Should find package.json in subdirectory')
+  assertEquals(
+    foundPath,
+    subPackagePath,
+    'Should find package.json in subdirectory',
+  )
 })
 
 Deno.test('findPackagePathFromPath - respects maxDepth when traversing down', async () => {
@@ -367,11 +415,21 @@ Deno.test('findPackagePathFromPath - respects maxDepth when traversing down', as
   const level2PackagePath = join(level2, 'package.json')
   const level4PackagePath = join(level4, 'package.json')
 
-  await Deno.writeTextFile(level2PackagePath, JSON.stringify({ name: 'level2-package' }))
-  await Deno.writeTextFile(level4PackagePath, JSON.stringify({ name: 'level4-package' }))
+  await Deno.writeTextFile(
+    level2PackagePath,
+    JSON.stringify({ name: 'level2-package' }),
+  )
+  await Deno.writeTextFile(
+    level4PackagePath,
+    JSON.stringify({ name: 'level4-package' }),
+  )
 
   // Test with default maxDepth (3), which should find level2 but not level4
-  const foundWithDefaultDepth = await findPackagePathFromPath(baseDir, undefined, false)
+  const foundWithDefaultDepth = await findPackagePathFromPath(
+    baseDir,
+    undefined,
+    false,
+  )
   assertEquals(
     foundWithDefaultDepth,
     level2PackagePath,
@@ -379,7 +437,12 @@ Deno.test('findPackagePathFromPath - respects maxDepth when traversing down', as
   )
 
   // Test with higher maxDepth (4), which should find level4
-  const foundWithHigherDepth = await findPackagePathFromPath(baseDir, undefined, false, 4)
+  const foundWithHigherDepth = await findPackagePathFromPath(
+    baseDir,
+    undefined,
+    false,
+    4,
+  )
   assertEquals(
     foundWithHigherDepth,
     level2PackagePath,
@@ -387,7 +450,12 @@ Deno.test('findPackagePathFromPath - respects maxDepth when traversing down', as
   )
 
   // Test with higher maxDepth but starting from level3
-  const foundFromLevel3 = await findPackagePathFromPath(level3, undefined, false, 4)
+  const foundFromLevel3 = await findPackagePathFromPath(
+    level3,
+    undefined,
+    false,
+    4,
+  )
   assertEquals(
     foundFromLevel3,
     level4PackagePath,
@@ -402,11 +470,20 @@ Deno.test('findPackagePathFromPath - explicit upward traversal finds package in 
 
   // Write a new package.json in tempDir
   const upwardPackagePath = join(tempDir, 'upward-test-package.json')
-  await Deno.writeTextFile(upwardPackagePath, JSON.stringify({ name: 'upward-test' }))
+  await Deno.writeTextFile(
+    upwardPackagePath,
+    JSON.stringify({ name: 'upward-test' }),
+  )
 
   // Test with explicit traverseUp = true
-  const customConfigFiles = ['upward-test-package.json'] as unknown as typeof PACKAGE_CONFIG_FILES
-  const foundPath = await findPackagePathFromPath(nestedDir, customConfigFiles, true)
+  const customConfigFiles = [
+    'upward-test-package.json',
+  ] as unknown as typeof PACKAGE_CONFIG_FILES
+  const foundPath = await findPackagePathFromPath(
+    nestedDir,
+    customConfigFiles,
+    true,
+  )
   assertEquals(
     foundPath,
     upwardPackagePath,
@@ -426,12 +503,22 @@ Deno.test('findPackageFromPath - discovers packages with specified traversal dir
   const basePackagePath = join(baseDir, 'package.json')
   const subPackagePath = join(subDir, 'package.json')
 
-  await Deno.writeTextFile(basePackagePath, JSON.stringify({ name: 'base-package' }))
-  await Deno.writeTextFile(subPackagePath, JSON.stringify({ name: 'sub-package' }))
+  await Deno.writeTextFile(
+    basePackagePath,
+    JSON.stringify({ name: 'base-package' }),
+  )
+  await Deno.writeTextFile(
+    subPackagePath,
+    JSON.stringify({ name: 'sub-package' }),
+  )
 
   // Test direct file access (no traversal needed)
   const directResult = await findPackageFromPath(basePackagePath)
-  assertEquals(directResult.name, 'base-package', 'Should read package directly from file path')
+  assertEquals(
+    directResult.name,
+    'base-package',
+    'Should read package directly from file path',
+  )
 
   // Test downward traversal from base directory - should find its own package.json first
   const downwardResult = await findPackageFromPath(baseDir, undefined, false)
@@ -454,7 +541,8 @@ Deno.test('findPackagePathFromPath - handles remote URLs with downward traversal
   const originalFetch = globalThis.fetch
   const mockHandlers: Record<string, () => Response> = {
     // Current directory has package.json
-    'HEAD:https://example.com/current/package.json': () => new Response('', { status: 200 }),
+    'HEAD:https://example.com/current/package.json': () =>
+      new Response('', { status: 200 }),
     'GET:https://example.com/current/package.json': () =>
       new Response(
         JSON.stringify({
@@ -529,8 +617,14 @@ Deno.test('findPackagePathFromPath - respects priority order of config files', a
   )
 
   // Second test: custom order should follow provided sequence
-  const customOrder = ['package.json', 'deno.json'] as unknown as typeof PACKAGE_CONFIG_FILES
-  const customFoundPath = await findPackagePathFromPath(multiConfigDir, customOrder)
+  const customOrder = [
+    'package.json',
+    'deno.json',
+  ] as unknown as typeof PACKAGE_CONFIG_FILES
+  const customFoundPath = await findPackagePathFromPath(
+    multiConfigDir,
+    customOrder,
+  )
   assertEquals(
     customFoundPath,
     join(multiConfigDir, 'package.json'),
@@ -572,7 +666,11 @@ Deno.test('findPackagePathFromPath - skips directories marked as excludable', as
   )
 
   // Test that downward traversal skips the excluded directories
-  const foundPath = await findPackagePathFromPath(skipTestBaseDir, undefined, false)
+  const foundPath = await findPackagePathFromPath(
+    skipTestBaseDir,
+    undefined,
+    false,
+  )
   assertEquals(
     foundPath,
     validPackagePath,
@@ -587,7 +685,11 @@ Deno.test('findPackagePathFromPath - handles non-existent paths gracefully', asy
   // Non-existent absolute path
   const nonExistentPath = join(tempDir, 'does-not-exist', 'some-file.ts')
   // Test with traverseUp = false
-  const downwardResult = await findPackagePathFromPath(nonExistentPath, undefined, false)
+  const downwardResult = await findPackagePathFromPath(
+    nonExistentPath,
+    undefined,
+    false,
+  )
   assertEquals(
     downwardResult,
     '',
@@ -642,8 +744,14 @@ Deno.test('findPackageFromPath - correctly parses and returns all package fields
   // Check nested fields
   const exports = packageData.exports as Record<string, Record<string, string>>
   assertEquals(exports?.['.']?.import, './dist/esm/index.js')
-  assertEquals((packageData.dependencies as Record<string, string>)?.dependency1, '^1.0.0')
-  assertEquals((packageData.engines as Record<string, string>)?.deno, '>= 1.0.0')
+  assertEquals(
+    (packageData.dependencies as Record<string, string>)?.dependency1,
+    '^1.0.0',
+  )
+  assertEquals(
+    (packageData.engines as Record<string, string>)?.deno,
+    '>= 1.0.0',
+  )
 })
 
 /**
@@ -714,10 +822,18 @@ Deno.test('findPackagePathFromPath - respects infinite maxDepth for deeply neste
 
   // Add package.json at the deepest level
   const deepPackagePath = join(currentDir, 'package.json')
-  await Deno.writeTextFile(deepPackagePath, JSON.stringify({ name: `level${depth}-package` }))
+  await Deno.writeTextFile(
+    deepPackagePath,
+    JSON.stringify({ name: `level${depth}-package` }),
+  )
 
   // Test with a specific finite maxDepth that is less than our total depth
-  const limitedDepthResult = await findPackagePathFromPath(baseDir, undefined, false, 5)
+  const limitedDepthResult = await findPackagePathFromPath(
+    baseDir,
+    undefined,
+    false,
+    5,
+  )
   assertEquals(
     limitedDepthResult,
     '',
@@ -725,7 +841,11 @@ Deno.test('findPackagePathFromPath - respects infinite maxDepth for deeply neste
   )
 
   // Test with infinite maxDepth (Number.POSITIVE_INFINITY)
-  const infiniteDepthResult = await findPackagePathFromPath(baseDir, undefined, false)
+  const infiniteDepthResult = await findPackagePathFromPath(
+    baseDir,
+    undefined,
+    false,
+  )
   assertEquals(
     infiniteDepthResult,
     deepPackagePath,
@@ -752,8 +872,14 @@ Deno.test('findPackageFromPath - respects maxDepth when traversing for packages'
   const level2PackagePath = join(nestedDir2, 'package.json')
   const level3PackagePath = join(nestedDir3, 'package.json')
 
-  await Deno.writeTextFile(level2PackagePath, JSON.stringify({ name: 'level2-package', level: 2 }))
-  await Deno.writeTextFile(level3PackagePath, JSON.stringify({ name: 'level3-package', level: 3 }))
+  await Deno.writeTextFile(
+    level2PackagePath,
+    JSON.stringify({ name: 'level2-package', level: 2 }),
+  )
+  await Deno.writeTextFile(
+    level3PackagePath,
+    JSON.stringify({ name: 'level3-package', level: 3 }),
+  )
 
   // Test with limited maxDepth of 1 - should not find any package
   await assertRejects(
@@ -780,10 +906,13 @@ Deno.test('findPackagePathFromPath - respects custom configFiles for remote URLs
   const originalFetch = globalThis.fetch
   const mockHandlers: Record<string, () => Response> = {
     // Standard files should not be found
-    'HEAD:https://example.com/project/deno.json': () => new Response('', { status: 404 }),
-    'HEAD:https://example.com/project/package.json': () => new Response('', { status: 404 }),
+    'HEAD:https://example.com/project/deno.json': () =>
+      new Response('', { status: 404 }),
+    'HEAD:https://example.com/project/package.json': () =>
+      new Response('', { status: 404 }),
     // Custom config file should be found
-    'HEAD:https://example.com/project/custom.config.json': () => new Response('', { status: 200 }),
+    'HEAD:https://example.com/project/custom.config.json': () =>
+      new Response('', { status: 200 }),
     'GET:https://example.com/project/custom.config.json': () =>
       new Response(
         JSON.stringify({
@@ -798,7 +927,9 @@ Deno.test('findPackagePathFromPath - respects custom configFiles for remote URLs
     globalThis.fetch = createMockFetch(mockHandlers)
 
     // Test with custom config files array
-    const customConfigFiles = ['custom.config.json'] as unknown as typeof PACKAGE_CONFIG_FILES
+    const customConfigFiles = [
+      'custom.config.json',
+    ] as unknown as typeof PACKAGE_CONFIG_FILES
     const foundPath = await findPackagePathFromPath(
       'https://example.com/project/src/file.ts',
       customConfigFiles,
@@ -811,8 +942,14 @@ Deno.test('findPackagePathFromPath - respects custom configFiles for remote URLs
     )
 
     // Verify standard config files are not found when not in custom list
-    const notFoundPath = await findPackagePathFromPath('https://example.com/project/src/file.ts')
-    assertEquals(notFoundPath, '', 'Should not find standard config files when they dont exist')
+    const notFoundPath = await findPackagePathFromPath(
+      'https://example.com/project/src/file.ts',
+    )
+    assertEquals(
+      notFoundPath,
+      '',
+      'Should not find standard config files when they dont exist',
+    )
   } finally {
     globalThis.fetch = originalFetch
   }
@@ -837,14 +974,25 @@ Deno.test('findPackagePathFromPath - handles file URLs with downward traversal a
   const level2PackagePath = join(level2, 'package.json')
   const level3PackagePath = join(level3, 'package.json')
 
-  await Deno.writeTextFile(level2PackagePath, JSON.stringify({ name: 'level2-package' }))
-  await Deno.writeTextFile(level3PackagePath, JSON.stringify({ name: 'level3-package' }))
+  await Deno.writeTextFile(
+    level2PackagePath,
+    JSON.stringify({ name: 'level2-package' }),
+  )
+  await Deno.writeTextFile(
+    level3PackagePath,
+    JSON.stringify({ name: 'level3-package' }),
+  )
 
   // Convert base directory to file URL
   const baseFileUrl = `file:///${baseDir.replace(/^\//, '')}`
 
   // Test with maxDepth = 2 (should find level2 package)
-  const foundWithDepth2 = await findPackagePathFromPath(baseFileUrl, undefined, false, 2)
+  const foundWithDepth2 = await findPackagePathFromPath(
+    baseFileUrl,
+    undefined,
+    false,
+    2,
+  )
   assertEquals(
     foundWithDepth2,
     level2PackagePath,
@@ -852,11 +1000,24 @@ Deno.test('findPackagePathFromPath - handles file URLs with downward traversal a
   )
 
   // Test with maxDepth = 1 (should not find any package)
-  const foundWithDepth1 = await findPackagePathFromPath(baseFileUrl, undefined, false, 1)
-  assertEquals(foundWithDepth1, '', 'Should not find any package when maxDepth is 1')
+  const foundWithDepth1 = await findPackagePathFromPath(
+    baseFileUrl,
+    undefined,
+    false,
+    1,
+  )
+  assertEquals(
+    foundWithDepth1,
+    '',
+    'Should not find any package when maxDepth is 1',
+  )
 
   // Test with infinite maxDepth (should find level2 package first)
-  const foundWithInfiniteDepth = await findPackagePathFromPath(baseFileUrl, undefined, false)
+  const foundWithInfiniteDepth = await findPackagePathFromPath(
+    baseFileUrl,
+    undefined,
+    false,
+  )
   assertEquals(
     foundWithInfiniteDepth,
     level2PackagePath,
@@ -870,7 +1031,8 @@ Deno.test('findPackagePathFromPath - handles file URLs with downward traversal a
 Deno.test('findPackageFromPath - handles invalid JSON from remote URLs', async () => {
   const originalFetch = globalThis.fetch
   const mockHandlers: Record<string, () => Response> = {
-    'HEAD:https://example.com/invalid-package.json': () => new Response('', { status: 200 }),
+    'HEAD:https://example.com/invalid-package.json': () =>
+      new Response('', { status: 200 }),
     'GET:https://example.com/invalid-package.json': () =>
       new Response(
         `{
@@ -922,7 +1084,10 @@ Deno.test('findPackageFromPath - handles malformed exports field', async () => {
     await Deno.writeTextFile(packagePath, JSON.stringify(packageData))
 
     const result = await findPackageFromPath(packagePath)
-    assertExists(result.exports, `exports field should be present in ${testName}`)
+    assertExists(
+      result.exports,
+      `exports field should be present in ${testName}`,
+    )
     assertEquals(
       result.exports,
       packageData.exports,
@@ -949,7 +1114,11 @@ Deno.test('findPackageFromPath - handles skipped directory as initial path', asy
   )
 
   // Test with node_modules as initial path and traverseUp=false
-  const packageData = await findPackageFromPath(nodeModulesDir, undefined, false)
+  const packageData = await findPackageFromPath(
+    nodeModulesDir,
+    undefined,
+    false,
+  )
   assertEquals(
     packageData.name,
     'node-modules-package',
@@ -982,7 +1151,11 @@ Deno.test('findPackageFromPath - handles skipped directory as initial path', asy
   )
 
   // Test downward traversal from node_modules - should find nested package but skip nested node_modules
-  const nestedResult = await findPackageFromPath(nodeModulesDir, undefined, false)
+  const nestedResult = await findPackageFromPath(
+    nodeModulesDir,
+    undefined,
+    false,
+  )
   assertEquals(
     nestedResult.name,
     'node-modules-package',
@@ -1004,7 +1177,10 @@ Deno.test('getMainExportPath - correctly resolves path to main export', async ()
   }
 
   const exportsPackagePath = join(tempDir, 'exports-package.json')
-  await Deno.writeTextFile(exportsPackagePath, JSON.stringify(packageWithExports))
+  await Deno.writeTextFile(
+    exportsPackagePath,
+    JSON.stringify(packageWithExports),
+  )
 
   // Test resolving the main export path
   const mainExportPath = await getMainExportPath(exportsPackagePath)
@@ -1070,7 +1246,10 @@ Deno.test('getMainExportPath - handles complex conditional exports', async () =>
   }
 
   const complexExportsPath = join(tempDir, 'complex-exports-package.json')
-  await Deno.writeTextFile(complexExportsPath, JSON.stringify(packageWithComplexExports))
+  await Deno.writeTextFile(
+    complexExportsPath,
+    JSON.stringify(packageWithComplexExports),
+  )
 
   // Test that appropriate error is thrown
   await assertRejects(

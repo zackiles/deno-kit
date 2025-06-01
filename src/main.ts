@@ -43,7 +43,8 @@ const AVAILABLE_COMMANDS = {
   version: (await import('./commands/version.ts')).default,
   remove: (await import('./commands/remove.ts')).default,
   reset: (await import('./commands/reset.ts')).default,
-  template: (await import('./commands/template.ts')).default,
+  uninstall: (await import('./commands/uninstall.ts')).default,
+  //template: (await import('./commands/template.ts')).default,
 }
 
 // Remove any commands that match DENO_KIT_DISABLED_COMMANDS

@@ -8,7 +8,11 @@
 
 import logger from './utils/logger.ts'
 import { getGitUserEmail, getGitUserName } from './workspace/workspace.ts'
-import { extractProjectName, extractScope, isValidPackageName } from './utils/package-info.ts'
+import {
+  extractProjectName,
+  extractScope,
+  isValidPackageName,
+} from './utils/package-info.ts'
 import type { TemplateValues } from './types.ts'
 import { promptSelect } from '@std/cli/unstable-prompt-select'
 import { getConfig } from './config.ts'
@@ -123,7 +127,10 @@ function createPromptConfig(context: {
 /**
  * Get user input for a prompt
  */
-async function promptUser(promptText: string, defaultValue: string): Promise<string> {
+async function promptUser(
+  promptText: string,
+  defaultValue: string,
+): Promise<string> {
   const promptWithDefault = `${promptText} [${defaultValue}]: `
   logger.print(promptWithDefault)
 
@@ -136,7 +143,8 @@ async function promptUser(promptText: string, defaultValue: string): Promise<str
   const bytesRead = await Deno.stdin.read(inputBuffer)
   return bytesRead === null
     ? defaultValue
-    : new TextDecoder().decode(inputBuffer.subarray(0, bytesRead)).trim() || defaultValue
+    : new TextDecoder().decode(inputBuffer.subarray(0, bytesRead)).trim() ||
+      defaultValue
 }
 
 /**
@@ -146,8 +154,12 @@ export async function getTemplateValues(): Promise<TemplateValues> {
   const values: Record<string, string> = {}
 
   const initialContext = {
-    PACKAGE_AUTHOR_NAME: await getGitUserName({ cwd: config.DENO_KIT_WORKSPACE_PATH }),
-    PACKAGE_AUTHOR_EMAIL: await getGitUserEmail({ cwd: config.DENO_KIT_WORKSPACE_PATH }),
+    PACKAGE_AUTHOR_NAME: await getGitUserName({
+      cwd: config.DENO_KIT_WORKSPACE_PATH,
+    }),
+    PACKAGE_AUTHOR_EMAIL: await getGitUserEmail({
+      cwd: config.DENO_KIT_WORKSPACE_PATH,
+    }),
     PACKAGE_SCOPE: '',
   }
   logger.debug('initialContext', initialContext)
@@ -176,7 +188,10 @@ export async function getTemplateValues(): Promise<TemplateValues> {
   // Update context with derived scope
   const derivedScope = (prompts.PACKAGE_SCOPE as DerivedConfig).getValue(values)
   const scopeWithoutAt = derivedScope.replace('@', '')
-  const updatedPrompts = createPromptConfig({ ...initialContext, PACKAGE_SCOPE: scopeWithoutAt })
+  const updatedPrompts = createPromptConfig({
+    ...initialContext,
+    PACKAGE_SCOPE: scopeWithoutAt,
+  })
 
   // Process all remaining values
   for (const [key, prompt] of Object.entries(updatedPrompts)) {
@@ -192,7 +207,9 @@ export async function getTemplateValues(): Promise<TemplateValues> {
     // Handle select prompts
     if ('select' in prompt && prompt.select) {
       // Use config value from environment variable if available
-      const configValue = prompt.envKey ? getTemplateValueFromConfig(prompt.envKey) : undefined
+      const configValue = prompt.envKey
+        ? getTemplateValueFromConfig(prompt.envKey)
+        : undefined
       if (configValue) {
         values[key] = configValue
         continue

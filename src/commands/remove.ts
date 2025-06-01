@@ -13,7 +13,9 @@ const commandRoute: CommandRouteDefinition = {
 }
 
 async function command(): Promise<void> {
-  logger.debug(`Removing Deno-Kit from workspace: ${config.DENO_KIT_WORKSPACE_PATH}`)
+  logger.debug(
+    `Removing Deno-Kit from workspace: ${config.DENO_KIT_WORKSPACE_PATH}`,
+  )
 
   const packageInfo = await findPackagePathFromPath(
     config.DENO_KIT_WORKSPACE_PATH,
@@ -22,9 +24,13 @@ async function command(): Promise<void> {
 
   if (packageInfo) {
     await Deno.remove(packageInfo)
-    logger.info(`Removed Deno-Kit from workspace: ${config.DENO_KIT_WORKSPACE_PATH}`)
+    logger.info(
+      `Removed Deno-Kit from workspace: ${config.DENO_KIT_WORKSPACE_PATH}`,
+    )
   } else {
-    throw new Error(`Deno-Kit not found in workspace: ${config.DENO_KIT_WORKSPACE_PATH}`)
+    throw new Error(
+      `Deno-Kit not found in workspace: ${config.DENO_KIT_WORKSPACE_PATH}`,
+    )
   }
 }
 

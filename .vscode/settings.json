@@ -58,6 +58,7 @@
   ],
   "cSpell.words": [
     "agentic",
+    "anthropics",
     "asynciterable",
     "dbus",
     "dconf",
@@ -67,6 +68,7 @@
     "dotenv",
     "fseventsd",
     "hiberfil",
+    "hostnames",
     "hypermix",
     "Iles",
     "keyrings",
@@ -81,6 +83,7 @@
     "scaffolder",
     "somevalue",
     "swapfile",
+    "testdata",
     "testuser",
     "tftpboot",
     "traceparent",

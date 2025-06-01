@@ -10,7 +10,9 @@ const CLI_PATH = join(dirname(fromFileUrl(import.meta.url)), '../src/main.ts')
  * @param args Arguments to pass to the CLI
  * @returns Promise containing the output of the command
  */
-async function runCLI(args: string[] = []): Promise<{ output: string; success: boolean }> {
+async function runCLI(
+  args: string[] = [],
+): Promise<{ output: string; success: boolean }> {
   const command = new Deno.Command(Deno.execPath(), {
     args: ['run', '--allow-read', '--allow-env', CLI_PATH, ...args],
     stdout: 'piped',

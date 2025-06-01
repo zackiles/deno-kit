@@ -73,7 +73,9 @@ function assertDenoKitConfig(config: unknown): config is DenoKitConfig {
 
   if (missingKeys.length > 0) {
     throw new Error(
-      `Invalid configuration: missing or invalid required fields:\n${missingKeys.join('\n')}`,
+      `Invalid configuration: missing or invalid required fields:\n${
+        missingKeys.join('\n')
+      }`,
     )
   }
 

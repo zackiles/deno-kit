@@ -99,7 +99,9 @@ export class WorkspaceBackups {
     if (this.#backupsPath) {
       // Reuse existing backupsPath if set
       if (!await exists(this.#backupsPath)) {
-        throw new Error(`Backup path set but does not exist: ${this.#backupsPath}`)
+        throw new Error(
+          `Backup path set but does not exist: ${this.#backupsPath}`,
+        )
       }
       backupBasePath = this.#backupsPath
     } else {
@@ -113,7 +115,9 @@ export class WorkspaceBackups {
 
     // Security check for banned directory
     if (await isBannedDirectory(backupBasePath)) {
-      throw new Error(`Cannot create backup in banned directory: ${backupBasePath}`)
+      throw new Error(
+        `Cannot create backup in banned directory: ${backupBasePath}`,
+      )
     }
 
     await ensureDir(backupBasePath)
@@ -138,7 +142,10 @@ export class WorkspaceBackups {
 
         try {
           await ensureDir(parentDir)
-          await copy(path, backupPath, { preserveTimestamps: true, overwrite: true })
+          await copy(path, backupPath, {
+            preserveTimestamps: true,
+            overwrite: true,
+          })
           backupFilesMap.set(backupPath, content)
         } catch (error) {
           this.logger.warn(
@@ -156,7 +163,9 @@ export class WorkspaceBackups {
 
     // Update backupsPath if we have backup files to ensure we use the common base path
     if (backupFilesMap.size > 0) {
-      this.#backupsPath = await getMostCommonBasePath(Array.from(backupFilesMap.keys()))
+      this.#backupsPath = await getMostCommonBasePath(
+        Array.from(backupFilesMap.keys()),
+      )
     }
 
     return backupFilesMap
@@ -171,24 +180,32 @@ export class WorkspaceBackups {
    * @throws Error if copying files fails
    */
   async reset(): Promise<void> {
-    const copyOperations = [...this.#backups.entries()].map(async ([backupPath, _]) => {
-      try {
-        // Get the relative path from the backup directory to create the same structure in workspace
-        const relativePath = backupPath.substring(this.#backupsPath.length)
-        // Create a clean, platform-independent path by using join
-        const workspacePath = join(this.workspacePath, relativePath.replace(/^\//, ''))
-        // Ensure parent directory exists
-        await ensureDir(join(workspacePath, '..'))
-        // Copy the file with timestamps preserved
-        await copy(backupPath, workspacePath, { preserveTimestamps: true, overwrite: true })
-      } catch (error) {
-        throw new Error(
-          `Failed to reset file ${backupPath}: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-        )
-      }
-    })
+    const copyOperations = [...this.#backups.entries()].map(
+      async ([backupPath, _]) => {
+        try {
+          // Get the relative path from the backup directory to create the same structure in workspace
+          const relativePath = backupPath.substring(this.#backupsPath.length)
+          // Create a clean, platform-independent path by using join
+          const workspacePath = join(
+            this.workspacePath,
+            relativePath.replace(/^\//, ''),
+          )
+          // Ensure parent directory exists
+          await ensureDir(join(workspacePath, '..'))
+          // Copy the file with timestamps preserved
+          await copy(backupPath, workspacePath, {
+            preserveTimestamps: true,
+            overwrite: true,
+          })
+        } catch (error) {
+          throw new Error(
+            `Failed to reset file ${backupPath}: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          )
+        }
+      },
+    )
 
     try {
       // Execute all copy operations in parallel
@@ -202,7 +219,9 @@ export class WorkspaceBackups {
       this.#backups = new Map()
     } catch (error) {
       throw new Error(
-        `Reset operation failed: ${error instanceof Error ? error.message : String(error)}`,
+        `Reset operation failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
       )
     }
   }

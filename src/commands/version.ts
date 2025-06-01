@@ -15,7 +15,9 @@ async function command(): Promise<void> {
     logger.print(version)
   } catch (err) {
     throw new Error(
-      `Failed to retrieve version information: ${err instanceof Error ? err.message : String(err)}`,
+      `Failed to retrieve version information: ${
+        err instanceof Error ? err.message : String(err)
+      }`,
     )
   }
 }

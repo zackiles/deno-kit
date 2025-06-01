@@ -243,7 +243,9 @@ function createTextTable(rows: string[][], headers?: string[]): string {
 
   // Format rows
   const formattedRows = allRows.map((row) => {
-    return row.map((cell, i) => padString(String(cell), columnWidths[i])).join(' | ')
+    return row.map((cell, i) => padString(String(cell), columnWidths[i])).join(
+      ' | ',
+    )
   })
 
   // Add separator after headers if provided
@@ -276,7 +278,9 @@ function formatKeyValue(obj: Record<string, unknown>, options: {
   const lines: string[] = []
 
   for (const [key, value] of Object.entries(obj)) {
-    if (!includeEmpty && (value === undefined || value === null || value === '')) {
+    if (
+      !includeEmpty && (value === undefined || value === null || value === '')
+    ) {
       continue
     }
 

@@ -1,0 +1,37 @@
+# General
+*.ts
+test/
+docs/
+plugins/
+assets/
+logo.png
+logo.ico
+*.test.js
+
+# Development files
+.github/
+.cursor/
+.vscode/
+.git/
+.hypermix/
+.ai/
+NPM_PUBLISHING.md
+RELEASING.md
+CONTRIBUTING.md
+CODE_OF_CONDUCT.md
+
+# Build artifacts that shouldn't be published
+bin/*
+!bin/.gitkeep
+
+# Config files
+deno.json
+deno.jsonc
+deno.lock
+tsconfig.json
+.gitignore
+.gitattributes
+.env
+biome.json
+hypermix.config.json
+repomix.config.json

@@ -1,0 +1,61 @@
+name: Release to JSR
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+  workflow_run:
+    workflows: ["Test Deno"]
+    types:
+      - completed
+    branches:
+      - main
+
+jobs:
+  publish-jsr:
+    if: >
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+          cache: true
+
+      - name: Log workflow context
+        run: |
+          echo "Publishing to JSR for tag: ${GITHUB_REF#refs/tags/}"
+          echo "Commit SHA: ${{ github.sha }}"
+          echo "Runner OS: ${{ runner.os }}"
+          echo "Triggered by: ${{ github.event_name }}"
+          if [ "${{ github.event_name }}" == "workflow_run" ]; then
+            echo "After successful Test Deno workflow"
+          fi
+
+      - name: Verify deno.jsonc exists
+        run: |
+          if [ ! -f "deno.jsonc" ]; then
+            echo "ERROR: deno.jsonc not found in repository root"
+            exit 1
+          fi
+          echo "✓ Found deno.jsonc"
+          echo "Package info:"
+          cat deno.jsonc | grep -E '"name"|"version"' || true
+
+      - name: Publish to JSR
+        run: |
+          echo "Publishing to JSR registry..."
+          npx jsr --no-check publish
+          echo "✓ Successfully published to JSR"

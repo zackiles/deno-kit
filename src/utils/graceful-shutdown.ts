@@ -132,12 +132,17 @@ class GracefulShutdown {
     if (this.isShuttingDown) return
     this.isShuttingDown = true
 
-    const executeHandler = async (handler: () => void | Promise<void>, handlerType: string) => {
+    const executeHandler = async (
+      handler: () => void | Promise<void>,
+      handlerType: string,
+    ) => {
       try {
         await handler()
       } catch (err) {
         this.logger.warn(
-          `Error in ${handlerType} handler: ${err instanceof Error ? err.message : String(err)}`,
+          `Error in ${handlerType} handler: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
         )
       }
     }
@@ -148,7 +153,9 @@ class GracefulShutdown {
     }
 
     await Promise.all(
-      this.cleanupHandlers.map((handler) => executeHandler(handler, 'shutdown')),
+      this.cleanupHandlers.map((handler) =>
+        executeHandler(handler, 'shutdown')
+      ),
     )
 
     Deno.exit(isPanic ? 1 : 0)

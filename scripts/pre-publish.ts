@@ -49,6 +49,9 @@ try {
   console.log('\nPre-publish checks passed successfully!')
   Deno.exit(0)
 } catch (error) {
-  console.error('\nAn unexpected error occurred during pre-publish checks:', error)
+  console.error(
+    '\nAn unexpected error occurred during pre-publish checks:',
+    error,
+  )
   Deno.exit(1)
 }

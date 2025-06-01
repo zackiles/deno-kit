@@ -139,7 +139,9 @@ const resolveTestPath = async (testName: string) => {
   }
 
   // If no test file found, show helpful error
-  console.error('Error: Test file, directory, or glob pattern not found. Tried:')
+  console.error(
+    'Error: Test file, directory, or glob pattern not found. Tried:',
+  )
   for (const path of possiblePaths) {
     console.error(`  - ${path}`)
   }

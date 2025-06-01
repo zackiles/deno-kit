@@ -73,12 +73,16 @@ class GitClient {
 
   async stageChanges(): Promise<void> {
     const result = await this.execute(['add', '.'])
-    if (!result.success) throw new TagError(`Failed to stage changes: ${result.stderr}`)
+    if (!result.success) {
+      throw new TagError(`Failed to stage changes: ${result.stderr}`)
+    }
   }
 
   async commitChanges(message: string): Promise<void> {
     const result = await this.execute(['commit', '-m', message])
-    if (!result.success) throw new TagError(`Failed to commit changes: ${result.stderr}`)
+    if (!result.success) {
+      throw new TagError(`Failed to commit changes: ${result.stderr}`)
+    }
   }
 
   // Remote operations
@@ -128,7 +132,9 @@ class GitClient {
 
   async deleteLocalTag(tag: string): Promise<void> {
     const result = await this.execute(['tag', '-d', tag])
-    if (!result.success) throw new TagError(`Failed to delete local tag: ${result.stderr}`)
+    if (!result.success) {
+      throw new TagError(`Failed to delete local tag: ${result.stderr}`)
+    }
   }
 
   async deleteRemoteTag(tag: string): Promise<boolean> {
@@ -138,12 +144,16 @@ class GitClient {
 
   async createTag(tag: string): Promise<void> {
     const result = await this.execute(['tag', tag])
-    if (!result.success) throw new TagError(`Failed to create tag: ${result.stderr}`)
+    if (!result.success) {
+      throw new TagError(`Failed to create tag: ${result.stderr}`)
+    }
   }
 
   async pushTag(tag: string): Promise<void> {
     const result = await this.execute(['push', 'origin', tag])
-    if (!result.success) throw new TagError(`Failed to push tag: ${result.stderr}`)
+    if (!result.success) {
+      throw new TagError(`Failed to push tag: ${result.stderr}`)
+    }
   }
 }
 
@@ -160,7 +170,9 @@ const validateSemVerIncrement = ({ tag, latestTag }: TagContext): void => {
   if (!latestTag) return
 
   if (!latestTag.startsWith('v') || !semver.canParse(latestTag.substring(1))) {
-    console.warn(`⚠️ Could not parse latest tag '${latestTag}' as SemVer. Proceeding with caution.`)
+    console.warn(
+      `⚠️ Could not parse latest tag '${latestTag}' as SemVer. Proceeding with caution.`,
+    )
     return
   }
 
@@ -177,7 +189,9 @@ const validateSemVerIncrement = ({ tag, latestTag }: TagContext): void => {
   const comparison = semver.compare(targetSemVer, latestSemVer)
 
   if (comparison < 0) {
-    throw new TagError(`Target tag '${tag}' is older than the latest tag '${latestTag}'.`)
+    throw new TagError(
+      `Target tag '${tag}' is older than the latest tag '${latestTag}'.`,
+    )
   }
 
   if (comparison === 0 && tag !== latestTag) {
@@ -188,14 +202,20 @@ const validateSemVerIncrement = ({ tag, latestTag }: TagContext): void => {
 }
 
 const isValidCommitMessage = (message: string): boolean => {
-  const commitRegex = /^(feat|fix|chore|ci|docs|style|refactor|perf|test)(\(.+\))?!?: .+$/
+  const commitRegex =
+    /^(feat|fix|chore|ci|docs|style|refactor|perf|test)(\(.+\))?!?: .+$/
   return commitRegex.test(message.trim())
 }
 
 // User interface helpers
-const promptUser = async (promptText: string, defaultValue?: string): Promise<string> => {
+const promptUser = async (
+  promptText: string,
+  defaultValue?: string,
+): Promise<string> => {
   if (defaultValue) {
-    console.log(`${promptText} (Default: "${defaultValue}", press Enter to use default)`)
+    console.log(
+      `${promptText} (Default: "${defaultValue}", press Enter to use default)`,
+    )
   } else {
     console.log(promptText)
   }
@@ -224,7 +244,10 @@ const log = {
 }
 
 // Workflow steps
-const processWorkingDirectory = async (git: GitClient, tagValue: string): Promise<boolean> => {
+const processWorkingDirectory = async (
+  git: GitClient,
+  tagValue: string,
+): Promise<boolean> => {
   log.process('Checking git status...')
   const status = await git.getStatus()
 
@@ -298,9 +321,13 @@ const fetchAndValidateExistingTags = async (
       const comparison = semver.compare(targetSemVer, latestSemVer)
 
       if (comparison === 0) {
-        log.info(`ℹ️ Target tag '${tag}' matches the latest tag. Will overwrite.`)
+        log.info(
+          `ℹ️ Target tag '${tag}' matches the latest tag. Will overwrite.`,
+        )
       } else {
-        log.success(`Target tag '${tag}' is newer than latest tag '${latestTag}'.`)
+        log.success(
+          `Target tag '${tag}' is newer than latest tag '${latestTag}'.`,
+        )
       }
     }
   } else {

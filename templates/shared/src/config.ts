@@ -29,21 +29,21 @@
  * ```
  */
 
-import { load as loadEnv } from "@std/dotenv";
-import { parseArgs } from "@std/cli";
-import { exists } from "@std/fs";
-import { dirname, fromFileUrl, join } from "@std/path";
-import type { LogLevel } from "./utils/logger.ts";
+import { load as loadEnv } from '@std/dotenv'
+import { parseArgs } from '@std/cli'
+import { exists } from '@std/fs'
+import { dirname, fromFileUrl, join } from '@std/path'
+import type { LogLevel } from './utils/logger.ts'
 
 /**
  * Interface for a logger object compatible with the standard Console API.
  */
 interface Logger {
-  log(...args: unknown[]): void;
-  info(...args: unknown[]): void;
-  warn(...args: unknown[]): void;
-  error(...args: unknown[]): void;
-  debug(...args: unknown[]): void;
+  log(...args: unknown[]): void
+  info(...args: unknown[]): void
+  warn(...args: unknown[]): void
+  error(...args: unknown[]): void
+  debug(...args: unknown[]): void
 }
 
 /**
@@ -55,41 +55,41 @@ interface Logger {
 type KeyValueConfig =
   | string
   | (() => string | Promise<string>)
-  | Promise<string>;
+  | Promise<string>
 
 /**
  * Represents an object of configuration key-value pairs
  */
-type ConfigRecord = Record<string, KeyValueConfig>;
+type ConfigRecord = Record<string, KeyValueConfig>
 
 // Define interface for the config proxy with proper types for workspace
 interface ConfigProxy {
-  [key: string]: string | LogLevel | undefined;
-  workspace: string;
-  DENO_KIT_LOG_LEVEL?: LogLevel;
-  DENO_ENV: string;
+  [key: string]: string | LogLevel | undefined
+  workspace: string
+  DENO_KIT_LOG_LEVEL?: LogLevel
+  DENO_ENV: string
 }
 
 // Default values - functions/promises will be resolved during initialization
 const DEFAULT_VALUES: ConfigRecord = {
-  DENO_ENV: "development",
+  DENO_ENV: 'development',
   PACKAGE_NAME: getPackageName, // Uncalled async function will be resolved during initialization
   PACKAGE_PATH: getPackagePath, // Uncalled async function will be resolved during initialization
   workspace: Deno.cwd(),
-};
+}
 
-let values: Record<string, string> = {};
-let configProxy: ConfigProxy | null = null;
-let initPromise: Promise<ConfigProxy> | null = null;
-let _internalLogger: Logger = console; // Module-level logger instance
+let values: Record<string, string> = {}
+let configProxy: ConfigProxy | null = null
+let initPromise: Promise<ConfigProxy> | null = null
+let _internalLogger: Logger = console // Module-level logger instance
 
 // Validate a config key (must be a string)
 function validateKey(key: PropertyKey): string {
-  if (typeof key !== "string") {
-    throw new TypeError(`Property name must be a string, got: ${typeof key}`);
+  if (typeof key !== 'string') {
+    throw new TypeError(`Property name must be a string, got: ${typeof key}`)
   }
-  if (key.length === 0) throw new RangeError("Property name cannot be empty");
-  return key;
+  if (key.length === 0) throw new RangeError('Property name cannot be empty')
+  return key
 }
 
 /**
@@ -97,14 +97,14 @@ function validateKey(key: PropertyKey): string {
  */
 function logger(method: keyof Logger, ...args: unknown[]): void {
   // Use the module-level logger instance
-  if (typeof _internalLogger[method] === "function") {
-    _internalLogger[method]("[CONFIG]", ...args);
+  if (typeof _internalLogger[method] === 'function') {
+    _internalLogger[method]('[CONFIG]', ...args)
   } else {
     // Fallback or error if method doesn't exist on custom logger
     console.warn(
       `[CONFIG] Logger method '${method}' not found on provided logger instance. Falling back to console.log.`,
-    );
-    console.log("[CONFIG]", ...args);
+    )
+    console.log('[CONFIG]', ...args)
   }
 }
 
@@ -118,102 +118,100 @@ async function getPackageName(): Promise<string> {
   const extractBaseNameFromString = (
     inputString: string | undefined | null,
   ): string => {
-    if (!inputString) return "";
+    if (!inputString) return ''
     try {
       // Use URL parsing if it contains '://', otherwise treat as simple path
-      const pathSegment = inputString.includes("://")
+      const pathSegment = inputString.includes('://')
         ? new URL(inputString).pathname
-        : inputString;
-      const lastSlash = pathSegment.lastIndexOf("/");
+        : inputString
+      const lastSlash = pathSegment.lastIndexOf('/')
       const filename = lastSlash >= 0
         ? pathSegment.substring(lastSlash + 1)
-        : pathSegment;
+        : pathSegment
       // Remove extension only if a dot exists and it's not the first character
-      const lastDot = filename.lastIndexOf(".");
-      const baseName = (lastDot > 0)
-        ? filename.substring(0, lastDot)
-        : filename;
-      return baseName.trim(); // Trim whitespace just in case
+      const lastDot = filename.lastIndexOf('.')
+      const baseName = (lastDot > 0) ? filename.substring(0, lastDot) : filename
+      return baseName.trim() // Trim whitespace just in case
     } catch (err) {
       // Log specific error for debugging if URL parsing failed
-      if (inputString.includes("://")) {
-        const errorMessage = err instanceof Error ? err.message : String(err);
+      if (inputString.includes('://')) {
+        const errorMessage = err instanceof Error ? err.message : String(err)
         logger(
-          "warn",
+          'warn',
           `Failed to parse URL string [${inputString}] during base name extraction: ${errorMessage}`,
-        );
+        )
       }
-      return ""; // Return empty on any error during extraction
+      return '' // Return empty on any error during extraction
     }
-  };
+  }
 
-  let name = "";
+  let name = ''
 
   try {
     // Attempt 1: Get name from package path
     const packagePath = await getPackagePath().catch((err) => {
-      const errorMessage = err instanceof Error ? err.message : String(err);
+      const errorMessage = err instanceof Error ? err.message : String(err)
       logger(
-        "warn",
+        'warn',
         `Error getting package path: ${errorMessage}. Proceeding to fallbacks.`,
-      );
-      return null; // Allow fallback if getPackagePath rejects
-    });
-    name = extractBaseNameFromString(packagePath);
+      )
+      return null // Allow fallback if getPackagePath rejects
+    })
+    name = extractBaseNameFromString(packagePath)
 
     // Attempt 2: If no name yet, try import.meta.url
     if (!name) {
-      const urlString = import.meta.url;
+      const urlString = import.meta.url
       if (urlString) {
         logger(
-          "warn",
-          "Could not determine valid package name from package path. Trying import.meta.url.",
-        );
-        name = extractBaseNameFromString(urlString);
+          'warn',
+          'Could not determine valid package name from package path. Trying import.meta.url.',
+        )
+        name = extractBaseNameFromString(urlString)
         if (!name) {
-          logger("warn", "Failed to extract name from import.meta.url.");
+          logger('warn', 'Failed to extract name from import.meta.url.')
         }
       } else {
-        logger("warn", "import.meta.url is not available for fallback name.");
+        logger('warn', 'import.meta.url is not available for fallback name.')
       }
     }
   } catch (err) {
     // Catch unexpected errors during the main logic flow
     logger(
-      "error",
+      'error',
       `Unexpected error resolving package name: ${(err as Error).message}.`,
-    );
+    )
     // Attempt fallback from import.meta.url one last time in case of unexpected error
     if (!name && import.meta.url) {
-      name = extractBaseNameFromString(import.meta.url);
+      name = extractBaseNameFromString(import.meta.url)
     }
   }
 
   // Final fallback if all attempts fail or result in an empty string
-  return name || "main_script";
+  return name || 'main_script'
 }
 
 async function getPackagePath(): Promise<string> {
   try {
-    if (!Deno.mainModule) return Deno.cwd();
+    if (!Deno.mainModule) return Deno.cwd()
 
-    const path = Deno.mainModule.startsWith("file:")
+    const path = Deno.mainModule.startsWith('file:')
       ? dirname(fromFileUrl(Deno.mainModule))
-      : dirname(Deno.mainModule);
+      : dirname(Deno.mainModule)
 
     // Verify the path exists
     if (await exists(path)) {
-      return path;
+      return path
     }
-    return Deno.cwd();
+    return Deno.cwd()
   } catch (err) {
     logger(
-      "warn",
+      'warn',
       `Failed to resolve package path: ${
         (err as Error).message
       }. Using current directory instead.`,
-    );
-    return Deno.cwd();
+    )
+    return Deno.cwd()
   }
 }
 
@@ -228,39 +226,39 @@ async function getPackagePath(): Promise<string> {
 async function resolveObjectValues(
   obj: ConfigRecord,
 ): Promise<Record<string, string>> {
-  const result: Record<string, string> = {};
+  const result: Record<string, string> = {}
 
   for (const [key, value] of Object.entries(obj)) {
     try {
-      let resolvedValue: string;
+      let resolvedValue: string
 
-      if (typeof value === "function") {
+      if (typeof value === 'function') {
         // Call the function and await if it returns a promise
-        resolvedValue = await value();
+        resolvedValue = await value()
       } else if (value instanceof Promise) {
         // Await the promise
-        resolvedValue = await value;
+        resolvedValue = await value
       } else {
         // Use the value as is (should be string)
-        resolvedValue = value;
+        resolvedValue = value
       }
 
       // Ensure final value is a string
-      if (typeof resolvedValue !== "string") {
+      if (typeof resolvedValue !== 'string') {
         throw new Error(
           `Resolved value for key '${key}' is not a string (type: ${typeof resolvedValue})`,
-        );
+        )
       }
 
-      result[key] = resolvedValue;
+      result[key] = resolvedValue
     } catch (err) {
       throw new Error(
         `Failed to resolve value for key '${key}': ${(err as Error).message}`,
-      );
+      )
     }
   }
 
-  return result;
+  return result
 }
 
 /**
@@ -268,7 +266,7 @@ async function resolveObjectValues(
  * with direct modification of Deno.env
  */
 function createConfigProxy(): ConfigProxy {
-  if (configProxy) return configProxy;
+  if (configProxy) return configProxy
 
   // Create a handler
   const handler = {
@@ -277,16 +275,16 @@ function createConfigProxy(): ConfigProxy {
       prop: PropertyKey,
     ): string | undefined => {
       try {
-        validateKey(prop);
-        return target[prop as string] ?? Deno.env.get(prop as string);
+        validateKey(prop)
+        return target[prop as string] ?? Deno.env.get(prop as string)
       } catch (err) {
         logger(
-          "error",
+          'error',
           `Error accessing configuration value for ${String(prop)}: ${
             (err as Error).message
           }`,
-        );
-        return undefined; // Return undefined on error
+        )
+        return undefined // Return undefined on error
       }
     },
     set: (
@@ -295,28 +293,28 @@ function createConfigProxy(): ConfigProxy {
       value: unknown,
     ): boolean => {
       try {
-        const key = validateKey(prop);
+        const key = validateKey(prop)
 
         // Ensure value is a string before setting
-        if (typeof value !== "string") {
+        if (typeof value !== 'string') {
           logger(
-            "warn",
+            'warn',
             `Cannot set environment variable ${key} to non-string value: ${typeof value}`,
-          );
-          return false; // Indicate failure for non-string types
+          )
+          return false // Indicate failure for non-string types
         }
 
-        target[key] = value;
-        Deno.env.set(key, value);
-        return true; // Return true on success
+        target[key] = value
+        Deno.env.set(key, value)
+        return true // Return true on success
       } catch (err) {
         logger(
-          "error",
+          'error',
           `Failed to set configuration value for ${String(prop)}: ${
             (err as Error).message
           }`,
-        );
-        return false; // Indicate failure on error
+        )
+        return false // Indicate failure on error
       }
     },
     // Optional: Add other traps like has, deleteProperty if needed, ensuring they update Deno.env
@@ -325,21 +323,21 @@ function createConfigProxy(): ConfigProxy {
       prop: PropertyKey,
     ): boolean => {
       try {
-        const key = validateKey(prop);
+        const key = validateKey(prop)
         if (key in target) {
-          delete target[key];
-          Deno.env.delete(key);
-          return true;
+          delete target[key]
+          Deno.env.delete(key)
+          return true
         }
-        return false; // Property didn't exist
+        return false // Property didn't exist
       } catch (err) {
         logger(
-          "error",
+          'error',
           `Failed to delete configuration value for ${String(prop)}: ${
             (err as Error).message
           }`,
-        );
-        return false;
+        )
+        return false
       }
     },
     has: (
@@ -347,52 +345,52 @@ function createConfigProxy(): ConfigProxy {
       prop: PropertyKey,
     ): boolean => {
       try {
-        const key = validateKey(prop);
-        return key in target || Deno.env.has(key);
+        const key = validateKey(prop)
+        return key in target || Deno.env.has(key)
       } catch {
-        return false; // Invalid key type
+        return false // Invalid key type
       }
     },
     ownKeys: (target: Record<string, string | LogLevel>): string[] => {
       // Combine keys from the target object and Deno.env
-      const targetKeys = Object.keys(target);
-      const envKeys = Object.keys(Deno.env.toObject());
-      return [...new Set([...targetKeys, ...envKeys])];
+      const targetKeys = Object.keys(target)
+      const envKeys = Object.keys(Deno.env.toObject())
+      return [...new Set([...targetKeys, ...envKeys])]
     },
     getOwnPropertyDescriptor: (
       target: Record<string, string | LogLevel>,
       prop: PropertyKey,
     ): PropertyDescriptor | undefined => {
       try {
-        const key = validateKey(prop);
+        const key = validateKey(prop)
         if (key in target) {
           return {
             value: target[key],
             writable: true,
             enumerable: true,
             configurable: true,
-          };
+          }
         }
         // Check Deno.env as fallback
-        const envValue = Deno.env.get(key);
+        const envValue = Deno.env.get(key)
         if (envValue !== undefined) {
           return {
             value: envValue,
             writable: true, // Treat env vars as writable through the proxy
             enumerable: true,
             configurable: true,
-          };
+          }
         }
-        return undefined; // Property not found
+        return undefined // Property not found
       } catch {
-        return undefined; // Invalid key type
+        return undefined // Invalid key type
       }
     },
-  };
+  }
 
   // Create proxy around the final, resolved values
-  configProxy = new Proxy(values, handler) as ConfigProxy;
-  return configProxy;
+  configProxy = new Proxy(values, handler) as ConfigProxy
+  return configProxy
 }
 
 /**
@@ -402,136 +400,136 @@ function createConfigProxy(): ConfigProxy {
 async function initializeConfig(
   overrides?: ConfigRecord,
 ): Promise<ConfigProxy> {
-  logger("debug", "Starting configuration initialization...");
+  logger('debug', 'Starting configuration initialization...')
   // 1. Start with defaults
-  let combinedConfig: ConfigRecord = { ...DEFAULT_VALUES };
-  logger("debug", "Applied default values.");
+  let combinedConfig: ConfigRecord = { ...DEFAULT_VALUES }
+  logger('debug', 'Applied default values.')
 
   // 2. Merge environment variables (lower priority than defaults for matching keys)
   // Env vars should have lower precedence than defaults if keys match
-  combinedConfig = { ...Deno.env.toObject(), ...combinedConfig };
-  logger("debug", "Merged environment variables.");
+  combinedConfig = { ...Deno.env.toObject(), ...combinedConfig }
+  logger('debug', 'Merged environment variables.')
 
   // Helper to load env file and filter empty strings
   const loadAndFilterEnv = async (
     path: string,
   ): Promise<Record<string, string>> => {
-    const rawConfig = await loadEnv({ envPath: path, export: false });
-    const filteredConfig: Record<string, string> = {};
+    const rawConfig = await loadEnv({ envPath: path, export: false })
+    const filteredConfig: Record<string, string> = {}
     for (const [key, value] of Object.entries(rawConfig)) {
-      if (value !== undefined && value !== "") { // Include non-empty and non-undefined values
-        filteredConfig[key] = String(value); // Ensure value is a string
+      if (value !== undefined && value !== '') { // Include non-empty and non-undefined values
+        filteredConfig[key] = String(value) // Ensure value is a string
       }
     }
-    return filteredConfig;
-  };
+    return filteredConfig
+  }
 
   // 3. Load .env file if it exists
   try {
-    const packagePath = await combinedConfig.PACKAGE_PATH; // Resolve package path
-    const defaultEnvPath = typeof packagePath === "string"
-      ? join(packagePath, ".env")
-      : join(Deno.cwd(), ".env");
-    logger("debug", `Checking for default .env file at: ${defaultEnvPath}`);
+    const packagePath = await combinedConfig.PACKAGE_PATH // Resolve package path
+    const defaultEnvPath = typeof packagePath === 'string'
+      ? join(packagePath, '.env')
+      : join(Deno.cwd(), '.env')
+    logger('debug', `Checking for default .env file at: ${defaultEnvPath}`)
     if (await exists(defaultEnvPath)) {
-      logger("debug", "Loading and filtering default .env file...");
-      const defaultEnvConfig = await loadAndFilterEnv(defaultEnvPath); // Use helper
+      logger('debug', 'Loading and filtering default .env file...')
+      const defaultEnvConfig = await loadAndFilterEnv(defaultEnvPath) // Use helper
       // .env overrides env vars/defaults
-      combinedConfig = { ...combinedConfig, ...defaultEnvConfig };
-      logger("debug", "Merged default .env file values.");
+      combinedConfig = { ...combinedConfig, ...defaultEnvConfig }
+      logger('debug', 'Merged default .env file values.')
     }
   } catch (err) {
     logger(
-      "warn",
+      'warn',
       `Failed to check/load default .env file: ${(err as Error).message}`,
-    );
+    )
   }
 
   // 4. Load custom config file if specified via --config
-  let customConfigPath: string | undefined;
+  let customConfigPath: string | undefined
   try {
     const args = parseArgs(Deno.args, {
-      string: ["config"],
-      alias: { c: "config" },
-    });
-    customConfigPath = args.config;
+      string: ['config'],
+      alias: { c: 'config' },
+    })
+    customConfigPath = args.config
 
     if (customConfigPath) {
       logger(
-        "debug",
+        'debug',
         `Checking for custom config file at: ${customConfigPath}`,
-      );
+      )
       if (await exists(customConfigPath)) {
-        logger("debug", "Loading and filtering custom config file...");
-        const customEnvConfig = await loadAndFilterEnv(customConfigPath); // Use helper
+        logger('debug', 'Loading and filtering custom config file...')
+        const customEnvConfig = await loadAndFilterEnv(customConfigPath) // Use helper
         // custom overrides .env/env vars/defaults
-        combinedConfig = { ...combinedConfig, ...customEnvConfig };
-        logger("debug", "Merged custom config file values.");
+        combinedConfig = { ...combinedConfig, ...customEnvConfig }
+        logger('debug', 'Merged custom config file values.')
       } else {
         logger(
-          "warn",
+          'warn',
           `Custom config file specified but not found: ${customConfigPath}`,
-        );
+        )
         // We don't throw an error here, just warn
       }
     }
   } catch (err) {
     logger(
-      "warn",
+      'warn',
       `Failed to parse args or load custom config file: ${
         (err as Error).message
       }`,
-    );
+    )
   }
 
   // 5. Apply overrides (highest priority)
   if (overrides) {
-    combinedConfig = { ...combinedConfig, ...overrides };
-    logger("debug", "Applied overrides.");
+    combinedConfig = { ...combinedConfig, ...overrides }
+    logger('debug', 'Applied overrides.')
   }
 
   // 6. Resolve any dynamic values (functions/promises)
-  logger("debug", "Resolving dynamic values...");
-  const resolvedConfig = await resolveObjectValues(combinedConfig);
-  logger("debug", "Dynamic values resolved.");
+  logger('debug', 'Resolving dynamic values...')
+  const resolvedConfig = await resolveObjectValues(combinedConfig)
+  logger('debug', 'Dynamic values resolved.')
 
   // 7. Handle workspace specifically (use --workspace arg if present, otherwise default)
   try {
     const args = parseArgs(Deno.args, {
-      string: ["workspace"],
-      alias: { w: "workspace" },
-    });
+      string: ['workspace'],
+      alias: { w: 'workspace' },
+    })
     if (args.workspace) {
-      resolvedConfig.workspace = args.workspace;
-      logger("debug", `Workspace set from --workspace arg: ${args.workspace}`);
+      resolvedConfig.workspace = args.workspace
+      logger('debug', `Workspace set from --workspace arg: ${args.workspace}`)
     } else if (!resolvedConfig.workspace) {
       // Fallback if default wasn't set or resolved correctly
-      resolvedConfig.workspace = Deno.cwd();
+      resolvedConfig.workspace = Deno.cwd()
       logger(
-        "debug",
+        'debug',
         `Workspace set to CWD fallback: ${resolvedConfig.workspace}`,
-      );
+      )
     }
   } catch (err) {
     logger(
-      "warn",
+      'warn',
       `Failed to parse --workspace arg: ${(err as Error).message}`,
-    );
-    if (!resolvedConfig.workspace) resolvedConfig.workspace = Deno.cwd(); // Ensure workspace is set
+    )
+    if (!resolvedConfig.workspace) resolvedConfig.workspace = Deno.cwd() // Ensure workspace is set
   }
 
   // 8. Set the final resolved values and update Deno.env
-  values = resolvedConfig;
+  values = resolvedConfig
   for (const [key, value] of Object.entries(values)) {
     // Ensure Deno.env reflects the final resolved state
     // This might overwrite existing env vars if they were overridden
-    Deno.env.set(key, value);
+    Deno.env.set(key, value)
   }
-  logger("debug", "Final configuration values set internally and in Deno.env.");
+  logger('debug', 'Final configuration values set internally and in Deno.env.')
 
   // 9. Create and return the proxy
-  logger("debug", "Creating configuration proxy.");
-  return createConfigProxy();
+  logger('debug', 'Creating configuration proxy.')
+  return createConfigProxy()
 }
 
 /**
@@ -567,71 +565,71 @@ async function loadConfig(
   if (customLogger) {
     // Basic validation: Check if essential methods exist
     const requiredMethods: (keyof Logger)[] = [
-      "log",
-      "info",
-      "warn",
-      "error",
-      "debug",
-    ];
+      'log',
+      'info',
+      'warn',
+      'error',
+      'debug',
+    ]
     const missingMethods = requiredMethods.filter((m) =>
-      typeof customLogger[m] !== "function"
-    );
+      typeof customLogger[m] !== 'function'
+    )
 
     if (missingMethods.length > 0) {
       // Use the default logger to warn about the issue
       logger(
-        "warn",
+        'warn',
         `Provided custom logger is missing required methods: ${
-          missingMethods.join(", ")
+          missingMethods.join(', ')
         }. Using default console logger.`,
-      );
+      )
       // Keep _internalLogger as console
     } else {
-      _internalLogger = customLogger;
+      _internalLogger = customLogger
       // Use the *new* logger for the confirmation message
-      logger("debug", "Custom logger provided and validated.");
+      logger('debug', 'Custom logger provided and validated.')
     }
   }
 
   // Simple promise-based lock to ensure initializeConfig runs only once
   if (!initPromise) {
     logger(
-      "debug",
-      "No initialization promise found, starting initialization...",
-    );
-    initPromise = initializeConfig(overrides);
+      'debug',
+      'No initialization promise found, starting initialization...',
+    )
+    initPromise = initializeConfig(overrides)
   } else {
-    logger("debug", "Initialization promise already exists, waiting...");
+    logger('debug', 'Initialization promise already exists, waiting...')
     // If called again with overrides *after* initialization has started/completed,
     // we need to handle applying them potentially
     // For simplicity now, we assume overrides are only relevant on the *first* call
     // A more robust implementation might merge overrides into the existing config here
     if (overrides && configProxy) {
-      logger("debug", "Applying subsequent overrides to existing config...");
+      logger('debug', 'Applying subsequent overrides to existing config...')
       for (const [key, value] of Object.entries(overrides)) {
         // Use the proxy's set method to ensure Deno.env is updated
         // We assume 'value' here is KeyValueConfig, proxy handles resolution/validation
-        configProxy[key] = value as string; // Cast needed as proxy expects string setter
+        configProxy[key] = value as string // Cast needed as proxy expects string setter
       }
-      logger("debug", "Subsequent overrides applied.");
+      logger('debug', 'Subsequent overrides applied.')
     } else if (overrides) {
       logger(
-        "warn",
-        "Overrides provided on subsequent call before initialization complete. These might not be applied as expected.",
-      );
+        'warn',
+        'Overrides provided on subsequent call before initialization complete. These might not be applied as expected.',
+      )
     }
   }
 
   try {
     // Wait for the initialization promise to complete
-    const finalConfig = await initPromise;
-    logger("debug", "Initialization complete, returning config proxy.");
-    return finalConfig;
+    const finalConfig = await initPromise
+    logger('debug', 'Initialization complete, returning config proxy.')
+    return finalConfig
   } catch (err) {
-    throw new Error(`Configuration failed to load: ${(err as Error).message}`);
+    throw new Error(`Configuration failed to load: ${(err as Error).message}`)
   }
 }
 
-export default loadConfig;
-export { loadConfig };
-export type { ConfigRecord, KeyValueConfig, Logger };
+export default loadConfig
+export { loadConfig }
+export type { ConfigRecord, KeyValueConfig, Logger }

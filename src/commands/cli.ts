@@ -22,8 +22,12 @@ async function command(): Promise<void> {
   )
 
   try {
-    const mainExportPath = await getMainExportPath(config.DENO_KIT_WORKSPACE_PATH || '')
-    const moduleToCLIArgs = Deno.args.slice(Deno.args.indexOf(commandRoute.name) + 1)
+    const mainExportPath = await getMainExportPath(
+      config.DENO_KIT_WORKSPACE_PATH || '',
+    )
+    const moduleToCLIArgs = Deno.args.slice(
+      Deno.args.indexOf(commandRoute.name) + 1,
+    )
     logger.info(mainExportPath, moduleToCLIArgs)
 
     const command = new Deno.Command('deno', {

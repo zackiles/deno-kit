@@ -119,7 +119,10 @@ class Logger {
   debug(msg: string, ...args: unknown[]): void {
     if (this.config.level <= LogLevel.DEBUG) {
       const formattedName = this.formatName(dim)
-      console.debug(`DEBUG:${this.formatTimestamp()}${formattedName} ${dim(msg)}`, ...args)
+      console.debug(
+        `DEBUG:${this.formatTimestamp()}${formattedName} ${dim(msg)}`,
+        ...args,
+      )
     }
   }
 

@@ -110,7 +110,14 @@ const cmdOptions = {
  */
 const runTest = async (args: string[]) => {
   const cmd = new Deno.Command('deno', {
-    args: ['test', '-A', '--reload', ...args],
+    args: [
+      'test',
+      '-A',
+      "--v8-flags='--no-lazy'",
+      '--check',
+      '--reload',
+      ...args,
+    ],
     ...cmdOptions,
   })
   const child = cmd.spawn()
@@ -163,7 +170,9 @@ const resolveTestPath = async (testName: string) => {
   }
 
   // If no test file found, show helpful error
-  console.error('Error: Test file, directory, or glob pattern not found. Tried:')
+  console.error(
+    'Error: Test file, directory, or glob pattern not found. Tried:',
+  )
   for (const path of possiblePaths) {
     console.error(`  - ${path}`)
   }

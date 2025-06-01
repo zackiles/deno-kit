@@ -8,7 +8,7 @@
 
 {PACKAGE_DESCRIPTION}
 
-> [!NOTE]  
+> [!NOTE]\
 > This is a **new** project and the documentation is unlikely to be comprehensive or accurate.
 
 ## Features
@@ -30,12 +30,12 @@
    import { Lib } from '{PACKAGE_NAME}'
    import type { LibConfig, LibRequest, LibResponse } from '{PACKAGE_NAME}'
 
-   const config: LibConfig = {user: 'world'}
+   const config: LibConfig = { user: 'world' }
    const lib = new Lib(config)
 
-   const data: LibRequest = {message: 'hello'}
+   const data: LibRequest = { message: 'hello' }
    const response: LibResponse = await lib.read(data)
-   
+
    console.log(response)
    ```
 

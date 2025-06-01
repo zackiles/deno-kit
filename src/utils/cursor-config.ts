@@ -28,7 +28,9 @@ import logger from './logger.ts'
  * @param {string} workspaceDir - Optional workspace directory. If not provided, uses current working directory.
  * @returns {Promise<boolean>} - True if successful, false otherwise
  */
-async function setupOrUpdateCursorConfig(workspaceDir?: string): Promise<boolean> {
+async function setupOrUpdateCursorConfig(
+  workspaceDir?: string,
+): Promise<boolean> {
   logger.log('🔄 Setting up Cursor AI configuration...')
 
   // Get the absolute path of the workspace directory
@@ -43,7 +45,9 @@ async function setupOrUpdateCursorConfig(workspaceDir?: string): Promise<boolean
     )
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch script: ${response.status} ${response.statusText}`)
+      throw new Error(
+        `Failed to fetch script: ${response.status} ${response.statusText}`,
+      )
     }
 
     const scriptContent = await response.text()
@@ -57,7 +61,9 @@ async function setupOrUpdateCursorConfig(workspaceDir?: string): Promise<boolean
     }
 
     // Execute the script
-    logger.log(`🔄 Executing cursor-config installation script in ${targetDir}...`)
+    logger.log(
+      `🔄 Executing cursor-config installation script in ${targetDir}...`,
+    )
 
     const command = new Deno.Command(
       Deno.build.os === 'windows' ? 'bash' : 'sh',

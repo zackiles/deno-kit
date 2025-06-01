@@ -1,3 +1,31 @@
+/**
+ * @module lib
+ * @description A default starter library providing basic CRUD operations with logging.
+ *
+ * This module exports a flexible Lib class that serves as a foundational library
+ * for creating, reading, updating, and destroying resources with configurable options.
+ *
+ * @example
+ * ```ts
+ * import { Lib } from './lib.ts';
+ *
+ * // Create a new Lib instance with optional configuration
+ * const lib = new Lib({ debug: true });
+ *
+ * // Perform CRUD operations
+ * const newResource = lib.create({ name: 'Example' });
+ * const readResource = lib.read({ id: newResource.id });
+ * const updatedResource = lib.update({ ...readResource, name: 'Updated' });
+ * lib.destroy({ id: updatedResource.id });
+ * ```
+ *
+ * @see {@link LibConfig} for configuration options
+ * @see {@link logger} for logging implementation
+ *
+ * @beta
+ * @version 0.0.1
+ */
+
 import logger from './utils/logger.ts'
 
 /**

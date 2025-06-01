@@ -32,7 +32,10 @@ async function runCLI(
     // Set test mode to avoid interactive prompts
     DENO_KIT_ENV: 'test',
     // Set path to templates directory
-    DENO_KIT_TEMPLATES_PATH: join(dirname(fromFileUrl(import.meta.url)), '../templates'),
+    DENO_KIT_TEMPLATES_PATH: join(
+      dirname(fromFileUrl(import.meta.url)),
+      '../templates',
+    ),
     // Default values that would normally be prompted
     DENO_KIT_PACKAGE_NAME: '@test/project',
     DENO_KIT_PACKAGE_VERSION: '0.1.0',
@@ -105,8 +108,13 @@ describe('init command', () => {
     assertStringIncludes(readmeContent, 'Test project description')
 
     // Verify workspace config file exists and contains correct package name
-    const kitJsonExists = await exists(join(tempDir, config.DENO_KIT_WORKSPACE_CONFIG_FILE_NAME))
-    assert(kitJsonExists, `${config.DENO_KIT_WORKSPACE_CONFIG_FILE_NAME} should exist`)
+    const kitJsonExists = await exists(
+      join(tempDir, config.DENO_KIT_WORKSPACE_CONFIG_FILE_NAME),
+    )
+    assert(
+      kitJsonExists,
+      `${config.DENO_KIT_WORKSPACE_CONFIG_FILE_NAME} should exist`,
+    )
 
     const kitJsonContent = await Deno.readTextFile(
       join(tempDir, config.DENO_KIT_WORKSPACE_CONFIG_FILE_NAME),
@@ -141,8 +149,13 @@ describe('init command', () => {
     assertStringIncludes(readmeContent, 'Modern Deno Features')
 
     // Verify workspace config file exists and contains correct package name
-    const kitJsonExists = await exists(join(tempDir, config.DENO_KIT_WORKSPACE_CONFIG_FILE_NAME))
-    assert(kitJsonExists, `${config.DENO_KIT_WORKSPACE_CONFIG_FILE_NAME} should exist`)
+    const kitJsonExists = await exists(
+      join(tempDir, config.DENO_KIT_WORKSPACE_CONFIG_FILE_NAME),
+    )
+    assert(
+      kitJsonExists,
+      `${config.DENO_KIT_WORKSPACE_CONFIG_FILE_NAME} should exist`,
+    )
 
     const kitJsonContent = await Deno.readTextFile(
       join(tempDir, config.DENO_KIT_WORKSPACE_CONFIG_FILE_NAME),
@@ -187,7 +200,9 @@ describe('init command', () => {
     assert(changelogExists, 'CHANGELOG.md from shared templates should exist')
 
     // Verify its content is from the shared template
-    const changelogContent = await Deno.readTextFile(join(tempDir, 'CHANGELOG.md'))
+    const changelogContent = await Deno.readTextFile(
+      join(tempDir, 'CHANGELOG.md'),
+    )
     // Look for content we know should be in the shared CHANGELOG.md
     assertStringIncludes(changelogContent, 'Changelog')
   })
@@ -213,8 +228,12 @@ describe('init command', () => {
 
   it('should support both positional and flag workspace arguments', async () => {
     // Test with positional argument
-    const positionalDir = await Deno.makeTempDir({ prefix: 'deno-kit-test-init-positional-' })
-    const flagDir = await Deno.makeTempDir({ prefix: 'deno-kit-test-init-flag-' })
+    const positionalDir = await Deno.makeTempDir({
+      prefix: 'deno-kit-test-init-positional-',
+    })
+    const flagDir = await Deno.makeTempDir({
+      prefix: 'deno-kit-test-init-flag-',
+    })
 
     try {
       // Test positional argument
@@ -241,10 +260,15 @@ describe('init command', () => {
         ['init', '--workspace', flagDir],
         { DENO_KIT_PROJECT_TYPE: 'CLI' },
       )
-      assert(flagResult.success, `Command with --workspace flag failed: ${flagResult.output}`)
+      assert(
+        flagResult.success,
+        `Command with --workspace flag failed: ${flagResult.output}`,
+      )
 
       // Verify workspace was created in flag directory
-      const flagKitJson = await exists(join(flagDir, config.DENO_KIT_WORKSPACE_CONFIG_FILE_NAME))
+      const flagKitJson = await exists(
+        join(flagDir, config.DENO_KIT_WORKSPACE_CONFIG_FILE_NAME),
+      )
       assert(
         flagKitJson,
         `${config.DENO_KIT_WORKSPACE_CONFIG_FILE_NAME} should exist in --workspace flag directory`,
@@ -255,7 +279,9 @@ describe('init command', () => {
         Array.fromAsync(Deno.readDir(positionalDir)).then((files) =>
           files.map((f) => f.name).sort()
         ),
-        Array.fromAsync(Deno.readDir(flagDir)).then((files) => files.map((f) => f.name).sort()),
+        Array.fromAsync(Deno.readDir(flagDir)).then((files) =>
+          files.map((f) => f.name).sort()
+        ),
       ])
 
       assertEquals(

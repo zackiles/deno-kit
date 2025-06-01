@@ -110,19 +110,27 @@ export class WorkspaceTemplates {
     this.#templateValues = new Map(Object.entries(mergedTemplateValues))
 
     // Compile templates and prepare for writing
-    const compiledTemplates = [...templatesMap.entries()].map(([path, content]) => {
-      const processedContent = content.replace(
-        /{([A-Z_]+)}/g,
-        (_match, placeholder) => mergedTemplateValues[placeholder] ?? _match,
-      )
+    const compiledTemplates = [...templatesMap.entries()].map(
+      ([path, content]) => {
+        const processedContent = content.replace(
+          /{([A-Z_]+)}/g,
+          (_match, placeholder) => mergedTemplateValues[placeholder] ?? _match,
+        )
 
-      return [path.replace(this.templatesPath, this.workspacePath), processedContent]
-    })
+        return [
+          path.replace(this.templatesPath, this.workspacePath),
+          processedContent,
+        ]
+      },
+    )
 
     // Update the internal template map with workspace paths instead of template paths
     const updatedTemplates = new Map<string, string>()
     for (const [templatePath, content] of this.#templates.entries()) {
-      const workspacePath = templatePath.replace(this.templatesPath, this.workspacePath)
+      const workspacePath = templatePath.replace(
+        this.templatesPath,
+        this.workspacePath,
+      )
       updatedTemplates.set(workspacePath, content)
     }
     this.#templates = updatedTemplates

@@ -56,7 +56,10 @@ class CommandRouter {
    * @param commands Object mapping command names to command definitions
    * @param defaultCommand The default command to use when no command is specified
    */
-  constructor(commands: Record<string, CommandRouteDefinition>, defaultCommand = 'help') {
+  constructor(
+    commands: Record<string, CommandRouteDefinition>,
+    defaultCommand = 'help',
+  ) {
     this.routes = Object.values(commands)
     this.defaultCommand = defaultCommand
   }
@@ -82,16 +85,39 @@ class CommandRouter {
    * @returns The matching command definition or the default command
    */
   getRoute(args: string[]): CommandRouteDefinition {
-    // The '_' property contains positional arguments (non-flag values) from the command line
-    // We pass these to getRoute to find the appropriate command definition
-    const _args = parseArgs(args)._
+    // Parse arguments to check for flags and positional arguments
+    const parsedArgs = parseArgs(args)
+    const positionalArgs = parsedArgs._
 
-    if (_args.length > 0) {
-      const match = this.routes.find((r) => r.name === String(_args[0])) ??
-        (_args.length > 1 ? this.routes.find((r) => r.name === String(_args[1])) : undefined)
+    // Check for --help or --version flags when no positional arguments exist
+    if (positionalArgs.length === 0) {
+      if (parsedArgs.help) {
+        return this.routes.find((r) =>
+          r.name === 'help'
+        ) as CommandRouteDefinition
+      }
+      if (parsedArgs.version) {
+        return this.routes.find((r) =>
+          r.name === 'version'
+        ) as CommandRouteDefinition
+      }
+    }
+
+    // Original logic for finding route by positional arguments
+    if (positionalArgs.length > 0) {
+      const match = this.routes.find((r) =>
+        r.name === String(positionalArgs[0])
+      ) ??
+        (positionalArgs.length > 1
+          ? this.routes.find((r) => r.name === String(positionalArgs[1]))
+          : undefined)
       if (match) return match
     }
-    return this.routes.find((r) => r.name === this.defaultCommand) as CommandRouteDefinition
+
+    // Fallback to default command
+    return this.routes.find((r) =>
+      r.name === this.defaultCommand
+    ) as CommandRouteDefinition
   }
 
   /**

@@ -7,7 +7,10 @@
  */
 import logger from '../utils/logger.ts'
 import { getConfig } from '../config.ts'
-import type { CommandRouteDefinition, CommandRouteOptions } from '../utils/command-router.ts'
+import type {
+  CommandRouteDefinition,
+  CommandRouteOptions,
+} from '../utils/command-router.ts'
 import type { DenoKitConfig } from '../types.ts'
 
 const config = await getConfig() as DenoKitConfig
@@ -23,11 +26,14 @@ const commandRoute: CommandRouteDefinition = {
 }
 
 function command({ args, routes }: CommandRouteOptions): Promise<void> {
-  logger.debug(`Command ${commandRoute.name} executed in environment ${config.DENO_KIT_ENV}`, {
-    args,
-    config,
-    routes,
-  })
+  logger.debug(
+    `Command ${commandRoute.name} executed in environment ${config.DENO_KIT_ENV}`,
+    {
+      args,
+      config,
+      routes,
+    },
+  )
 
   return Promise.resolve()
 }

@@ -1,18 +1,14 @@
 root = true
 
 [*]
-charset = utf-8
-end_of_line = lf
-indent_size = 2
 indent_style = space
+indent_size = 2
+end_of_line = lf
+charset = utf-8
 insert_final_newline = true
+max_line_length = 80
 trim_trailing_whitespace = true
 
-[*.md]
-trim_trailing_whitespace = false
-
-[*.{json,jsonc}]
-indent_size = 2
-
-[*.{js,ts,jsx,tsx}]
+[*.json]
+indent_style = space
 indent_size = 2

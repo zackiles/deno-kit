@@ -11,12 +11,13 @@
     "url": "https://github.com/{PACKAGE_GITHUB_USER}/{PROJECT_NAME}.git"
   },
   "tasks": {
-    "dev": "DENO_ENV=development deno run -A scripts/dev.ts",
+    "run:dev": "DENO_ENV=development deno run -A scripts/dev.ts",
+    "run:docs": "deno run -A scripts/serve-docs.ts",
     "test": "DENO_ENV=test deno run -A scripts/test.ts",
-    "pre-publish": "deno fmt && deno check -r src/ && deno lint",
+    "check": "deno lint --fix && deno check -r src/",
     "tag": "deno run -A scripts/tag.ts",
-    "build:docs": "deno doc --html --name={PROJECT_NAME} --output=./docs/{PROJECT_NAME} src/**/*.ts",
-    "serve-docs": "deno run -A scripts/serve-docs.ts"
+    "build:repomix": "deno run -A jsr:@zackiles/hypermix --config .ai/hypermix.config.ts",
+    "build:docs": "deno doc --html --name={PROJECT_NAME} --output=./docs/{PROJECT_NAME} src/**/*.ts"
   },
   // Import maps. Prefer import "@scope/package" syntax in code.
   // NOTE: uses the import maps standard see https://github.com/WICG/import-maps
@@ -31,6 +32,16 @@
     "@std/cli": "jsr:@std/cli@1",
     "@std/jsonc": "jsr:@std/jsonc@1",
     "@std/net": "jsr:@std/net@1",
+    "@std/http": "jsr:@std/http@1",
+    "@std/text": "jsr:@std/text@1",
+    "@std/regexp": "jsr:@std/regexp@1",
+    "@std/bytes": "jsr:@std/bytes@1",
+    "@std/data_structures": "jsr:@std/data_structures@1",
+    "@std/crypto": "jsr:@std/crypto@1",
+    "@std/datetime": "jsr:@std/datetime@1",
+    "@std/msgpack": "jsr:@std/msgpack@1",
+    "@std/encoding": "jsr:@std/encoding@1",
+    "@std/streams": "jsr:@std/streams@1",
     "@std/testing": "jsr:@std/testing@1",
     "@std/semver": "jsr:@std/semver@1",
     "@deno-kit/module-to-cli": "jsr:@deno-kit/module-to-cli@0"
@@ -45,12 +56,13 @@
     "cron",
     "temporal",
     "unsafe-proto",
-    "webgpu"
+    "webgpu",
+    "decorators"
   ],
   "lock": true,
   "nodeModulesDir": "none",
   "fmt": {
-    "lineWidth": 100,
+    "lineWidth": 80,
     "semiColons": false,
     "useTabs": false,
     "indentWidth": 2,
@@ -102,11 +114,15 @@
   // See Configuring Typescript in Deno: @https://docs.deno.com/runtime/fundamentals/configuration/
   "compilerOptions": {
     "strict": true,
+    "noErrorTruncation": true, // ai-context
+    "isolatedDeclarations": true, // ai-context
     "exactOptionalPropertyTypes": true,
     "lib": [
       "esnext",
       "deno.window",
-      "deno.unstable"
+      "deno.unstable",
+      "deno.worker",
+      "decorators"
     ]
   },
   // See jsr publishing: @https://docs.deno.com/runtime/reference/cli/publish/

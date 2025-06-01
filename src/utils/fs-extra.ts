@@ -194,7 +194,9 @@ function validateCommonBasePath(
   const normalizedFilePaths = filePaths.map((path) => resolve(path))
 
   // Check if each file path is within the base path
-  const invalidPaths = normalizedFilePaths.filter((path) => !path.startsWith(normalizedBasePath))
+  const invalidPaths = normalizedFilePaths.filter((path) =>
+    !path.startsWith(normalizedBasePath)
+  )
 
   if (invalidPaths.length > 0) {
     throw new Error(
@@ -254,7 +256,11 @@ async function readFilesRecursively(
     // Create an array of promises for reading all files concurrently
     const readPromises = entries.map((entry) => (
       readTextFile(entry.path)
-        .then((content) => ({ path: entry.path, content, success: true as const }))
+        .then((content) => ({
+          path: entry.path,
+          content,
+          success: true as const,
+        }))
         .catch((error) => ({
           path: entry.path,
           error: error instanceof Error ? error.message : String(error),

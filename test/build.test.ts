@@ -18,7 +18,9 @@ async function streamOutput(
 ): Promise<string> {
   let output = ''
   const decoder = new TextDecoder()
-  const logFn = forcePrint ? logger.print : (isError ? logger.error : logger.print)
+  const logFn = forcePrint
+    ? logger.print
+    : (isError ? logger.error : logger.print)
 
   for await (const chunk of stream) {
     const text = decoder.decode(chunk)
@@ -71,7 +73,10 @@ Deno.test('Build and run kit binary', async () => {
     }).spawn()
 
     // Run the process and stream its output
-    const [_buildStdout, _buildStderr, status] = await runWithOutput(buildProcess, true)
+    const [_buildStdout, _buildStderr, status] = await runWithOutput(
+      buildProcess,
+      true,
+    )
     assert(status.success, 'Build process failed')
 
     // Use 'deno-kit' as the binary name since that's what build.ts uses
@@ -91,9 +96,13 @@ Deno.test('Build and run kit binary', async () => {
     if (Deno.build.os === 'windows') {
       currentPlatform = 'windows-x86_64'
     } else if (Deno.build.os === 'darwin') {
-      currentPlatform = Deno.build.arch === 'aarch64' ? 'macos-aarch64' : 'macos-x86_64'
+      currentPlatform = Deno.build.arch === 'aarch64'
+        ? 'macos-aarch64'
+        : 'macos-x86_64'
     } else if (Deno.build.os === 'linux') {
-      currentPlatform = Deno.build.arch === 'aarch64' ? 'linux-aarch64' : 'linux-x86_64'
+      currentPlatform = Deno.build.arch === 'aarch64'
+        ? 'linux-aarch64'
+        : 'linux-x86_64'
     } else {
       // Default to macos-x86_64 for other platforms
       currentPlatform = 'macos-x86_64'
@@ -113,7 +122,9 @@ Deno.test('Build and run kit binary', async () => {
     // Extract the binary from the zip
     const extractedBinaryPath = join(
       tempBinaryDir,
-      `${binaryName}-${currentPlatform}${currentPlatform.includes('windows') ? '.exe' : ''}`,
+      `${binaryName}-${currentPlatform}${
+        currentPlatform.includes('windows') ? '.exe' : ''
+      }`,
     )
 
     // Extract the binary using our utility function
@@ -135,7 +146,10 @@ Deno.test('Build and run kit binary', async () => {
     // Define the path to the templates.zip created by the build and extract it
     const templatesZipPath = join(binDir, 'templates.zip')
     const templatesZipExists = await exists(templatesZipPath)
-    assert(templatesZipExists, `templates.zip should exist at ${templatesZipPath} after build`)
+    assert(
+      templatesZipExists,
+      `templates.zip should exist at ${templatesZipPath} after build`,
+    )
 
     // Extract templates.zip to the temporary templates directory
     await decompress(templatesZipPath, tempTemplatesDir)
@@ -166,7 +180,10 @@ Deno.test('Build and run kit binary', async () => {
     }).spawn()
 
     // Run the init process and stream its output
-    const [_initStdout, initStderr, initStatus] = await runWithOutput(initProcess, true)
+    const [_initStdout, initStderr, initStatus] = await runWithOutput(
+      initProcess,
+      true,
+    )
     assert(initStatus.success, `Init command failed with stderr: ${initStderr}`)
 
     // Verify project creation in the workspace directory

@@ -384,8 +384,12 @@ Deno.test('config - getPackageName and getPackagePath fallbacks', async () => {
       `
       with (module) {
         return {
-          getPackageName: ${configModule.toString().match(/function getPackageName\(\)[^}]*\}/)[0]},
-          getPackagePath: ${configModule.toString().match(/function getPackagePath\(\)[^}]*\}/)[0]}
+          getPackageName: ${
+        configModule.toString().match(/function getPackageName\(\)[^}]*\}/)[0]
+      },
+          getPackagePath: ${
+        configModule.toString().match(/function getPackagePath\(\)[^}]*\}/)[0]
+      }
         };
       }
     `,

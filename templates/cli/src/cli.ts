@@ -1,5 +1,3 @@
-#!/usr/bin/env -S deno run -A
-
 /**
  * @module cli
  * @description Main entry point for the CLI
@@ -8,7 +6,10 @@
  * @see {@link https://jsr.io/@std/cli/doc/~/ParseOptions}
  */
 import CommandRouter from './utils/command-router.ts'
-import type { CommandRouteDefinition, CommandRouteOptions } from './utils/command-router.ts'
+import type {
+  CommandRouteDefinition,
+  CommandRouteOptions,
+} from './utils/command-router.ts'
 
 /**
  * Static mapping of commands
@@ -31,7 +32,11 @@ async function run(): Promise<void> {
     const routeOptions: CommandRouteOptions = router.getOptions(route)
     await route.command(routeOptions)
   } catch (err) {
-    throw new Error(`Error executing command: ${err instanceof Error ? err.message : String(err)}`)
+    throw new Error(
+      `Error executing command: ${
+        err instanceof Error ? err.message : String(err)
+      }`,
+    )
   }
 }
 

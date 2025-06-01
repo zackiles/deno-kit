@@ -82,9 +82,15 @@ const DIRS_TO_SKIP = [
 const determinePathType = (path?: string) => {
   const specifier = path ?? import.meta.url
   const isFileUrl = specifier.startsWith('file:')
-  const isRemoteUrl = specifier.startsWith('http://') || specifier.startsWith('https://')
+  const isRemoteUrl = specifier.startsWith('http://') ||
+    specifier.startsWith('https://')
   // isLocal is derived, so it's clear.
-  return { specifier, isFileUrl, isRemoteUrl, isLocal: !isFileUrl && !isRemoteUrl }
+  return {
+    specifier,
+    isFileUrl,
+    isRemoteUrl,
+    isLocal: !isFileUrl && !isRemoteUrl,
+  }
 }
 
 /**
@@ -113,7 +119,9 @@ const findRemotePackagePath = async (
   const currentUrl = new URL(url.href) // Use currentUrl to avoid modifying the input 'url' parameter directly
 
   // Adjust currentUrl to point to a directory for consistent processing
-  if (!currentUrl.pathname.endsWith('/') && !currentUrl.pathname.includes('.')) {
+  if (
+    !currentUrl.pathname.endsWith('/') && !currentUrl.pathname.includes('.')
+  ) {
     // If it's not a root-like path and doesn't seem to be a file, ensure it ends with /
     currentUrl.pathname += '/'
   } else if (!currentUrl.pathname.endsWith('/')) {
@@ -214,13 +222,17 @@ const findLocalPackagePath = async (
         const dirName = entry.name
         // Skip hidden directories and directories in DIRS_TO_SKIP
         if (
-          dirName.startsWith('.') || DIRS_TO_SKIP.includes(dirName as typeof DIRS_TO_SKIP[number])
+          dirName.startsWith('.') ||
+          DIRS_TO_SKIP.includes(dirName as typeof DIRS_TO_SKIP[number])
         ) {
           continue
         }
 
         const subDirPath = join(currentPath, dirName)
-        const result = await findLocalRecursiveDown(subDirPath, currentDepth + 1)
+        const result = await findLocalRecursiveDown(
+          subDirPath,
+          currentDepth + 1,
+        )
         if (result) return result
       }
     } catch { /* Ignore errors reading directory, e.g. permission denied */ }
@@ -276,14 +288,28 @@ async function findPackagePathFromPath(
   const { specifier, isFileUrl, isRemoteUrl } = determinePathType(path)
 
   if (isRemoteUrl) {
-    return await findRemotePackagePath(new URL(specifier), configFiles, traverseUp)
+    return await findRemotePackagePath(
+      new URL(specifier),
+      configFiles,
+      traverseUp,
+    )
   }
 
   if (isFileUrl) {
-    return await findPackagePathFromPath(fromFileUrl(specifier), configFiles, traverseUp, maxDepth)
+    return await findPackagePathFromPath(
+      fromFileUrl(specifier),
+      configFiles,
+      traverseUp,
+      maxDepth,
+    )
   }
 
-  return await findLocalPackagePath(specifier, configFiles, traverseUp, maxDepth)
+  return await findLocalPackagePath(
+    specifier,
+    configFiles,
+    traverseUp,
+    maxDepth,
+  )
 }
 
 /**
@@ -308,7 +334,12 @@ async function findPackageDirectoryFromPath(
   traverseUp = true,
   maxDepth = Number.POSITIVE_INFINITY,
 ): Promise<string> {
-  const packageDirectory = await findPackagePathFromPath(path, configFiles, traverseUp, maxDepth)
+  const packageDirectory = await findPackagePathFromPath(
+    path,
+    configFiles,
+    traverseUp,
+    maxDepth,
+  )
   return dirname(packageDirectory)
 }
 
@@ -334,14 +365,19 @@ async function findPackageFromPath(
   traverseUp = true,
   maxDepth = Number.POSITIVE_INFINITY,
 ): Promise<Record<string, unknown>> {
-  const readPackageFile = async (pkgPath: string): Promise<Record<string, unknown>> => {
-    const isRemote = pkgPath.startsWith('http://') || pkgPath.startsWith('https://')
+  const readPackageFile = async (
+    pkgPath: string,
+  ): Promise<Record<string, unknown>> => {
+    const isRemote = pkgPath.startsWith('http://') ||
+      pkgPath.startsWith('https://')
     let content: string
     try {
       content = isRemote
         ? await fetch(pkgPath).then(async (res) => {
           if (!res.ok) {
-            throw new Error(`Failed to fetch ${pkgPath}: ${res.status} ${res.statusText}`)
+            throw new Error(
+              `Failed to fetch ${pkgPath}: ${res.status} ${res.statusText}`,
+            )
           }
           return await res.text()
         })
@@ -368,7 +404,9 @@ async function findPackageFromPath(
     }
   }
 
-  const validateAndFindPath = async (pathToValidate?: string): Promise<string> => {
+  const validateAndFindPath = async (
+    pathToValidate?: string,
+  ): Promise<string> => {
     // 1. Undefined path: Search from current module's URL
     if (!pathToValidate) {
       const found = await findPackagePathFromPath(
@@ -377,15 +415,23 @@ async function findPackageFromPath(
         traverseUp,
         maxDepth,
       )
-      if (!found) throw new Error('No package configuration file found (searched from module URL)')
+      if (!found) {
+        throw new Error(
+          'No package configuration file found (searched from module URL)',
+        )
+      }
       return found
     }
 
-    const { specifier, isFileUrl, isRemoteUrl, isLocal } = determinePathType(pathToValidate)
+    const { specifier, isFileUrl, isRemoteUrl, isLocal } = determinePathType(
+      pathToValidate,
+    )
 
     // 2. Remote URL
     if (isRemoteUrl) {
-      const isDirectFileUrl = packageNames.some((cfgFile) => specifier.endsWith(`/${cfgFile}`)) ||
+      const isDirectFileUrl = packageNames.some((cfgFile) =>
+        specifier.endsWith(`/${cfgFile}`)
+      ) ||
         specifier.endsWith('.json') || specifier.endsWith('.jsonc')
       if (isDirectFileUrl) {
         try {
@@ -394,7 +440,12 @@ async function findPackageFromPath(
         } catch { /* Network error, fall through to broader search */ }
       }
       // General remote search
-      const found = await findPackagePathFromPath(specifier, packageNames, traverseUp, maxDepth)
+      const found = await findPackagePathFromPath(
+        specifier,
+        packageNames,
+        traverseUp,
+        maxDepth,
+      )
       if (!found) {
         throw new Error(
           `No package configuration file found (searched from remote URL: ${specifier})`,
@@ -419,7 +470,8 @@ async function findPackageFromPath(
           const fileName = specifier.split('/').pop() ?? ''
           const isValidPkgFile = packageNames.some((name) =>
             fileName === name ||
-            (name.includes('.') && fileName.endsWith(name.substring(name.indexOf('.'))))
+            (name.includes('.') &&
+              fileName.endsWith(name.substring(name.indexOf('.'))))
           )
           if (isValidPkgFile) return specifier
           throw new Error(
@@ -488,7 +540,12 @@ async function findPackageFromPath(
           throw error
         }
         // For other errors (e.g., statFile fails for non-existent path), try general search
-        const found = await findPackagePathFromPath(specifier, packageNames, traverseUp, maxDepth)
+        const found = await findPackagePathFromPath(
+          specifier,
+          packageNames,
+          traverseUp,
+          maxDepth,
+        )
         if (found) return found
         // If general search also fails, or for original error if it was not one of the re-thrown ones
         throw new Error(
@@ -523,14 +580,23 @@ async function getMainExportPath(
   traverseUp = true,
   maxDepth = Number.POSITIVE_INFINITY,
 ): Promise<string> {
-  const packageData = await findPackageFromPath(path, undefined, traverseUp, maxDepth)
+  const packageData = await findPackageFromPath(
+    path,
+    undefined,
+    traverseUp,
+    maxDepth,
+  )
   const packageFilePath = packageData.path
   if (typeof packageFilePath !== 'string') {
-    throw new Error(`Package data for path "${path}" did not contain a valid file path.`)
+    throw new Error(
+      `Package data for path "${path}" did not contain a valid file path.`,
+    )
   }
   const packageFileDir = dirname(packageFilePath)
 
-  const exportsField = packageData.exports as Record<string, unknown> | undefined
+  const exportsField = packageData.exports as
+    | Record<string, unknown>
+    | undefined
   const mainExport = exportsField?.['.']
 
   if (typeof mainExport !== 'string' || !mainExport) {

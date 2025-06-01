@@ -8,13 +8,12 @@
 
 {PACKAGE_DESCRIPTION}
 
-> [!NOTE]  
+> [!NOTE]\
 > This is a **new** project and the documentation is unlikely to be comprehensive or accurate.
 
 ## Usage
 
 ```bash
-
 # Install globally
 deno install -A --global {PACKAGE_NAME}
 
