@@ -28,13 +28,15 @@ const RESOURCES = {
   templates: 'templates',
   bannedDirsDefault: 'src/utils/banned_directories_default.jsonc',
   bannedDirsCustom: 'src/utils/banned_directories_custom.jsonc',
-  windowsIcon: 'assets/deno-kit.ico',
+  windowsIcon: 'assets/logo.ico',
   templatesZip: 'bin/templates.zip',
 } as const
 
 // Convert paths relative to project root into fully resolved paths for file operations
 const RESOLVED_PATHS = Object.fromEntries(
-  Object.entries(RESOURCES).map(([key, path]) => [key, join(PROJECT_ROOT, path)]),
+  Object.entries(RESOURCES).map((
+    [key, path],
+  ) => [key, join(PROJECT_ROOT, path)]),
 ) as Record<keyof typeof RESOURCES, string>
 
 /**
@@ -102,7 +104,9 @@ async function build() {
       }`
       const outputPath = join(config.outputDir, outputFileName)
 
-      console.log(`\nBuilding for ${platform.name} (${platform.target}) to ${outputPath}...`)
+      console.log(
+        `\nBuilding for ${platform.name} (${platform.target}) to ${outputPath}...`,
+      )
 
       // Use relative paths for all --include arguments
       const args = [
@@ -147,7 +151,9 @@ async function build() {
         console.log(`✅ Build completed for ${platform.name}`)
 
         if (!await exists(outputPath)) {
-          throw new Error(`Build succeeded but output file not found at: ${outputPath}`)
+          throw new Error(
+            `Build succeeded but output file not found at: ${outputPath}`,
+          )
         }
 
         if (!platform.name.includes('windows')) {
@@ -160,7 +166,11 @@ async function build() {
         await compress(outputPath, zipFilePath)
         console.log(`✅ Created zip archive: ${zipFilePath}`)
 
-        outputs.push({ platform: platform.name, binaryPath: outputPath, zipPath: zipFilePath })
+        outputs.push({
+          platform: platform.name,
+          binaryPath: outputPath,
+          zipPath: zipFilePath,
+        })
         await Deno.remove(outputPath)
       } else {
         console.error(`❌ Build failed for ${platform.name}`)
@@ -182,4 +192,6 @@ async function build() {
   }
 }
 
-await build()
+if (import.meta.main) {
+  await build()
+}

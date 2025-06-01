@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/denoland/deno/refs/heads/main/cli/schemas/config-file.v1.json",
   "name": "@deno-kit/kit",
-  "version": "0.0.32",
+  "version": "0.0.33",
   "description": "The modern, unopinionated, and AI-native way to quickly scaffold and maintain Deno projects.",
   "license": "MIT",
   "author": "Zachary Iles <zack.iles@gmail.com>",
@@ -13,6 +13,7 @@
   "tasks": {
     "test": "deno run -A scripts/test.ts",
     "dev": "deno run -A scripts/dev.ts",
+    "check": "deno lint --fix && deno check src/main.ts",
     "pre-publish": "deno run -A scripts/pre-publish.ts",
     "test:build": "deno test -A --reload test/build.test.ts",
     "build": "deno run -A scripts/build.ts",
