@@ -10,7 +10,7 @@ Scaffold, publish and manage modern AI-native Deno projects in seconds with the 
 
 **Multiple Supported Project Types**: `Library`, `CLI`, `HTTP-Server`, `Websocket-Server`, and `MCP-Server`.
 
-> [!TIP]\
+> [!TIP]
 > **Prefer a Github Template?** Try our opinionated [pre-made starter-template](https://github.com/zackiles/deno-kit-starter-template) configured as a Deno library that already has Deno-Kit and a fully configured and publishable package ready to go, OR read below if you'd prefer a hands-on approach using the Deno-Kit CLI.
 
 ## **Quick Start**
@@ -23,7 +23,7 @@ Install the Deno-Kit native binary globally, instantly, and cross-platform so yo
 curl -fsSL https://raw.githubusercontent.com/zackiles/deno-kit/main/install.sh | sh
 ```
 
-> [!TIP]\
+> [!TIP]
 > To uninstall, run: `curl -fsSL https://raw.githubusercontent.com/zackiles/deno-kit/main/install.sh | sh -s -- --uninstall`
 
 ### Run
@@ -48,14 +48,14 @@ Running `deno-kit init` will:
 
 🚀 **That's it!**. You can continue to use the powerful features of Deno-Kit (see a list of tools `deno-kit --help`), or if you made a mistake configuring the project you can reset using `deno-kit reset`.
 
-> [!TIP]\
+> [!TIP]
 > Done with Deno-Kit? You can remove it completely and any time without harming the project using `deno-kit remove`.
 
 ### **Next Steps**
 
 Write your first bit of code, and then try using the powerful auto-generated CLI client to test your new module. Use `deno-kit cli --help` and it will show a full help menu for your module - showing all methods, their descriptions and arguments, and the commands needed to call every method completely through your terminal. You can even instantiate simple classes. We use [@deno-kit/module-to-cli](https://jsr.io/@deno-kit/module-to-cli) to accomplish this (tip: you can use this library in your own projects without having to use Deno-Kit).
 
-> [!NOTE]\
+> [!NOTE]
 > Deno-Kit receives updates. Running `deno kit update` will attempt to update both the CLI _and_ from time-to-time the project scaffolding or shell. If anything goes wrong during an update, you can use `deno-kit reset` to rollback the recent changes.
 
 ## **Features**
