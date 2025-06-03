@@ -1,6 +1,19 @@
 /**
  * @module config
+ *
+ * Configuration management module that provides a flexible way to load and access configuration values
+ *
+ * CONFIGURATION SOURCES: Configuration values can come from multiple optional sources, loaded in this order
+ * (highest to lowest precedence):
+ * 1. Command line arguments (--workspace-path, etc.)
+ * 2. Values from config argument passed to setConfig() -> initConfig()
+ * 3. Values from Deno.env environment variables with the CONFIG_PREFIX
+ * 4. Default values
+ *
+ * CONFIG PREFIX: Configuration keys are prefixed with DENO_KIT_ to avoid conflicts with other environment variables.
+ * IMPORTANT: Some values like DENO_KIT_WORKSPACE_PATH can be passed as command line arguments without the prefix.
  */
+import { load as loadEnv } from '@std/dotenv'
 import { parseArgs } from '@std/cli'
 import { realPath } from '@std/fs/unstable-real-path'
 import { dirname, extname, fromFileUrl, join, normalize } from '@std/path'
@@ -9,7 +22,6 @@ import { stat } from '@std/fs/unstable-stat'
 import { assertDenoKitConfig, type DenoKitConfig } from './types.ts'
 import { findPackageFromPath } from './utils/package-info.ts'
 import { resolvePotentialPath } from './utils/fs-extra.ts'
-import terminal from './utils/terminal.ts'
 
 const CONFIG_SUFFIX = 'DENO_KIT_'
 let configInstance: DenoKitConfig | null = null
@@ -59,6 +71,26 @@ const DEFAULT_VALUES = {
   DENO_KIT_DISABLED_COMMANDS: 'template', // template is disabled by default, it's the example command
   DENO_KIT_PATH: denoKitPath,
   DENO_KIT_TEMPLATES_PATH: join(denoKitPath, 'templates'),
+}
+
+if (Deno.env.get('DENO_KIT_ENV') === 'test') {
+  for (const [key, value] of Object.entries(Deno.env.toObject())) {
+    if (
+      key.startsWith(CONFIG_SUFFIX) &&
+      DEFAULT_VALUES[key as keyof typeof DEFAULT_VALUES]
+    ) {
+      DEFAULT_VALUES[key as keyof typeof DEFAULT_VALUES] = value
+    }
+  }
+}
+
+// Load environment variables from .env file
+// CAUTION: This overrides the values in DEFAULT_VALUES and should be rarely used
+const env: Record<string, string> = await loadEnv()
+for (const [key, value] of Object.entries(env)) {
+  if (key.startsWith(CONFIG_SUFFIX) && value !== '') {
+    DEFAULT_VALUES[key as keyof typeof DEFAULT_VALUES] = value
+  }
 }
 
 /**
@@ -142,31 +174,26 @@ async function initConfig(
   if (Deno.args[0]) {
     const resolvedPath = await resolvePotentialPath(Deno.args[0])
     if (resolvedPath) {
-      try {
-        if (await exists(resolvedPath)) {
-          const pathStat = await stat(resolvedPath)
-          if (pathStat.isFile) {
-            throw new Error(
-              `Cannot initialize workspace: ${resolvedPath} is a file, not a directory`,
-            )
-          }
-        } else {
-          // If path doesn't exist, ensure it doesn't have a file extension
-          const ext = extname(resolvedPath)
-          if (ext) {
-            throw new Error(
-              `Cannot initialize workspace: ${resolvedPath} appears to be a file path, not a directory`,
-            )
-          }
+      if (await exists(resolvedPath)) {
+        const pathStat = await stat(resolvedPath)
+        if (pathStat.isFile) {
+          throw new Error(
+            `Cannot initialize workspace: ${resolvedPath} is a file, not a directory`,
+          )
         }
-
-        // It's a path, so we rewrite the arguments to the init command
-        Deno.args[0] = 'init'
-        DEFAULT_VALUES.DENO_KIT_WORKSPACE_PATH = resolvedPath
-      } catch (error) {
-        terminal.error(error instanceof Error ? error.message : String(error))
-        Deno.exit(1)
+      } else {
+        // If path doesn't exist, ensure it doesn't have a file extension
+        const ext = extname(resolvedPath)
+        if (ext) {
+          throw new Error(
+            `Cannot initialize workspace: ${resolvedPath} appears to be a file path, not a directory`,
+          )
+        }
       }
+
+      // It's a path, so we rewrite the arguments to the init command
+      Deno.args[0] = 'init'
+      DEFAULT_VALUES.DENO_KIT_WORKSPACE_PATH = resolvedPath
     }
   }
   // Start with defaults and resolve any async values

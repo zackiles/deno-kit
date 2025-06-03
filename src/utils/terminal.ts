@@ -7,7 +7,7 @@ import * as stdColors from '@std/fmt/colors'
 
 const encoder = new TextEncoder()
 const RESET = '\x1b[0m'
-const STYLE_BASE = '\x1b[0m\x1b[38;2;255;255;255m\x1b[48;2;0;0;0m'
+const STYLE_BASE = '\x1b[0m\x1b[38;2;255;255;255m'
 const CLEAR_SCREEN = '\x1b[0m\x1b[2J\x1b[3J\x1b[H'
 
 const colors = {
@@ -118,9 +118,16 @@ class Terminal {
       ...DEFAULT_LOGGER_CONFIG,
       ...config,
     }
-    console.clear()
     // IMPORTANT: To be used one time on CLI startup to clear the screen and reset the style
-    this.print(`${CLEAR_SCREEN}${STYLE_BASE}`)
+    this.start()
+  }
+
+  start(): void {
+    Deno.stdout.writeSync(encoder.encode(`${CLEAR_SCREEN}${STYLE_BASE}`))
+  }
+
+  stop(): void {
+    Deno.stdout.writeSync(encoder.encode(`${RESET}\n`))
   }
 
   setConfig(config: Partial<TerminalConfig>): void {
@@ -197,7 +204,7 @@ class Terminal {
       })
       this.print(
         `${
-          colors.dim(colors.bold('DEBUG'))
+          colors.dim(colors.bold(`DEBUG | ENV:${this.#config.environment}]`))
         }:${this.formatTimestamp()}${formattedName} ${colors.dim(msg)}`,
         ...dimmedArgs,
       )
@@ -227,9 +234,7 @@ class Terminal {
     const output = args.length > 0
       ? [msg, ...args].map(String).join(' ')
       : String(msg)
-    Deno.stdout.writeSync(
-      encoder.encode(`${STYLE_BASE}${output}${RESET}\n`),
-    )
+    Deno.stdout.writeSync(encoder.encode(`${STYLE_BASE}${output}${RESET}\n`))
   }
 }
 
@@ -241,13 +246,7 @@ const terminal: TerminalWithColors = Object.assign(terminalWithColors, colors)
 export * from '@std/fmt/colors'
 export const purple = colors.purple
 
-export { colors, Terminal, terminal }
-export type {
-  InspectOptions,
-  LogLevel,
-  LogLevelEnum,
-  TerminalConfig,
-  TerminalWithColors,
-}
+export { colors, LogLevelEnum, Terminal, terminal }
+export type { InspectOptions, LogLevel, TerminalConfig, TerminalWithColors }
 
 export default terminal

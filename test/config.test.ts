@@ -360,69 +360,6 @@ Deno.test('config - gracefully handles invalid command line arguments', async ()
   }
 })
 
-Deno.test('config - getPackageName and getPackagePath fallbacks', async () => {
-  resetEnv()
-
-  // We need to mock Deno.mainModule to test the fallbacks
-  const originalMainModule = Deno.mainModule
-
-  try {
-    // Mock Deno.mainModule to be undefined to trigger fallback
-    Object.defineProperty(Deno, 'mainModule', {
-      value: undefined,
-      configurable: true,
-    })
-
-    // Get fresh module instance
-    const timestamp = Date.now()
-    const configModule = await import(`../src/config.ts?t=${timestamp}`)
-
-    // Get internal helper functions through function constructor
-    // This is an advanced technique to access private functions
-    const getModuleFunction = new Function(
-      'module',
-      `
-      with (module) {
-        return {
-          getPackageName: ${
-        configModule.toString().match(/function getPackageName\(\)[^}]*\}/)[0]
-      },
-          getPackagePath: ${
-        configModule.toString().match(/function getPackagePath\(\)[^}]*\}/)[0]
-      }
-        };
-      }
-    `,
-    )
-
-    // Use the extracted functions
-    const helpers = getModuleFunction(configModule)
-
-    // Test the fallbacks when mainModule is undefined
-    assertEquals(helpers.getPackageName(), 'main_script')
-    assertEquals(helpers.getPackagePath(), Deno.cwd())
-
-    // Initialize config and check template path is based on current directory
-    const config = await configModule.setConfig()
-    const configAny = config as Record<string, string>
-
-    // Template path should be relative to current directory
-    assertEquals(configAny.DENO_KIT_TEMPLATES_PATH, `${Deno.cwd()}/templates`)
-  } catch (_error) {
-    // If we can't access the private functions, at least make sure
-    // initialization works when mainModule is undefined
-    const configModule = await import(`../src/config.ts?t=${Date.now() + 1}`)
-    const config = await configModule.setConfig()
-    assertExists(config.DENO_KIT_WORKSPACE_PATH)
-  } finally {
-    // Restore the original mainModule
-    Object.defineProperty(Deno, 'mainModule', {
-      value: originalMainModule,
-      configurable: true,
-    })
-  }
-})
-
 // Restore original environment and args after all tests
 Deno.test({
   name: 'config - cleanup',

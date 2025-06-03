@@ -17,6 +17,7 @@
     "pre-publish": "deno run -A scripts/pre-publish.ts",
     "test:build": "deno test -A --reload test/build.test.ts",
     "build": "deno run -A scripts/build.ts",
+    "build:dev": "DENO_KIT_ENV=development deno run -A scripts/build.ts",
     "tag": "deno run -A scripts/tag.ts $0"
   },
   // Import maps. Prefer import "@scope/package" syntax in code.

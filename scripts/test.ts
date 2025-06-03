@@ -56,19 +56,8 @@ import { join } from '@std/path'
 import { exists } from '@std/fs'
 import { expandGlob } from '@std/fs/expand-glob'
 import { isGlob } from '@std/path/is-glob'
-import terminal, { LogLevelEnum } from '../src/utils/terminal.ts'
-import { setConfig } from '../src/config.ts'
+import { LogLevelEnum, terminal } from '../src/utils/terminal.ts'
 import type { DenoKitConfig } from '../src/types.ts'
-
-// Load configuration and configure logger based on environment
-const config = await setConfig({}, terminal)
-// Set the logger level based on config values instead of direct env checks
-if (config.DENO_KIT_ENV === 'development') {
-  terminal.setLevel(LogLevelEnum.DEBUG)
-} else if (config.DENO_KIT_LOG_LEVEL) {
-  // Use the log level from config if it's been set
-  terminal.setLogLevel(config.DENO_KIT_LOG_LEVEL)
-}
 
 // Common command options for test runs
 const cmdOptions = {
@@ -76,8 +65,8 @@ const cmdOptions = {
   stderr: 'inherit' as const,
   env: {
     'DENO_KIT_ENV': 'test',
+    'DENO_KIT_LOG_LEVEL': LogLevelEnum.ERROR.toString(),
     'DENO_KIT_PATH': Deno.cwd(),
-    'DENO_KIT_TEMPLATES_PATH': join(Deno.cwd(), 'templates'),
   } as DenoKitConfig,
 }
 
@@ -86,7 +75,18 @@ const cmdOptions = {
  */
 const runTest = async (args: string[]) => {
   const cmd = new Deno.Command('deno', {
-    args: ['test', '-A', '--reload', ...args],
+    args: [
+      'test',
+      '-A',
+      '--reload',
+      '--fail-fast',
+      '--parallel',
+      //      '--no-remote',
+      '--trace-leaks',
+      '--shuffle',
+      '--reporter=pretty',
+      ...args,
+    ],
     ...cmdOptions,
   })
   const child = cmd.spawn()

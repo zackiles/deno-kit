@@ -38,7 +38,7 @@ const ensureValidWorkspacePath = async () => {
     normalize(config.DENO_KIT_WORKSPACE_PATH),
   )
   if (config.DENO_KIT_WORKSPACE_PATH === config.DENO_KIT_PATH) {
-    console.error(
+    terminal.error(
       'Workspace path cannot be the same as the Deno-Kit binary path',
       {
         workspacePath: config.DENO_KIT_WORKSPACE_PATH,
@@ -68,20 +68,16 @@ async function command(): Promise<void> {
   await ensureValidWorkspacePath() // CAUTION: Things can go poorly for us if we don't call ensureValidWorkspacePath(), like destroying the current codebase.
 
   terminal.print(dedent`
-    ${dim('~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~')}
-    ${dim('*')}  ${
-    bold(green('Detected Configuration'))
-  }                                   ${dim('*')}
-    ${dim('~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~')}
-    ${dim('*')}  ${
+    ${bold('~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~')}
+    ${bold('*')}  ${
     bold('Workspace:')
-  }                                               ${dim('*')}
-    ${dim('~')}  ${
+  }                                               ${bold('*')}
+    ${bold('~')}  ${
     config.DENO_KIT_WORKSPACE_PATH.length > 59
       ? `${dim(config.DENO_KIT_WORKSPACE_PATH.substring(0, 53))}...`
       : dim(config.DENO_KIT_WORKSPACE_PATH.padEnd(53))
-  } ${dim('~')}
-    ${dim('~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~')}
+  } ${bold('~')}
+    ${bold('~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~')}
     `)
 
   let workspace: Workspace

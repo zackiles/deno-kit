@@ -7,8 +7,9 @@
  */
 
 import { basename } from '@std/path'
+import { dedent } from '@std/text/unstable-dedent'
 import { promptSelect } from '@std/cli/unstable-prompt-select'
-import terminal from './utils/terminal.ts'
+import { bold, green, purple, terminal } from './utils/terminal.ts'
 import {
   getGitUserEmail,
   getGitUserName,
@@ -63,17 +64,89 @@ const getTemplateValueFromConfig = (key: string): string | undefined => {
 }
 
 const createAutoPromptConfig = async (context: Record<string, string>) => {
-  // For each key of context console.log the key and value
-  for (const [key, value] of Object.entries(context)) {
-    terminal.print(`${key}: ${value}`)
+  if (config.DENO_KIT_ENV === 'test') {
+    return false
   }
-  const response = await promptSelect(
-    'Would you like to use this auto-configuration?',
-    ['Yes', 'Edit'],
+
+  const displayData = createPackageMetadataDisplay(context)
+  for (const line of displayData) {
+    terminal.print(line)
+  }
+
+  const response = promptSelect(
+    green('Would you like to use this auto-configuration?'),
+    ['Yes', 'No! Let me edit it'],
     { clear: true },
   )
-  terminal.debug('response', response)
-  return context
+  return response === 'Yes'
+}
+
+const createPackageMetadataDisplay = (
+  context: Record<string, string>,
+): string[] => {
+  const keyLabels = {
+    PROJECT_NAME: { emoji: '📦', label: 'PROJECT' },
+    PACKAGE_VERSION: { emoji: '📌', label: 'VERSION' },
+    PACKAGE_AUTHOR_NAME: { emoji: '👤', label: 'AUTHOR' },
+    PACKAGE_AUTHOR_EMAIL: { emoji: '📧', label: 'EMAIL' },
+    PACKAGE_GITHUB_USER: { emoji: '🐙', label: 'USER' },
+    PACKAGE_NAME: { emoji: '🧩', label: 'PACKAGE' },
+  }
+
+  const filteredEntries = Object.entries(context)
+    .filter(([key]) => key !== 'YEAR' && key !== 'PACKAGE_SCOPE')
+    .filter(([key]) => keyLabels[key as keyof typeof keyLabels])
+
+  // Match the width of the "Detected Configuration" box (67 chars total)
+  const totalWidth = 61
+
+  const lines: string[] = []
+
+  // Calculate fixed width for left column
+  const maxLabelLength = Math.max(
+    ...Object.values(keyLabels).map(({ label }) => label.length + 4), // +4 for emoji + spaces
+  )
+
+  // Top border with title
+  const titleTextPlain = ' Detected Configuration '
+  const titleTextColored = bold(purple(titleTextPlain))
+  const remainingWidth = totalWidth - titleTextPlain.length - 2 // -2 for corner characters, use plain text length
+  const leftPadding = Math.floor(remainingWidth / 2)
+  const rightPadding = remainingWidth - leftPadding
+  const titleLine = `${'─'.repeat(leftPadding)}${titleTextColored}${
+    '─'.repeat(rightPadding)
+  }`
+  lines.push(`╭${titleLine}╮`)
+
+  // Content rows
+  for (const [key, value] of filteredEntries) {
+    const config = keyLabels[key as keyof typeof keyLabels]
+    if (config) {
+      const labelPlain = `${config.emoji}  ${config.label}`
+      const labelColored = `${config.emoji}  ${bold(config.label)}`
+      const labelPart = labelColored +
+        ' '.repeat(maxLabelLength - labelPlain.length)
+
+      const valuePart = value.length > 35
+        ? `${value.substring(0, 32)}...`
+        : value
+
+      // Calculate exact spacing to match the box width (use plain length for calculation)
+      const separator = ' │ '
+      const usedSpace = maxLabelLength + separator.length + valuePart.length +
+        4 // 4 for borders and spaces
+      const padding = Math.max(0, totalWidth - usedSpace)
+
+      lines.push(
+        `│ ${labelPart}${separator}${valuePart}${' '.repeat(padding)} │`,
+      )
+    }
+  }
+
+  // Bottom border
+  lines.push(`╰${'─'.repeat(totalWidth - 2)}╯`)
+
+  return lines
 }
 
 /**

@@ -165,10 +165,14 @@ Deno.test('Build and run kit binary', async () => {
       TEMPLATES_PATH: tempTemplatesDir, // Use extracted templates path
       DENO_KIT_PACKAGE_NAME: '@test/project',
       DENO_KIT_PACKAGE_VERSION: '0.1.0',
+      DENO_KIT_ENV: 'test',
       DENO_KIT_PACKAGE_AUTHOR_NAME: 'Test User',
       DENO_KIT_PACKAGE_AUTHOR_EMAIL: 'test@example.com',
       DENO_KIT_PACKAGE_DESCRIPTION: 'Test project description',
       DENO_KIT_PACKAGE_GITHUB_USER: 'test-org',
+      DENO_KIT_TEMPLATE_PROJECT_TYPE: 'cli',
+      DENO_KIT_TEMPLATE_CREATE_GITHUB_REPO: 'false',
+      DENO_KIT_TEMPLATE_GITHUB_REPO_PUBLIC: 'false',
     }
 
     // Run the init command with workspace flag

@@ -11,6 +11,7 @@
 import { dirname, join, resolve } from '@std/path'
 import { globToRegExp } from '@std/path'
 import { parse as parseJSONC } from '@std/jsonc'
+import { terminal } from './terminal.ts'
 
 /**
  * Represents the structure of banned directories configuration files
@@ -111,12 +112,12 @@ async function isBannedDirectory(
 
   for (const path of pathsArray) {
     if (checkPatternMatch(path, bannedPatterns)) {
-      console.log(
+      terminal.debug(
         'BANNED PATH',
         path,
         'paths',
         pathsArray,
-        'sBANNED PATTERNS',
+        'BANNED PATTERNS',
         bannedPatterns,
       )
       return true

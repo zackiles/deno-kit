@@ -17,9 +17,44 @@
 import { dirname, fromFileUrl, join, relative } from '@std/path'
 import { exists } from '@std/fs'
 import { compress } from '../src/utils/compression.ts'
+import { promptSelect } from '@std/cli/unstable-prompt-select'
 
 // Get the absolute path to the project root directory
 const PROJECT_ROOT = dirname(dirname(fromFileUrl(import.meta.url)))
+
+// Define all supported platform targets
+const SUPPORTED_TARGETS = [
+  {
+    name: 'windows-x86_64',
+    target: 'x86_64-pc-windows-msvc',
+    os: 'windows',
+    arch: 'x86_64',
+  },
+  {
+    name: 'macos-x86_64',
+    target: 'x86_64-apple-darwin',
+    os: 'darwin',
+    arch: 'x86_64',
+  },
+  {
+    name: 'macos-aarch64',
+    target: 'aarch64-apple-darwin',
+    os: 'darwin',
+    arch: 'aarch64',
+  },
+  {
+    name: 'linux-x86_64',
+    target: 'x86_64-unknown-linux-gnu',
+    os: 'linux',
+    arch: 'x86_64',
+  },
+  {
+    name: 'linux-aarch64',
+    target: 'aarch64-unknown-linux-gnu',
+    os: 'linux',
+    arch: 'aarch64',
+  },
+] as const
 
 // Define resource paths relative to project root
 const RESOURCES = {
@@ -40,6 +75,55 @@ const RESOLVED_PATHS = Object.fromEntries(
 ) as Record<keyof typeof RESOURCES, string>
 
 /**
+ * Gets the current platform target string based on the running OS and architecture
+ */
+function getCurrentPlatformTarget() {
+  const os = Deno.build.os
+  const arch = Deno.build.arch
+
+  const currentTarget = SUPPORTED_TARGETS.find((t) =>
+    t.os === os && t.arch === arch
+  )
+
+  if (currentTarget) {
+    return { name: currentTarget.name, target: currentTarget.target }
+  } else {
+    throw new Error(`Unsupported platform: ${os}-${arch}`)
+  }
+}
+
+/**
+ * Cleans existing zip files for the binary names we're using
+ */
+async function cleanExistingZips(outputDir: string, binaryNames: string[]) {
+  console.log('Cleaning existing zip files...')
+
+  try {
+    for await (const entry of Deno.readDir(outputDir)) {
+      if (entry.isFile && entry.name.endsWith('.zip')) {
+        // Check if this zip file matches any of our binary names
+        const zipBaseName = entry.name.replace('.zip', '')
+        const shouldClean = binaryNames.some((name) =>
+          zipBaseName === `deno-kit-${name}`
+        )
+
+        if (shouldClean) {
+          const zipPath = join(outputDir, entry.name)
+          await Deno.remove(zipPath)
+          console.log(`🗑️  Removed: ${entry.name}`)
+        }
+      }
+    }
+  } catch (error) {
+    if (error instanceof Deno.errors.NotFound) {
+      console.log('Build directory does not exist yet, nothing to clean.')
+    } else {
+      throw error
+    }
+  }
+}
+
+/**
  * Lists directory contents recursively for verification
  */
 async function listFilesRecursively(dir: string, indent = '') {
@@ -54,10 +138,33 @@ async function listFilesRecursively(dir: string, indent = '') {
 }
 
 /**
+ * Runs the built binary with any arguments passed to build.ts
+ */
+async function runBinary(binaryPath: string) {
+  console.log(`\nRunning binary: ${binaryPath}`)
+  console.log('Arguments:', Deno.args)
+
+  const command = new Deno.Command(binaryPath, {
+    args: Deno.args,
+    stdout: 'inherit',
+    stderr: 'inherit',
+  })
+
+  const { success } = await command.spawn().status
+  if (!success) {
+    console.error('❌ Binary execution failed')
+    Deno.exit(1)
+  }
+}
+
+/**
  * Main build function that compiles the source for multiple platforms
  */
 async function build() {
-  console.log('Starting build process...')
+  const environment = Deno.env.get('DENO_KIT_ENV') || 'production'
+  const isDevelopment = environment === 'development' || environment === 'test'
+
+  console.log(`Starting build process in ${environment} mode...`)
 
   try {
     // Verify all required resources exist
@@ -89,13 +196,28 @@ async function build() {
     console.log('\nVerifying template files...')
     await listFilesRecursively(RESOLVED_PATHS.templates)
 
-    const targets = [
-      { name: 'windows-x86_64', target: 'x86_64-pc-windows-msvc' },
-      { name: 'macos-x86_64', target: 'x86_64-apple-darwin' },
-      { name: 'macos-aarch64', target: 'aarch64-apple-darwin' },
-      { name: 'linux-x86_64', target: 'x86_64-unknown-linux-gnu' },
-      { name: 'linux-aarch64', target: 'aarch64-unknown-linux-gnu' },
-    ]
+    const allTargets = SUPPORTED_TARGETS
+
+    // Clean existing zip files
+    const binaryNames = allTargets.map((t) => t.name)
+    await cleanExistingZips(config.outputDir, binaryNames)
+
+    // Determine which targets to build based on environment
+    const currentPlatform = getCurrentPlatformTarget()
+    const targets = isDevelopment ? [currentPlatform] : allTargets
+
+    console.log(
+      `\nBuilding for ${
+        isDevelopment ? 'current platform only' : 'all platforms'
+      }:`,
+    )
+    for (const t of targets) {
+      console.log(`- ${t.name} (${t.target})`)
+    }
+
+    if (isDevelopment) {
+      console.log(`\nDevelopment mode: Building only ${currentPlatform.name}`)
+    }
 
     const outputs = []
     for (const [_index, platform] of targets.entries()) {
@@ -160,28 +282,79 @@ async function build() {
           await Deno.chmod(outputPath, 0o755)
         }
 
-        const zipFileName = `deno-kit-${platform.name}.zip`
-        const zipFilePath = join(config.outputDir, zipFileName)
+        if (isDevelopment) {
+          // In development mode, keep the binary without zipping
+          console.log(`✅ Binary available at: ${outputPath}`)
+          outputs.push({
+            platform: platform.name,
+            binaryPath: outputPath,
+          })
+        } else {
+          // In production mode, create zip and optionally keep current platform binary
+          const zipFileName = `deno-kit-${platform.name}.zip`
+          const zipFilePath = join(config.outputDir, zipFileName)
 
-        await compress(outputPath, zipFilePath)
-        console.log(`✅ Created zip archive: ${zipFilePath}`)
+          await compress(outputPath, zipFilePath)
+          console.log(`✅ Created zip archive: ${zipFilePath}`)
 
-        outputs.push({
-          platform: platform.name,
-          binaryPath: outputPath,
-          zipPath: zipFilePath,
-        })
-        await Deno.remove(outputPath)
+          const outputInfo = {
+            platform: platform.name,
+            binaryPath: outputPath,
+            zipPath: zipFilePath,
+          }
+
+          // Keep the current platform binary unzipped in production mode too
+          if (platform.name === currentPlatform.name) {
+            console.log(
+              `✅ Current platform binary available at: ${outputPath}`,
+            )
+            outputs.push(outputInfo)
+          } else {
+            outputs.push(outputInfo)
+            await Deno.remove(outputPath)
+          }
+        }
       } else {
         console.error(`❌ Build failed for ${platform.name}`)
       }
     }
 
     if (outputs.length > 0) {
-      console.log('\n✅ Build process completed successfully!')
-      console.log('\nCreated archives:')
-      for (const { platform, zipPath } of outputs) {
-        console.log(`- ${zipPath} (${platform})`)
+      console.log('✅ Build process completed successfully!')
+
+      if (isDevelopment) {
+        console.log('Created binaries:')
+        for (const { platform, binaryPath } of outputs) {
+          console.log(`- ${binaryPath} (${platform})`)
+        }
+
+        // For development/test environment, prompt to run the binary
+        const buildOutput = outputs.find((output) =>
+          output.platform === currentPlatform.name
+        )
+        if (buildOutput) {
+          const shouldRun = await promptSelect(
+            'Would you like to run the build?',
+            ['Yes', 'No'],
+          )
+
+          if (shouldRun === 'Yes') {
+            await runBinary(buildOutput.binaryPath)
+          }
+        }
+      } else {
+        console.log('Created archives:')
+        for (const output of outputs) {
+          if ('zipPath' in output) {
+            console.log(`- ${output.zipPath} (${output.platform})`)
+          }
+        }
+        console.log('Available binaries:')
+        for (const output of outputs) {
+          if (output.platform === currentPlatform.name) {
+            console.log(`- ${output.binaryPath} (${output.platform})`)
+          }
+        }
       }
     } else {
       throw new Error('No builds were successful.')

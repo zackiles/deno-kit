@@ -16,7 +16,7 @@
 import { getConfig } from './config.ts'
 import { bold, purple, terminal } from './utils/terminal.ts'
 //import { bold, logger, purple } from './utils/logger.ts'
-import type { LogLevel } from './utils/terminal.ts'
+import type { LogLevelEnum, TerminalConfig } from './utils/terminal.ts'
 import gracefulShutdown from './utils/graceful-shutdown.ts'
 import CommandRouter from './utils/command-router.ts'
 import type {
@@ -29,9 +29,12 @@ const config = await getConfig() as DenoKitConfig
 
 // Set log level based on config value from loadConfig
 // This will have already incorporated any DENO_KIT_LOG_LEVEL env variable
-if (config.DENO_KIT_LOG_LEVEL) {
-  terminal.setLogLevel(config.DENO_KIT_LOG_LEVEL as LogLevel)
-}
+terminal.setConfig({
+  environment: config
+    .DENO_KIT_ENV as unknown as TerminalConfig['environment'],
+  level: config.DENO_KIT_LOG_LEVEL as unknown as LogLevelEnum,
+})
+terminal.start()
 
 /**
  * Static mapping of CLI commands to their implementations.

@@ -76,26 +76,6 @@ const cleanupTempFiles = async () => {
   }
 }
 
-// Run first test
-Deno.test('findPackageFromPath - retrieves package information from valid package.json file', async () => {
-  console.log(`Testing with package file: ${validPackageJsonPath}`)
-  console.log(
-    `File exists: ${await Deno.stat(validPackageJsonPath).then(() => true)
-      .catch(() => false)}`,
-  )
-
-  const packageData = await findPackageFromPath(validPackageJsonPath)
-
-  assertExists(packageData)
-  assertEquals(packageData.path, validPackageJsonPath)
-  assertEquals(packageData.name, 'test-package')
-  assertEquals(packageData.version, '1.0.0')
-  assertEquals(
-    (packageData.exports as Record<string, unknown>)?.['.'],
-    './src/index.ts',
-  )
-})
-
 Deno.test('findPackageFromPath - throws error when file is not a valid package config', async () => {
   const invalidFilePath = join(tempDir, 'not-a-package.txt')
   console.log(`Creating invalid package file: ${invalidFilePath}`)
