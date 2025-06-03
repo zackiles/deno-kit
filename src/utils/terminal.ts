@@ -4,6 +4,7 @@
  */
 
 import * as stdColors from '@std/fmt/colors'
+import { dedent } from '@std/text/unstable-dedent'
 
 const encoder = new TextEncoder()
 const RESET = '\x1b[0m'
@@ -124,6 +125,13 @@ class Terminal {
 
   start(): void {
     Deno.stdout.writeSync(encoder.encode(`${CLEAR_SCREEN}${STYLE_BASE}`))
+    if (this.#config.level === LogLevelEnum.DEBUG) {
+      this.print(
+        `DEBUG: ${colors.green('ON')}. [ENV: ${
+          colors.green(this.#config.environment ?? 'undefined')
+        }`,
+      )
+    }
   }
 
   stop(): void {
@@ -131,13 +139,15 @@ class Terminal {
   }
 
   setConfig(config: Partial<TerminalConfig>): void {
-    this.#config = {
-      ...this.#config,
-      ...config,
-      inspect: {
-        ...this.#config.inspect,
-        ...config.inspect,
-      },
+    if (config.environment) {
+      // IMPORTANT: Must set environment before setting the log level
+      this.#config.environment = config.environment
+    }
+    if (config.level) {
+      this.setLogLevel(config.level)
+    }
+    if (config.inspect) {
+      this.setInspectOptions(config.inspect)
     }
   }
 
@@ -155,12 +165,18 @@ class Terminal {
 
   setLogLevel(level: LogLevelEnum | LogLevel): void {
     this.#config.level = parseLogLevel(level)
+    if (this.#config.level === LogLevelEnum.DEBUG) {
+      this.#config.timestamp = true
+      this.print(
+        `DEBUG: ${colors.green('ON')}. [ENV: ${
+          colors.green(this.#config.environment ?? 'undefined')
+        }]`,
+      )
+    }
   }
 
   formatTimestamp(): string {
-    return this.#config.timestamp
-      ? `[${Temporal.Now.instant().toString()}]`
-      : ''
+    return this.#config.timestamp ? `${Temporal.Now.instant().toString()}` : ''
   }
 
   formatName(colorFn?: (s: string) => string, suffix = ''): string {
@@ -202,12 +218,13 @@ class Terminal {
           return colors.dim(inspected)
         }
       })
-      this.print(
-        `${
-          colors.dim(colors.bold(`DEBUG | ENV:${this.#config.environment}]`))
-        }:${this.formatTimestamp()}${formattedName} ${colors.dim(msg)}`,
+      const output = [
+        `${STYLE_BASE}${
+          colors.dim(this.formatTimestamp())
+        } : ${formattedName} ${colors.dim(msg)}`,
         ...dimmedArgs,
-      )
+      ].join('\n')
+      Deno.stdout.writeSync(encoder.encode(`${output}${RESET}\n`))
     }
   }
 
@@ -235,6 +252,67 @@ class Terminal {
       ? [msg, ...args].map(String).join(' ')
       : String(msg)
     Deno.stdout.writeSync(encoder.encode(`${STYLE_BASE}${output}${RESET}\n`))
+  }
+
+  async printBanner() {
+    const frames = [
+      dedent`
+                       __
+                      / _)
+             _.----._/ /
+            /         /
+         __/ (  | (  |
+        /__.-'|_|--|_|
+      `,
+      dedent`
+                       __
+                      / _)
+             _.----._/ /
+            /         /
+         __/ (  | (  |
+        /__.-'|_|--|_/
+      `,
+      dedent`
+                       __
+                      / _)
+             _.----._/ /
+            /         /
+         __/ (  | (  |
+        /__.-'|_|--/_|
+      `,
+      dedent`
+                       __
+                      / _)
+             _.----._/ /
+            /         /
+         __/ (  | (  |
+        /__.-'|_|--|_|
+      `,
+    ]
+
+    // Print first frame normally
+    this.print(colors.purple(frames[0]))
+
+    const frameLines = frames[0].trim().split('\n').length
+
+    // Animate through frames using direct stdout for precise cursor control
+    for (let cycle = 0; cycle < 2; cycle++) {
+      for (let i = 1; i < frames.length; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 300))
+
+        // Move cursor up to overwrite previous frame
+        Deno.stdout.writeSync(encoder.encode(`\x1b[${frameLines}A`))
+
+        // Write frame directly without extra newlines
+        const coloredFrame = colors.purple(frames[i])
+        Deno.stdout.writeSync(
+          encoder.encode(`${STYLE_BASE}${coloredFrame}${RESET}\n`),
+        )
+      }
+    }
+
+    // Add some spacing after animation completes
+    this.print('')
   }
 }
 

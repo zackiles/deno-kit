@@ -66,18 +66,31 @@ const ensureValidWorkspacePath = async () => {
  */
 async function command(): Promise<void> {
   await ensureValidWorkspacePath() // CAUTION: Things can go poorly for us if we don't call ensureValidWorkspacePath(), like destroying the current codebase.
+  // Create workspace display box
+  const totalWidth = 61
+  const titleTextPlain = ' Workspace '
+  const titleTextColored = bold(green(titleTextPlain))
+  const remainingWidth = totalWidth - titleTextPlain.length - 2
+  const leftPadding = Math.floor(remainingWidth / 2)
+  const rightPadding = remainingWidth - leftPadding
+  const titleLine = `${'─'.repeat(leftPadding)}${titleTextColored}${
+    '─'.repeat(rightPadding)
+  }`
+
+  const workspacePath = config.DENO_KIT_WORKSPACE_PATH.length > 53
+    ? `...${
+      config.DENO_KIT_WORKSPACE_PATH.substring(
+        config.DENO_KIT_WORKSPACE_PATH.length - 50,
+      )
+    }`
+    : config.DENO_KIT_WORKSPACE_PATH
+
+  const pathPadding = Math.max(0, totalWidth - workspacePath.length - 4)
 
   terminal.print(dedent`
-    ${bold('~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~')}
-    ${bold('*')}  ${
-    bold('Workspace:')
-  }                                               ${bold('*')}
-    ${bold('~')}  ${
-    config.DENO_KIT_WORKSPACE_PATH.length > 59
-      ? `${dim(config.DENO_KIT_WORKSPACE_PATH.substring(0, 53))}...`
-      : dim(config.DENO_KIT_WORKSPACE_PATH.padEnd(53))
-  } ${bold('~')}
-    ${bold('~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~')}
+    ╭${titleLine}╮
+    │ ${dim(workspacePath)}${' '.repeat(pathPadding)} │
+    ╰${'─'.repeat(totalWidth - 2)}╯
     `)
 
   let workspace: Workspace
@@ -132,9 +145,32 @@ async function command(): Promise<void> {
           })
         terminal.print(
           `${
-            templateValues.GITHUB_REPO_PUBLIC ? 'Public' : 'Private'
+            isPublic ? 'Public' : 'Private'
           } GitHub repo created for ${path} and pushed to ${repoUrl}`,
         )
+
+        // 🤖 In development, immediately remove the GitHub repo for testing purposes
+        if (config.DENO_KIT_ENV === 'development') {
+          try {
+            const { repoName } = await (workspace as WorkspaceWithGit)
+              .removeGithubRepo({
+                name: templateValues.PROJECT_NAME,
+                confirm: true,
+              })
+            terminal.debug(
+              `Development mode: GitHub repo '${repoName}' was created and immediately deleted for testing purposes`,
+            )
+          } catch (error) {
+            terminal.error(
+              `Failed to delete GitHub repo '${templateValues.PROJECT_NAME}' in development mode`,
+              {
+                error: error instanceof Error ? error.message : String(error),
+                repoName: templateValues.PROJECT_NAME,
+              },
+            )
+            // Don't re-throw the error - just log it and continue
+          }
+        }
       }
     }
 

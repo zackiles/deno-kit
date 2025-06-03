@@ -140,10 +140,10 @@ const runDenoKit = async (args: string[], workspacePath: string) => {
   const { code, success } = await new Deno.Command(Deno.execPath(), {
     args,
     env: {
-      DENO_KIT_ENV: 'development',
-      //      DENO_KIT_LOG_LEVEL: 'debug',
-      DENO_KIT_WORKSPACE_PATH: workspacePath,
       ...Deno.env.toObject(),
+      DENO_KIT_ENV: 'development',
+      DENO_KIT_LOG_LEVEL: 'info',
+      DENO_KIT_WORKSPACE_PATH: workspacePath,
     },
     stdin: 'inherit',
     stdout: 'inherit',

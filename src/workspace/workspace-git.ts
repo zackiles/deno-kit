@@ -32,6 +32,12 @@
  *   name: "API_KEY",
  *   value: "secret-value"
  * })
+ *
+ * // Remove a repository
+ * const { repoName } = await gitWorkspace.removeGithubRepo({
+ *   name: "owner/repo-name",
+ *   confirm: true
+ * })
  * ```
  */
 import { basename } from '@std/path'
@@ -328,6 +334,108 @@ class WorkspaceGit {
     // Create secret
     await runCommand('sh', ['-c', `echo "${value}" | gh secret set ${name}`])
   }
+
+  /**
+   * Removes a GitHub repository
+   *
+   * @param options Configuration options for repository removal
+   * @param options.name Optional repository name to delete
+   *   - If provided, deletes the specified repository (format: owner/repo)
+   *   - If not provided, deletes the current repository
+   * @param options.confirm Whether to skip confirmation prompt (default: false)
+   *   - If true, uses --yes flag to skip confirmation
+   *   - If false, will prompt for confirmation
+   *
+   * @returns An object containing:
+   *   - repoName: The name of the repository that was deleted
+   *
+   * @throws {Error} If:
+   *   - GitHub CLI is not available on the system
+   *   - Authentication with GitHub fails
+   *   - Repository does not exist
+   *   - User does not have permission to delete the repository
+   *   - The repository deletion process encounters an error
+   *
+   * @example
+   * // Delete the current repository with confirmation prompt
+   * const result = await gitWorkspace.removeGithubRepo()
+   *
+   * @example
+   * // Delete a specific repository without confirmation
+   * const result = await gitWorkspace.removeGithubRepo({
+   *   name: 'username/my-repo',
+   *   confirm: true
+   * })
+   */
+  async removeGithubRepo({
+    name,
+    confirm = false,
+  }: {
+    name?: string
+    confirm?: boolean
+  } = {}): Promise<{ repoName: string }> {
+    await WorkspaceGit.#ensureAuth()
+
+    const runCommand = this.#workspace
+      ? this.#workspace.runCommand.bind(this.#workspace)
+      : Workspace.runCommand
+
+    // Determine repository name
+    let repoName: string
+    if (name) {
+      repoName = name
+    } else {
+      // Get current repository name from remote URL
+      try {
+        const remoteUrl = await runCommand('git', [
+          'remote',
+          'get-url',
+          'origin',
+        ])
+        const repoMatch = remoteUrl.match(
+          /github\.com[:/]([^/]+\/[^/]+?)(?:\.git)?(?:\s|$)/,
+        )
+        if (!repoMatch || !repoMatch[1]) {
+          throw new Error('Could not determine repository name from remote URL')
+        }
+        repoName = repoMatch[1]
+      } catch (error) {
+        throw new Error(
+          `No repository name provided and could not determine from git remote: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        )
+      }
+    }
+
+    // Build gh command arguments
+    const ghArgs = ['repo', 'delete', repoName]
+    if (confirm) {
+      ghArgs.push('--yes')
+    }
+
+    // Delete repository
+    try {
+      await runCommand('gh', ghArgs)
+    } catch (error) {
+      const errorMessage = error instanceof Error
+        ? error.message
+        : String(error)
+      if (errorMessage.includes('not found')) {
+        throw new Error(`Repository '${repoName}' not found`)
+      }
+      if (errorMessage.includes('permission')) {
+        throw new Error(
+          `Permission denied: cannot delete repository '${repoName}'`,
+        )
+      }
+      throw new Error(
+        `Failed to delete repository '${repoName}': ${errorMessage}`,
+      )
+    }
+
+    return { repoName }
+  }
 }
 
 /**
@@ -344,6 +452,7 @@ function withGitFunctionality<T extends Workspace>(
     getGithubUser: WorkspaceGit.getGithubUser.bind(gitWorkspace),
     createGithubRepo: gitWorkspace.createGithubRepo.bind(gitWorkspace),
     createRepoSecret: gitWorkspace.createRepoSecret.bind(gitWorkspace),
+    removeGithubRepo: gitWorkspace.removeGithubRepo.bind(gitWorkspace),
   }) as T & WorkspaceWithGit
 }
 

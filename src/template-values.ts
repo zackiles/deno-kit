@@ -9,7 +9,7 @@
 import { basename } from '@std/path'
 import { dedent } from '@std/text/unstable-dedent'
 import { promptSelect } from '@std/cli/unstable-prompt-select'
-import { bold, green, purple, terminal } from './utils/terminal.ts'
+import { bold, dim, green, purple, terminal } from './utils/terminal.ts'
 import {
   getGitUserEmail,
   getGitUserName,
@@ -78,6 +78,7 @@ const createAutoPromptConfig = async (context: Record<string, string>) => {
     ['Yes', 'No! Let me edit it'],
     { clear: true },
   )
+  terminal.clear()
   return response === 'Yes'
 }
 
@@ -85,12 +86,12 @@ const createPackageMetadataDisplay = (
   context: Record<string, string>,
 ): string[] => {
   const keyLabels = {
-    PROJECT_NAME: { emoji: '📦', label: 'PROJECT' },
+    PROJECT_NAME: { emoji: '🧩', label: 'PROJECT' },
     PACKAGE_VERSION: { emoji: '📌', label: 'VERSION' },
     PACKAGE_AUTHOR_NAME: { emoji: '👤', label: 'AUTHOR' },
     PACKAGE_AUTHOR_EMAIL: { emoji: '📧', label: 'EMAIL' },
     PACKAGE_GITHUB_USER: { emoji: '🐙', label: 'USER' },
-    PACKAGE_NAME: { emoji: '🧩', label: 'PACKAGE' },
+    PACKAGE_NAME: { emoji: '📦', label: 'PACKAGE' },
   }
 
   const filteredEntries = Object.entries(context)
@@ -127,13 +128,14 @@ const createPackageMetadataDisplay = (
       const labelPart = labelColored +
         ' '.repeat(maxLabelLength - labelPlain.length)
 
-      const valuePart = value.length > 35
+      const valueText = value.length > 35
         ? `${value.substring(0, 32)}...`
         : value
+      const valuePart = dim(valueText)
 
       // Calculate exact spacing to match the box width (use plain length for calculation)
       const separator = ' │ '
-      const usedSpace = maxLabelLength + separator.length + valuePart.length +
+      const usedSpace = maxLabelLength + separator.length + valueText.length +
         4 // 4 for borders and spaces
       const padding = Math.max(0, totalWidth - usedSpace)
 
@@ -162,7 +164,7 @@ function createPromptConfig(context: {
 }): Record<string, PromptItem> {
   return {
     PACKAGE_NAME: {
-      text: 'Enter package @scope/name',
+      text: 'Package name (@scope/name)',
       defaultValue: context.PACKAGE_SCOPE
         ? `${context.PACKAGE_SCOPE}/${context.PROJECT_NAME}`
         : `@my-org/${context.PROJECT_NAME}`,
@@ -196,27 +198,27 @@ function createPromptConfig(context: {
       getValue: () => new Date().getFullYear().toString(),
     },
     PACKAGE_VERSION: {
-      text: 'Enter package version',
+      text: 'Package version',
       defaultValue: '0.0.1',
       envKey: 'PACKAGE_VERSION',
     },
     PACKAGE_AUTHOR_NAME: {
-      text: 'Enter author name',
+      text: 'Author name',
       defaultValue: context.PACKAGE_AUTHOR_NAME,
       envKey: 'PACKAGE_AUTHOR_NAME',
     },
     PACKAGE_AUTHOR_EMAIL: {
-      text: 'Enter author email',
+      text: 'Author email',
       defaultValue: context.PACKAGE_AUTHOR_EMAIL,
       envKey: 'PACKAGE_AUTHOR_EMAIL',
     },
     PACKAGE_DESCRIPTION: {
-      text: 'Enter package description',
+      text: 'Package description',
       defaultValue: 'A Deno project',
       envKey: 'PACKAGE_DESCRIPTION',
     },
     PACKAGE_GITHUB_USER: {
-      text: 'Enter GitHub username or organization',
+      text: 'GitHub username or organization',
       defaultValue: context.PACKAGE_SCOPE,
       envKey: 'PACKAGE_GITHUB_USER',
     },
@@ -224,14 +226,19 @@ function createPromptConfig(context: {
 }
 
 /**
- * Get user input for a prompt
+ * Get user input for a prompt with modern styling
  */
 async function promptUser(
   promptText: string,
   defaultValue: string,
+  emoji = '❓',
 ): Promise<string> {
-  const promptWithDefault = `${promptText} [${defaultValue}]: `
-  terminal.print(promptWithDefault)
+  // Create styled prompt with emoji and colors
+  const styledPrompt = `${emoji}  ${bold(promptText)}`
+  const styledDefault = dim(`[${defaultValue}]`)
+  const prompt = `${styledPrompt} ${styledDefault}: `
+
+  terminal.print(prompt)
 
   // Skip stdin read in test mode
   if (config.DENO_KIT_ENV === 'test') {
@@ -284,94 +291,152 @@ export async function getTemplateValues(): Promise<TemplateValues> {
     initialContext.PACKAGE_NAME =
       `${initialContext.PACKAGE_SCOPE}/${initialContext.PROJECT_NAME}`
   }
-  // TODO: All we need (if a user accepts the auto config) is PROJECT_TYPE, PACKAGE_DESCRIPTION, GITHUB_CREATE_REPO, and GITHUB_REPO_PUBLIC. That means we only need a partial "createPromptConfig" for the remaining values.
-  await createAutoPromptConfig(initialContext)
 
-  const prompts = createPromptConfig(initialContext)
+  const useAutoConfig = await createAutoPromptConfig(initialContext)
 
-  // Process PACKAGE_NAME first with validation
-  const namePrompt = prompts.PACKAGE_NAME as PromptConfig
-  let packageName: string
+  // If user accepts auto-configuration, use initial context values and skip to GitHub repo prompts
+  if (useAutoConfig) {
+    // Set all values from initial context
+    Object.assign(values, initialContext)
 
-  do {
-    const configValue = namePrompt.envKey
-      ? getTemplateValueFromConfig(namePrompt.envKey)
+    // Add missing values that aren't in initialContext
+    values.PACKAGE_DESCRIPTION = 'A Deno project'
+
+    // Still need to prompt for PROJECT_TYPE since it can't be auto-detected
+    const prompts = createPromptConfig(initialContext)
+    const projectTypePrompt = prompts.PROJECT_TYPE as SelectConfig
+
+    // Use config value from environment variable if available
+    const configValue = projectTypePrompt.envKey
+      ? getTemplateValueFromConfig(projectTypePrompt.envKey)
       : undefined
-    const defaultValue = configValue ?? namePrompt.defaultValue
-    packageName = await promptUser(namePrompt.text, defaultValue)
-
-    // Validate the package name if validation function exists
-    const isValid = !namePrompt.validate || namePrompt.validate(packageName)
-    if (!isValid) {
-      terminal.error(namePrompt.errorMessage || 'Invalid input')
-    }
-  } while (namePrompt.validate && !namePrompt.validate(packageName))
-
-  values.PACKAGE_NAME = packageName
-
-  // Update context with derived scope
-  const derivedScope = (prompts.PACKAGE_SCOPE as DerivedConfig).getValue(values)
-  const scopeWithoutAt = derivedScope.replace('@', '')
-  const updatedPrompts = createPromptConfig({
-    ...initialContext,
-    PACKAGE_NAME: packageName,
-    PACKAGE_SCOPE: scopeWithoutAt,
-  })
-
-  // Process all remaining values
-  for (const [key, prompt] of Object.entries(updatedPrompts)) {
-    // Skip already processed package name
-    if (key === 'PACKAGE_NAME') continue
-
-    // Handle derived values
-    if ('derived' in prompt && prompt.derived) {
-      values[key] = prompt.getValue(values)
-      continue
-    }
-
-    // Handle select prompts
-    if ('select' in prompt && prompt.select) {
-      // Use config value from environment variable if available
-      const configValue = prompt.envKey
-        ? getTemplateValueFromConfig(prompt.envKey)
-        : undefined
-      if (configValue) {
-        values[key] = configValue
-        continue
-      }
-
-      // Skip prompt in test mode
-      if (config.DENO_KIT_ENV === 'test') {
-        values[key] = prompt.defaultValue
-        continue
-      }
-
-      // Call promptSelect and handle both success and failure cases
-      values[key] = prompt.defaultValue
-
+    if (configValue) {
+      values.PROJECT_TYPE = configValue
+    } else if (config.DENO_KIT_ENV === 'test') {
+      values.PROJECT_TYPE = projectTypePrompt.defaultValue
+    } else {
       const result = promptSelect(
-        prompt.text,
-        prompt.options.map((opt) => opt.label),
+        projectTypePrompt.text,
+        projectTypePrompt.options.map((opt) => opt.label),
         { clear: true },
       )
 
       if (result) {
         // Find the original value that matches the selected label
-        const selected = prompt.options.find((opt) => opt.label === result)
-        values[key] = selected?.value ?? prompt.defaultValue
+        const selected = projectTypePrompt.options.find((opt) =>
+          opt.label === result
+        )
+        values.PROJECT_TYPE = selected?.value ?? projectTypePrompt.defaultValue
+      } else {
+        values.PROJECT_TYPE = projectTypePrompt.defaultValue
       }
-
-      continue
     }
 
-    // Handle normal prompts
-    const typedPrompt = prompt as PromptConfig
-    const configValue = typedPrompt.envKey
-      ? getTemplateValueFromConfig(typedPrompt.envKey)
-      : undefined
-    const defaultValue = configValue ?? typedPrompt.defaultValue
-    values[key] = await promptUser(typedPrompt.text, defaultValue)
+    // Skip to GitHub repo creation prompts
+  } else {
+    // Original prompting flow
+    const prompts = createPromptConfig(initialContext)
+
+    // Process PACKAGE_NAME first with validation
+    const namePrompt = prompts.PACKAGE_NAME as PromptConfig
+    let packageName: string
+
+    do {
+      const configValue = namePrompt.envKey
+        ? getTemplateValueFromConfig(namePrompt.envKey)
+        : undefined
+      const defaultValue = configValue ?? namePrompt.defaultValue
+      packageName = await promptUser(namePrompt.text, defaultValue, '📦')
+
+      // Validate the package name if validation function exists
+      const isValid = !namePrompt.validate || namePrompt.validate(packageName)
+      if (!isValid) {
+        terminal.error(namePrompt.errorMessage || 'Invalid input')
+      }
+    } while (namePrompt.validate && !namePrompt.validate(packageName))
+
+    values.PACKAGE_NAME = packageName
+
+    // Update context with derived scope
+    const derivedScope = (prompts.PACKAGE_SCOPE as DerivedConfig).getValue(
+      values,
+    )
+    const scopeWithoutAt = derivedScope.replace('@', '')
+    const updatedPrompts = createPromptConfig({
+      ...initialContext,
+      PACKAGE_NAME: packageName,
+      PACKAGE_SCOPE: scopeWithoutAt,
+    })
+
+    // Process all remaining values
+    for (const [key, prompt] of Object.entries(updatedPrompts)) {
+      // Skip already processed package name
+      if (key === 'PACKAGE_NAME') continue
+
+      // Handle derived values
+      if ('derived' in prompt && prompt.derived) {
+        values[key] = prompt.getValue(values)
+        continue
+      }
+
+      // Handle select prompts
+      if ('select' in prompt && prompt.select) {
+        // Use config value from environment variable if available
+        const configValue = prompt.envKey
+          ? getTemplateValueFromConfig(prompt.envKey)
+          : undefined
+        if (configValue) {
+          values[key] = configValue
+          continue
+        }
+
+        // Skip prompt in test mode
+        if (config.DENO_KIT_ENV === 'test') {
+          values[key] = prompt.defaultValue
+          continue
+        }
+
+        // Call promptSelect and handle both success and failure cases
+        values[key] = prompt.defaultValue
+
+        const result = promptSelect(
+          prompt.text,
+          prompt.options.map((opt) => opt.label),
+          { clear: true },
+        )
+
+        if (result) {
+          // Find the original value that matches the selected label
+          const selected = prompt.options.find((opt) => opt.label === result)
+          values[key] = selected?.value ?? prompt.defaultValue
+        }
+
+        continue
+      }
+
+      // Handle normal prompts
+      const typedPrompt = prompt as PromptConfig
+      const configValue = typedPrompt.envKey
+        ? getTemplateValueFromConfig(typedPrompt.envKey)
+        : undefined
+      const defaultValue = configValue ?? typedPrompt.defaultValue
+
+      // Get appropriate emoji for each prompt
+      const emojiMap: Record<string, string> = {
+        PROJECT_NAME: '🧩',
+        PACKAGE_VERSION: '📌',
+        PACKAGE_AUTHOR_NAME: '👤',
+        PACKAGE_AUTHOR_EMAIL: '📧',
+        PACKAGE_DESCRIPTION: '📝',
+        PACKAGE_GITHUB_USER: '🐙',
+        PACKAGE_NAME: '📦',
+      }
+      const emoji = emojiMap[key] || '❓'
+
+      values[key] = await promptUser(typedPrompt.text, defaultValue, emoji)
+    }
   }
+
   // If we were able to fetch the Github user name from the gh CLI then we'll see if they want a repo made
   if (config.DENO_KIT_ENV !== 'test' && values.PACKAGE_GITHUB_USER) {
     const createRepoPromptText =
@@ -387,7 +452,7 @@ export async function getTemplateValues(): Promise<TemplateValues> {
       const repoPublicPromptText = 'Should the repo be public?'
       const repoPublic = promptSelect(
         repoPublicPromptText,
-        ['Yes', 'No'],
+        ['No', 'Yes'],
         { clear: true },
       )
       values.GITHUB_REPO_PUBLIC = repoPublic === 'Yes' ? 'true' : 'false'

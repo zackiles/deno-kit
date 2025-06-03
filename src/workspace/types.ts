@@ -39,6 +39,7 @@ export type GitMethods =
   | 'getGithubUser'
   | 'createGithubRepo'
   | 'createRepoSecret'
+  | 'removeGithubRepo'
 
 /**
  * Type for a workspace with git functionality added
@@ -58,4 +59,8 @@ export interface WorkspaceWithGit extends Workspace {
     name: string
     value: string
   }): Promise<void>
+  removeGithubRepo(options?: {
+    name?: string
+    confirm?: boolean
+  }): Promise<{ repoName: string }>
 }

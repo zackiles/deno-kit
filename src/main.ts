@@ -27,15 +27,6 @@ import type { DenoKitConfig } from './types.ts'
 
 const config = await getConfig() as DenoKitConfig
 
-// Set log level based on config value from loadConfig
-// This will have already incorporated any DENO_KIT_LOG_LEVEL env variable
-terminal.setConfig({
-  environment: config
-    .DENO_KIT_ENV as unknown as TerminalConfig['environment'],
-  level: config.DENO_KIT_LOG_LEVEL as unknown as LogLevelEnum,
-})
-terminal.start()
-
 /**
  * Static mapping of CLI commands to their implementations.
  * Commands are loaded using static imports for better tree-shaking.
@@ -74,7 +65,14 @@ async function main(): Promise<void> {
   )
   terminal.print('='.repeat(60))
   terminal.print('')
-  terminal.debug('Configuration:', config)
+  await terminal.printBanner()
+  terminal.setConfig({
+    timestamp: config.DENO_KIT_LOG_LEVEL === 'debug',
+    level: config.DENO_KIT_LOG_LEVEL as unknown as LogLevelEnum,
+    environment: config
+      .DENO_KIT_ENV as unknown as TerminalConfig['environment'],
+  })
+  terminal.debug('Loaded config:', config)
   try {
     const options: CommandRouteOptions = router.getOptions(route)
     await route.command(options)
