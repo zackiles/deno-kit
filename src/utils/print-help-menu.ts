@@ -2,7 +2,7 @@
  * @module print-help-menu
  */
 import { bold, dim, green } from '@std/fmt/colors'
-import logger from './logger.ts'
+import terminal from './terminal.ts'
 
 function printHelpMenu(config: {
   workspace?: { text: string }
@@ -13,24 +13,26 @@ function printHelpMenu(config: {
   note?: { text: string }
 }): void {
   if (config.title) {
-    logger.print(`\n${bold(config.title.text)}`)
+    terminal.print(`\n${bold(config.title.text)}`)
   }
   if (config.usage) {
-    logger.print(`${dim(config.usage.text)}`)
+    terminal.print(`${dim(config.usage.text)}`)
   }
   if (config.section) {
-    logger.print(`\n${bold(config.section.text)}`)
+    terminal.print(`\n${bold(config.section.text)}`)
   }
   if (config.command) {
     const { command, description, padding } = config.command
     const paddingSpaces = ' '.repeat(padding - command.length + 2)
-    logger.print(`  ${bold(green(command))}${paddingSpaces}${dim(description)}`)
+    terminal.print(
+      `  ${bold(green(command))}${paddingSpaces}${dim(description)}`,
+    )
   }
   if (config.workspace) {
-    logger.print(`\n${bold(`Workspace: ${dim(config.workspace.text)}`)}`)
+    terminal.print(`\n${bold(`Workspace: ${dim(config.workspace.text)}`)}`)
   }
   if (config.note) {
-    logger.print(`\n${dim(config.note.text)}`)
+    terminal.print(`\n${dim(config.note.text)}`)
   }
 }
 export { printHelpMenu }

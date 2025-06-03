@@ -1,6 +1,6 @@
 import type { CommandRouteDefinition } from '../utils/command-router.ts'
 import { findPackagePathFromPath } from '../utils/package-info.ts'
-import logger from '../utils/logger.ts'
+import terminal from '../utils/terminal.ts'
 import { getConfig } from '../config.ts'
 import type { DenoKitConfig } from '../types.ts'
 
@@ -13,7 +13,7 @@ const commandRoute: CommandRouteDefinition = {
 }
 
 async function command(): Promise<void> {
-  logger.debug(
+  terminal.debug(
     `Removing Deno-Kit from workspace: ${config.DENO_KIT_WORKSPACE_PATH}`,
   )
 
@@ -24,7 +24,7 @@ async function command(): Promise<void> {
 
   if (packageInfo) {
     await Deno.remove(packageInfo)
-    logger.info(
+    terminal.info(
       `Removed Deno-Kit from workspace: ${config.DENO_KIT_WORKSPACE_PATH}`,
     )
   } else {

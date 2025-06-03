@@ -14,7 +14,9 @@
  * ```
  */
 import { getConfig } from './config.ts'
-import logger from './utils/logger.ts'
+import { bold, purple, terminal } from './utils/terminal.ts'
+//import { bold, logger, purple } from './utils/logger.ts'
+import type { LogLevel } from './utils/terminal.ts'
 import gracefulShutdown from './utils/graceful-shutdown.ts'
 import CommandRouter from './utils/command-router.ts'
 import type {
@@ -28,7 +30,7 @@ const config = await getConfig() as DenoKitConfig
 // Set log level based on config value from loadConfig
 // This will have already incorporated any DENO_KIT_LOG_LEVEL env variable
 if (config.DENO_KIT_LOG_LEVEL) {
-  logger.setLogLevel(config.DENO_KIT_LOG_LEVEL)
+  terminal.setLogLevel(config.DENO_KIT_LOG_LEVEL as LogLevel)
 }
 
 /**
@@ -64,7 +66,12 @@ const COMMANDS: Record<string, CommandRouteDefinition> = Object.fromEntries(
 async function main(): Promise<void> {
   const router = new CommandRouter(COMMANDS)
   const route: CommandRouteDefinition = router.getRoute(Deno.args)
-  logger.log(`🦕 Deno-Kit v${config.DENO_KIT_VERSION}`)
+  terminal.print(
+    `🦕 ${purple(bold('Deno-Kit'))} | v${config.DENO_KIT_VERSION}`,
+  )
+  terminal.print('='.repeat(60))
+  terminal.print('')
+  terminal.debug('Configuration:', config)
   try {
     const options: CommandRouteOptions = router.getOptions(route)
     await route.command(options)
@@ -75,5 +82,5 @@ async function main(): Promise<void> {
 }
 
 if (import.meta.main) {
-  await gracefulShutdown.startAndWrap(main, logger)
+  await gracefulShutdown.startAndWrap(main, terminal)
 }

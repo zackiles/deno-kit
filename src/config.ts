@@ -1,16 +1,6 @@
 /**
  * @module config
- *
- * Configuration management module that provides a flexible way to load and access configuration values
- *
- * CONFIGURATION SOURCES: Configuration values can come from multiple optional sources, loaded in this order
- * (highest to lowest precedence):
- * 1. Command line arguments (--workspace-path, etc.)
- * 2. Values from config argument passed to initConfig
- * 3. Values from Deno.env environment variables with the CONFIG_PREFIX
- * 4. Default values
  */
-
 import { parseArgs } from '@std/cli'
 import { realPath } from '@std/fs/unstable-real-path'
 import { dirname, extname, fromFileUrl, join, normalize } from '@std/path'
@@ -19,11 +9,10 @@ import { stat } from '@std/fs/unstable-stat'
 import { assertDenoKitConfig, type DenoKitConfig } from './types.ts'
 import { findPackageFromPath } from './utils/package-info.ts'
 import { resolvePotentialPath } from './utils/fs-extra.ts'
+import terminal from './utils/terminal.ts'
 
 const CONFIG_SUFFIX = 'DENO_KIT_'
-// Singleton config instance
 let configInstance: DenoKitConfig | null = null
-// Shared initialization promise to ensure one-time initialization
 let initPromise: Promise<DenoKitConfig> | null = null
 
 const denoKitMainModule = Deno.mainModule.startsWith('file:')
@@ -70,55 +59,6 @@ const DEFAULT_VALUES = {
   DENO_KIT_DISABLED_COMMANDS: 'template', // template is disabled by default, it's the example command
   DENO_KIT_PATH: denoKitPath,
   DENO_KIT_TEMPLATES_PATH: join(denoKitPath, 'templates'),
-}
-
-if (DEFAULT_VALUES.DENO_KIT_ENV === 'production') {
-  if (!denoKitPackage?.version) {
-    throw new Error(
-      'Deno Kit is not a valid package. Version is required in production environment to fetch templates from GitHub.',
-    )
-  }
-  DEFAULT_VALUES.DENO_KIT_TEMPLATES_PATH =
-    `https://github.com/zackiles/deno-kit/releases/download/v${denoKitPackage.version}/templates.zip`
-}
-
-// IMPORTANT: Convenience argument for users who want to run
-// `deno-kit ~/some-path` instead of `deno-kit init ~/some-path`
-// - Requires us to detect if the first argument is a path.
-// - Works for all valid path specifiers
-// - Must happen BEFORE initializing the command router
-if (Deno.args[0]) {
-  console.log('Deno.args[0]', Deno.args[0])
-  const resolvedPath = await resolvePotentialPath(Deno.args[0])
-  if (resolvedPath) {
-    try {
-      if (await exists(resolvedPath)) {
-        console.log('resolvedPath', resolvedPath)
-        const pathStat = await stat(resolvedPath)
-        if (pathStat.isFile) {
-          console.log('pathStat.isFile', pathStat.isFile)
-          throw new Error(
-            `Cannot initialize workspace: ${resolvedPath} is a file, not a directory`,
-          )
-        }
-      } else {
-        // If path doesn't exist, ensure it doesn't have a file extension
-        const ext = extname(resolvedPath)
-        if (ext) {
-          throw new Error(
-            `Cannot initialize workspace: ${resolvedPath} appears to be a file path, not a directory`,
-          )
-        }
-      }
-
-      // It's a path, so we rewrite the arguments to the init command
-      Deno.args[0] = 'init'
-      DEFAULT_VALUES.DENO_KIT_WORKSPACE_PATH = resolvedPath
-    } catch (error) {
-      console.error(error instanceof Error ? error.message : String(error))
-      Deno.exit(1)
-    }
-  }
 }
 
 /**
@@ -184,6 +124,51 @@ function createParseOptions(
 async function initConfig(
   config: Partial<DenoKitConfig> = {},
 ): Promise<DenoKitConfig> {
+  if (DEFAULT_VALUES.DENO_KIT_ENV === 'production') {
+    if (!denoKitPackage?.version) {
+      throw new Error(
+        'Deno Kit is not a valid package. Version is required in production environment to fetch templates from GitHub.',
+      )
+    }
+    DEFAULT_VALUES.DENO_KIT_TEMPLATES_PATH =
+      `https://github.com/zackiles/deno-kit/releases/download/v${denoKitPackage.version}/templates.zip`
+  }
+
+  // IMPORTANT: Convenience argument for users who want to run
+  // `deno-kit ~/some-path` instead of `deno-kit init ~/some-path`
+  // - Requires us to detect if the first argument is a path.
+  // - Works for all valid path specifiers
+  // - Must happen BEFORE initializing the command router
+  if (Deno.args[0]) {
+    const resolvedPath = await resolvePotentialPath(Deno.args[0])
+    if (resolvedPath) {
+      try {
+        if (await exists(resolvedPath)) {
+          const pathStat = await stat(resolvedPath)
+          if (pathStat.isFile) {
+            throw new Error(
+              `Cannot initialize workspace: ${resolvedPath} is a file, not a directory`,
+            )
+          }
+        } else {
+          // If path doesn't exist, ensure it doesn't have a file extension
+          const ext = extname(resolvedPath)
+          if (ext) {
+            throw new Error(
+              `Cannot initialize workspace: ${resolvedPath} appears to be a file path, not a directory`,
+            )
+          }
+        }
+
+        // It's a path, so we rewrite the arguments to the init command
+        Deno.args[0] = 'init'
+        DEFAULT_VALUES.DENO_KIT_WORKSPACE_PATH = resolvedPath
+      } catch (error) {
+        terminal.error(error instanceof Error ? error.message : String(error))
+        Deno.exit(1)
+      }
+    }
+  }
   // Start with defaults and resolve any async values
   const foundConfig = await resolveAsyncValues(DEFAULT_VALUES)
 
@@ -227,7 +212,7 @@ async function initConfig(
     }
   } catch (_err) {
     // Silently fail if argument parsing fails, or log if needed
-    // console.error("Failed to parse command line arguments:", e);
+    // terminal.error("Failed to parse command line arguments:", e);
   }
 
   try {

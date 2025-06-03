@@ -8,7 +8,7 @@
 
 import { basename } from '@std/path'
 import { promptSelect } from '@std/cli/unstable-prompt-select'
-import logger from './utils/logger.ts'
+import terminal from './utils/terminal.ts'
 import {
   getGitUserEmail,
   getGitUserName,
@@ -57,9 +57,23 @@ type PromptItem = PromptConfig | DerivedConfig | SelectConfig
 /**
  * Gets a template value from config using the DENO_KIT_TEMPLATE_ prefix
  */
-function getTemplateValueFromConfig(key: string): string | undefined {
+const getTemplateValueFromConfig = (key: string): string | undefined => {
   const configKey = `DENO_KIT_TEMPLATE_${key}` as keyof typeof config
   return config[configKey]
+}
+
+const createAutoPromptConfig = async (context: Record<string, string>) => {
+  // For each key of context console.log the key and value
+  for (const [key, value] of Object.entries(context)) {
+    terminal.print(`${key}: ${value}`)
+  }
+  const response = await promptSelect(
+    'Would you like to use this auto-configuration?',
+    ['Yes', 'Edit'],
+    { clear: true },
+  )
+  terminal.debug('response', response)
+  return context
 }
 
 /**
@@ -70,13 +84,15 @@ function createPromptConfig(context: {
   PACKAGE_AUTHOR_EMAIL: string
   PACKAGE_SCOPE: string
   PACKAGE_NAME: string
+  PROJECT_NAME: string
+  PACKAGE_GITHUB_USER: string
 }): Record<string, PromptItem> {
   return {
     PACKAGE_NAME: {
       text: 'Enter package @scope/name',
       defaultValue: context.PACKAGE_SCOPE
-        ? `${context.PACKAGE_SCOPE}/${context.PACKAGE_NAME}`
-        : `@my-org/${context.PACKAGE_NAME}`,
+        ? `${context.PACKAGE_SCOPE}/${context.PROJECT_NAME}`
+        : `@my-org/${context.PROJECT_NAME}`,
       envKey: 'PACKAGE_NAME',
       validate: isValidPackageName,
       errorMessage:
@@ -142,7 +158,7 @@ async function promptUser(
   defaultValue: string,
 ): Promise<string> {
   const promptWithDefault = `${promptText} [${defaultValue}]: `
-  logger.print(promptWithDefault)
+  terminal.print(promptWithDefault)
 
   // Skip stdin read in test mode
   if (config.DENO_KIT_ENV === 'test') {
@@ -166,26 +182,38 @@ export async function getTemplateValues(): Promise<TemplateValues> {
   try {
     githubUser = (await WorkspaceGit.getGithubUser()).login
   } catch (error) {
-    logger.debug(
+    terminal.debug(
       'Error getting GitHub user. Using fallback for PACKAGE_GITHUB_USER',
       error,
     )
   }
+
+  // NOTE: If GitHub is being used, initial context has every variable
+  // needed to generate a project except a description and project type
+  // TODO: Can we embed a small model to auto-generate a short description?
   const initialContext = {
-    PACKAGE_NAME: basename(config.DENO_KIT_WORKSPACE_PATH),
+    PROJECT_NAME: basename(config.DENO_KIT_WORKSPACE_PATH),
+    PACKAGE_VERSION: '0.0.1',
     PACKAGE_AUTHOR_NAME: await getGitUserName({
       cwd: config.DENO_KIT_WORKSPACE_PATH,
     }),
     PACKAGE_AUTHOR_EMAIL: await getGitUserEmail({
       cwd: config.DENO_KIT_WORKSPACE_PATH,
     }),
+    YEAR: new Date().getFullYear().toString(),
     PACKAGE_GITHUB_USER: '',
     PACKAGE_SCOPE: '',
+    PACKAGE_NAME: '',
   }
   if (githubUser) {
     initialContext.PACKAGE_GITHUB_USER = githubUser
     initialContext.PACKAGE_SCOPE = `@${githubUser}`
+    initialContext.PACKAGE_NAME =
+      `${initialContext.PACKAGE_SCOPE}/${initialContext.PROJECT_NAME}`
   }
+  // TODO: All we need (if a user accepts the auto config) is PROJECT_TYPE, PACKAGE_DESCRIPTION, GITHUB_CREATE_REPO, and GITHUB_REPO_PUBLIC. That means we only need a partial "createPromptConfig" for the remaining values.
+  await createAutoPromptConfig(initialContext)
+
   const prompts = createPromptConfig(initialContext)
 
   // Process PACKAGE_NAME first with validation
@@ -202,7 +230,7 @@ export async function getTemplateValues(): Promise<TemplateValues> {
     // Validate the package name if validation function exists
     const isValid = !namePrompt.validate || namePrompt.validate(packageName)
     if (!isValid) {
-      logger.error(namePrompt.errorMessage || 'Invalid input')
+      terminal.error(namePrompt.errorMessage || 'Invalid input')
     }
   } while (namePrompt.validate && !namePrompt.validate(packageName))
 
@@ -248,7 +276,7 @@ export async function getTemplateValues(): Promise<TemplateValues> {
       // Call promptSelect and handle both success and failure cases
       values[key] = prompt.defaultValue
 
-      const result = await promptSelect(
+      const result = promptSelect(
         prompt.text,
         prompt.options.map((opt) => opt.label),
         { clear: true },

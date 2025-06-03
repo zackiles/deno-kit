@@ -4,7 +4,7 @@ import {
   type WorkspaceWithGit,
 } from '../workspace/index.ts'
 import type { CommandRouteDefinition } from '../utils/command-router.ts'
-import logger from '../utils/logger.ts'
+import terminal from '../utils/terminal.ts'
 //import { setupOrUpdateCursorConfig } from '../utils/cursor-config.ts'
 import { normalize } from '@std/path'
 import { ensureDir, exists } from '@std/fs'
@@ -14,6 +14,8 @@ import { getConfig } from '../config.ts'
 import { join } from '@std/path'
 import { compress, decompress } from '../utils/compression.ts'
 import type { DenoKitConfig } from '../types.ts'
+import { dedent } from '@std/text/unstable-dedent'
+import { bold, dim, green } from '@std/fmt/colors'
 
 // Load config and check for existing project
 const config = await getConfig() as DenoKitConfig
@@ -35,8 +37,6 @@ const ensureValidWorkspacePath = async () => {
   config.DENO_KIT_WORKSPACE_PATH = await realPath(
     normalize(config.DENO_KIT_WORKSPACE_PATH),
   )
-  console.log('config.DENO_KIT_WORKSPACE_PATH', config.DENO_KIT_WORKSPACE_PATH)
-  console.log('config.DENO_KIT_PATH', config.DENO_KIT_PATH)
   if (config.DENO_KIT_WORKSPACE_PATH === config.DENO_KIT_PATH) {
     console.error(
       'Workspace path cannot be the same as the Deno-Kit binary path',
@@ -67,10 +67,22 @@ const ensureValidWorkspacePath = async () => {
 async function command(): Promise<void> {
   await ensureValidWorkspacePath() // CAUTION: Things can go poorly for us if we don't call ensureValidWorkspacePath(), like destroying the current codebase.
 
-  logger.print(
-    `Creating a new ${config.DENO_KIT_NAME} project in workspace: ${config.DENO_KIT_WORKSPACE_PATH}\n\n`,
-  )
-  logger.debug('Deno-Kit Config:', config)
+  terminal.print(dedent`
+    ${dim('~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~')}
+    ${dim('*')}  ${
+    bold(green('Detected Configuration'))
+  }                                   ${dim('*')}
+    ${dim('~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~')}
+    ${dim('*')}  ${
+    bold('Workspace:')
+  }                                               ${dim('*')}
+    ${dim('~')}  ${
+    config.DENO_KIT_WORKSPACE_PATH.length > 59
+      ? `${dim(config.DENO_KIT_WORKSPACE_PATH.substring(0, 53))}...`
+      : dim(config.DENO_KIT_WORKSPACE_PATH.padEnd(53))
+  } ${dim('~')}
+    ${dim('~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~')}
+    `)
 
   let workspace: Workspace
   let temporaryTemplatesPath = ''
@@ -81,15 +93,15 @@ async function command(): Promise<void> {
       prefix: 'dk-templates-',
     })
     await prepareTemplates(temporaryTemplatesPath)
-    logger.debug(
+    terminal.debug(
       `Templates prepared successfully in: ${temporaryTemplatesPath}`,
     )
-    logger.debug(`Creating workspace in: ${config.DENO_KIT_WORKSPACE_PATH}`)
+    terminal.debug(`Creating workspace in: ${config.DENO_KIT_WORKSPACE_PATH}`)
     workspace = await createWorkspace({
       name: templateValues.PACKAGE_NAME,
       workspacePath: config.DENO_KIT_WORKSPACE_PATH,
       templatesPath: temporaryTemplatesPath,
-      logger: logger,
+      logger: terminal,
       configFileName: config.DENO_KIT_WORKSPACE_CONFIG_FILE_NAME,
     })
 
@@ -108,7 +120,7 @@ async function command(): Promise<void> {
       name: templateValues.PROJECT_NAME,
       commitMessage: 'chore: initial commit',
     })
-    logger.info(
+    terminal.print(
       `Initialized git repo at ${workspace.path}`,
     )
     if (config.DENO_KIT_ENV !== 'test') {
@@ -122,7 +134,7 @@ async function command(): Promise<void> {
             isPublic,
             push,
           })
-        logger.info(
+        terminal.print(
           `${
             templateValues.GITHUB_REPO_PUBLIC ? 'Public' : 'Private'
           } GitHub repo created for ${path} and pushed to ${repoUrl}`,
@@ -130,14 +142,14 @@ async function command(): Promise<void> {
       }
     }
 
-    logger.info(
+    terminal.print(
       `✅ Setup ${templateValues.PROJECT_TYPE} project in ${config.DENO_KIT_WORKSPACE_PATH}`,
     )
   } finally {
     if (temporaryTemplatesPath) {
       await Deno.remove(temporaryTemplatesPath, { recursive: true })
         .catch((err) =>
-          logger.warn(
+          terminal.warn(
             `Cleanup failed: ${err instanceof Error ? err.message : err}`,
           )
         )
@@ -156,7 +168,7 @@ async function command(): Promise<void> {
   async function prepareTemplates(
     templatesDir: string,
   ): Promise<void> {
-    logger.debug(
+    terminal.debug(
       `Using configured templates path: ${config.DENO_KIT_TEMPLATES_PATH}`,
     )
 
@@ -165,7 +177,7 @@ async function command(): Promise<void> {
 
     // Function to decompress templates from a source to the templates directory
     const decompressTemplates = async (source: string, isUrl = false) => {
-      logger.debug(
+      terminal.debug(
         `Decompressing templates from ${isUrl ? 'URL' : 'file'}: ${source}`,
       )
 
@@ -177,7 +189,7 @@ async function command(): Promise<void> {
           // Remove 'shared/' prefix and normalize for platform
           const relativePath = archiveMemberPath.substring('shared/'.length)
           const newPath = normalize(relativePath)
-          logger.debug(
+          terminal.debug(
             `Transforming shared path: ${archiveMemberPath} -> ${newPath}`,
           )
           return newPath
@@ -191,14 +203,14 @@ async function command(): Promise<void> {
             projectTypePrefix.length,
           )
           const newPath = normalize(relativePath)
-          logger.debug(
+          terminal.debug(
             `Transforming project type path: ${archiveMemberPath} -> ${newPath}`,
           )
           return newPath
         }
 
         // For any other file/path, return null to signal it should be skipped
-        logger.debug(
+        terminal.debug(
           `Skipping path: ${archiveMemberPath} (does not match shared/ or ${projectTypePrefix})`,
         )
         return null
@@ -218,7 +230,7 @@ async function command(): Promise<void> {
       )
 
       try {
-        logger.debug(
+        terminal.debug(
           `Compressing local templates from: ${config.DENO_KIT_TEMPLATES_PATH}`,
         )
         await compress(config.DENO_KIT_TEMPLATES_PATH, zipPath)
@@ -231,7 +243,7 @@ async function command(): Promise<void> {
         // Clean up the temporary zip file
         await Deno.remove(zipPath)
           .catch((err) =>
-            logger.warn(
+            terminal.warn(
               `Failed to clean up templates zip: ${
                 err instanceof Error ? err.message : err
               }`,
@@ -240,24 +252,12 @@ async function command(): Promise<void> {
       }
     }
 
-    const prepareRemoteTemplates = async () => {
-      const version = await fetch(
-        `https://api.github.com/repos/${config.DENO_KIT_GITHUB_REPO}/releases/latest`,
-        { headers: { Accept: 'application/vnd.github.v3+json' } },
-      )
-        .then((res) => res.json())
-        .then(({ tag_name }) => tag_name?.replace(/^v/, ''))
-
-      if (!version) throw new Error('Could not determine latest version')
-
+    if (config.DENO_KIT_ENV === 'production') {
       await decompressTemplates(
-        `https://github.com/${config.DENO_KIT_GITHUB_REPO}/releases/download/v${version}/templates.zip`,
+        // IMPORTANT: In production this is a URL to the versioned templates for this release
+        config.DENO_KIT_TEMPLATES_PATH,
         true,
       )
-    }
-
-    if (config.DENO_KIT_ENV === 'production') {
-      await prepareRemoteTemplates()
     } else if (
       config.DENO_KIT_ENV === 'test' || config.DENO_KIT_ENV === 'development'
     ) {

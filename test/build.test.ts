@@ -1,7 +1,7 @@
 import { assert } from '@std/assert'
 import { dirname, fromFileUrl, join } from '@std/path'
 import { exists } from '@std/fs'
-import logger from '../src/utils/logger.ts'
+import terminal from '../src/utils/terminal.ts'
 import { decompress } from '../src/utils/compression.ts'
 
 /**
@@ -19,8 +19,8 @@ async function streamOutput(
   let output = ''
   const decoder = new TextDecoder()
   const logFn = forcePrint
-    ? logger.print
-    : (isError ? logger.error : logger.print)
+    ? terminal.print
+    : (isError ? terminal.error : terminal.print)
 
   for await (const chunk of stream) {
     const text = decoder.decode(chunk)
@@ -117,7 +117,7 @@ Deno.test('Build and run kit binary', async () => {
 
     // Find the zip file for the current platform
     const currentZipPath = join(binDir, `${binaryName}-${currentPlatform}.zip`)
-    logger.log(`Using zip for current platform: ${currentZipPath}`)
+    terminal.log(`Using zip for current platform: ${currentZipPath}`)
 
     // Extract the binary from the zip
     const extractedBinaryPath = join(
@@ -135,13 +135,13 @@ Deno.test('Build and run kit binary', async () => {
       await Deno.chmod(extractedBinaryPath, 0o755)
     }
 
-    logger.log('\n=== Debug: Checking binary directory contents ===')
+    terminal.log('\n=== Debug: Checking binary directory contents ===')
     for await (const entry of Deno.readDir(tempBinaryDir)) {
       const filePath = join(tempBinaryDir, entry.name)
       const fileInfo = await Deno.stat(filePath)
-      logger.log(`- ${entry.name} (${fileInfo.size} bytes)`)
+      terminal.log(`- ${entry.name} (${fileInfo.size} bytes)`)
     }
-    logger.log('=== End Debug ===\n')
+    terminal.log('=== End Debug ===\n')
 
     // Define the path to the templates.zip created by the build and extract it
     const templatesZipPath = join(binDir, 'templates.zip')
@@ -154,11 +154,11 @@ Deno.test('Build and run kit binary', async () => {
     // Extract templates.zip to the temporary templates directory
     await decompress(templatesZipPath, tempTemplatesDir)
 
-    logger.log('\n=== Debug: Checking extracted templates directory ===')
+    terminal.log('\n=== Debug: Checking extracted templates directory ===')
     for await (const entry of Deno.readDir(tempTemplatesDir)) {
-      logger.log(`- ${entry.name}`)
+      terminal.log(`- ${entry.name}`)
     }
-    logger.log('=== End Debug ===\n')
+    terminal.log('=== End Debug ===\n')
 
     // Setup environment variables for the test
     const testEnv: Record<string, string> = {
@@ -202,7 +202,7 @@ Deno.test('Build and run kit binary', async () => {
       await Deno.remove(tempBinaryDir, { recursive: true })
       await Deno.remove(tempTemplatesDir, { recursive: true })
     } catch (error) {
-      logger.warn(`Failed to clean up temporary directories: ${error}`)
+      terminal.warn(`Failed to clean up temporary directories: ${error}`)
     }
   }
 })

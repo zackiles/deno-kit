@@ -141,7 +141,7 @@ const runDenoKit = async (args: string[], workspacePath: string) => {
     args,
     env: {
       DENO_KIT_ENV: 'development',
-      DENO_KIT_LOG_LEVEL: 'debug',
+      //      DENO_KIT_LOG_LEVEL: 'debug',
       DENO_KIT_WORKSPACE_PATH: workspacePath,
       ...Deno.env.toObject(),
     },
@@ -166,9 +166,6 @@ async function main() {
 
   try {
     const args = buildArgs(Deno.args, workspacePath)
-
-    log.info(`Running deno-kit in: ${yellow(workspacePath)}`)
-
     const exitCode = await runDenoKit(args, workspacePath)
 
     if (!await hasFiles(workspacePath)) {

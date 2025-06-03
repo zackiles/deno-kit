@@ -17,7 +17,7 @@
  * ```
  */
 import { join, resolve } from '@std/path'
-import logger from './logger.ts'
+import terminal from './terminal.ts'
 
 /**
  * Executes the remote cursor config setup script from GitHub
@@ -31,7 +31,7 @@ import logger from './logger.ts'
 async function setupOrUpdateCursorConfig(
   workspaceDir?: string,
 ): Promise<boolean> {
-  logger.log('🔄 Setting up Cursor AI configuration...')
+  terminal.log('🔄 Setting up Cursor AI configuration...')
 
   // Get the absolute path of the workspace directory
   const targetDir = resolve(workspaceDir || Deno.cwd())
@@ -39,7 +39,7 @@ async function setupOrUpdateCursorConfig(
 
   try {
     // Fetch the script content
-    logger.log('🔄 Fetching cursor-config installation script...')
+    terminal.log('🔄 Fetching cursor-config installation script...')
     const response = await fetch(
       'https://raw.githubusercontent.com/zackiles/cursor-config/main/install.sh',
     )
@@ -61,7 +61,7 @@ async function setupOrUpdateCursorConfig(
     }
 
     // Execute the script
-    logger.log(
+    terminal.log(
       `🔄 Executing cursor-config installation script in ${targetDir}...`,
     )
 
@@ -78,18 +78,18 @@ async function setupOrUpdateCursorConfig(
     const output = await command.output()
 
     const textDecoder = new TextDecoder()
-    logger.log(textDecoder.decode(output.stdout))
+    terminal.log(textDecoder.decode(output.stdout))
 
     const stderrOutput = textDecoder.decode(output.stderr)
     if (stderrOutput && !output.success) {
-      logger.error(stderrOutput)
+      terminal.error(stderrOutput)
       return false
     }
 
-    logger.log('✅ Cursor AI configuration setup completed successfully')
+    terminal.log('✅ Cursor AI configuration setup completed successfully')
     return true
   } catch (error) {
-    logger.warn(
+    terminal.warn(
       '⚠️ Failed to set up Cursor AI configuration:',
       error instanceof Error ? error.message : String(error),
     )
@@ -100,7 +100,7 @@ async function setupOrUpdateCursorConfig(
       const fileInfo = await Deno.stat(scriptPath)
       if (fileInfo.isFile) {
         await Deno.remove(scriptPath)
-        logger.log('🧹 Cleaned up temporary installation script')
+        terminal.log('🧹 Cleaned up temporary installation script')
       }
     } catch {
       // Ignore errors if file doesn't exist or can't be removed

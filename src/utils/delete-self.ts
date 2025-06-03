@@ -1,4 +1,4 @@
-import { logger } from './logger.ts'
+import { terminal } from './terminal.ts'
 
 async function deleteSelf(): Promise<void> {
   const selfPath = new URL(Deno.mainModule).pathname
@@ -31,7 +31,7 @@ async function deleteSelf(): Promise<void> {
       windowsRawArguments: true,
     }).spawn()
     proc.unref()
-    logger.log(`${selfPath} has been uninstalled successfully!`)
+    terminal.log(`${selfPath} has been uninstalled successfully!`)
     Deno.exit(0)
   } else {
     await Deno.remove(selfPath)

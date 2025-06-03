@@ -5,7 +5,7 @@
  * To create a new command, copy this file and rename it to the desired name.
  * Then, implement the command logic in the `command` function.
  */
-import logger from '../utils/logger.ts'
+import terminal from '../utils/terminal.ts'
 import { getConfig } from '../config.ts'
 import type {
   CommandRouteDefinition,
@@ -26,7 +26,7 @@ const commandRoute: CommandRouteDefinition = {
 }
 
 function command({ args, routes }: CommandRouteOptions): Promise<void> {
-  logger.debug(
+  terminal.debug(
     `Command ${commandRoute.name} executed in environment ${config.DENO_KIT_ENV}`,
     {
       args,

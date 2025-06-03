@@ -17,7 +17,7 @@ import {
   ZipWriter,
 } from '@zip-js/zip-js/data-uri'
 import type { Entry } from '@zip-js/zip-js'
-import logger from './logger.ts'
+import terminal from './terminal.ts'
 
 // Configure zip-js to terminate workers immediately to avoid timer leaks
 configureZipJs({
@@ -49,7 +49,7 @@ async function decompress(
       ? new Uint8Array(await (await fetch(source.toString())).arrayBuffer())
       : await Deno.readFile(source.toString())
 
-    logger.debug(
+    terminal.debug(
       `Successfully read ${zipData.byteLength} bytes from ${
         isUrl ? 'URL' : 'file'
       }`,
@@ -59,7 +59,7 @@ async function decompress(
 
     try {
       const entries = await zipReader.getEntries()
-      logger.debug(`Found ${entries.length} entries in zip file`)
+      terminal.debug(`Found ${entries.length} entries in zip file`)
       await ensureDir(targetDir)
 
       for (const entry of entries) {
@@ -72,7 +72,7 @@ async function decompress(
         if (transformPath) {
           const transformedPath = transformPath(entry.filename)
           if (transformedPath === null) {
-            logger.debug(
+            terminal.debug(
               `Skipping entry due to transformPath: ${entry.filename}`,
             )
             continue // Skip this entry
@@ -86,7 +86,7 @@ async function decompress(
         await Deno.writeFile(targetPath, fileData)
       }
 
-      logger.debug(`Extracted zip contents to ${targetDir}`)
+      terminal.debug(`Extracted zip contents to ${targetDir}`)
     } finally {
       await zipReader.close().catch(() => {})
     }
@@ -145,7 +145,7 @@ async function compress(
     const zipData = await zipWriter.close()
     await Deno.writeFile(targetPath, zipData)
 
-    logger.debug(`Created zip file at ${targetPath} from file ${sourcePath}`)
+    terminal.debug(`Created zip file at ${targetPath} from file ${sourcePath}`)
   } else if (sourceInfo.isDirectory) {
     const zipWriter = new ZipWriter(new Uint8ArrayWriter())
 
@@ -153,7 +153,7 @@ async function compress(
     const zipData = await zipWriter.close()
     await Deno.writeFile(targetPath, zipData)
 
-    logger.debug(
+    terminal.debug(
       `Created zip file at ${targetPath} from directory ${sourcePath}`,
     )
   } else {

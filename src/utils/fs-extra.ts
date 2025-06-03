@@ -9,7 +9,7 @@ import { stat } from '@std/fs/unstable-stat'
 import { readTextFile } from '@std/fs/unstable-read-text-file'
 import { realPath } from '@std/fs/unstable-real-path'
 import { chown } from '@std/fs/unstable-chown'
-import logger from './logger.ts'
+import terminal from './terminal.ts'
 
 /**
  * Checks if a directory has write access permission.
@@ -232,7 +232,7 @@ async function readFilesRecursively(
   try {
     await ensureDir(absolutePath)
   } catch (error) {
-    logger.warn(
+    terminal.warn(
       `Failed to access directory ${absolutePath}: ${
         error instanceof Error ? error.message : String(error)
       }`,
@@ -278,15 +278,15 @@ async function readFilesRecursively(
         if (success) {
           files.set(path, result.value.content)
         } else {
-          logger.warn(`Failed to read file ${path}: ${result.value.error}`)
+          terminal.warn(`Failed to read file ${path}: ${result.value.error}`)
         }
       } else {
         // This should rarely happen as errors are handled in the promise chain
-        logger.warn(`Unexpected error reading file: ${result.reason}`)
+        terminal.warn(`Unexpected error reading file: ${result.reason}`)
       }
     }
   } catch (error) {
-    logger.warn(
+    terminal.warn(
       `Failed to read directory ${absolutePath}: ${
         error instanceof Error ? error.message : String(error)
       }`,

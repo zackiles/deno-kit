@@ -82,9 +82,9 @@ type DenoKitConfig =
 interface TemplateValues {
   /** Full package name including scope (e.g., "@deno/example") */
   PACKAGE_NAME: string
-  /** Package scope with @ symbol (e.g., "@deno") */
+  /** Package scope with @ symbol (e.g., "@my-org") */
   PACKAGE_SCOPE: string
-  /** Semantic version number (e.g., "1.0.0") */
+  /** Semantic version number (e.g., "0.0.1") */
   PACKAGE_VERSION: string
   /** Author's full name (e.g., "John Doe") */
   PACKAGE_AUTHOR_NAME: string
