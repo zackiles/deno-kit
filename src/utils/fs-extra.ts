@@ -3,11 +3,11 @@
  * Provides extended file system utilities, supplementing the standard Deno FS module.
  * This includes functions for complex permission checks, path analysis, and recursive file operations.
  */
-import { dirname, join, resolve } from '@std/path'
+import { dirname, join, normalize, resolve, SEPARATOR } from '@std/path'
 import { ensureDir, ensureFile, exists, walk } from '@std/fs'
 import { stat } from '@std/fs/unstable-stat'
 import { readTextFile } from '@std/fs/unstable-read-text-file'
-
+import { realPath } from '@std/fs/unstable-real-path'
 import { chown } from '@std/fs/unstable-chown'
 import logger from './logger.ts'
 
@@ -296,9 +296,70 @@ async function readFilesRecursively(
   return files
 }
 
+/**
+ * Returns a normalized absolute path if the argument appears to be a path, undefined otherwise.
+ * Platform independent and handles various path formats including relative and home directory paths.
+ *
+ * @param arg The command line argument to check
+ * @returns The absolute path if the argument appears to be a path, undefined otherwise
+ */
+async function resolvePotentialPath(arg: string): Promise<string | undefined> {
+  if (!arg?.trim()) return undefined
+
+  try {
+    const normalized = normalize(arg)
+
+    // Check for path-like patterns
+    const isLikelyPath =
+      // Current directory indicators
+      arg === '.' || arg === './' || arg === '.' ||
+      // Starts with ./ or ../ for relative paths
+      arg.startsWith('./') || arg.startsWith('../') ||
+      // Absolute paths
+      arg.startsWith('/') ||
+      // Windows drive letter pattern
+      /^[a-zA-Z]:[/\\]/.test(arg) ||
+      // Home directory indicator
+      arg.startsWith('~') ||
+      // Has directory separators
+      arg.includes('/') || arg.includes('\\') ||
+      // Is a single directory up
+      arg === '..'
+
+    if (!isLikelyPath) {
+      // Additional check for local files/directories in current working directory
+      const localPath = join(await realPath(Deno.cwd()), normalized)
+      if (await exists(localPath)) {
+        return normalize(localPath)
+      }
+      return undefined
+    }
+
+    // Handle home directory expansion
+    let resolvedPath = normalized
+    if (arg.startsWith('~')) {
+      const home = Deno.env.get('HOME') || Deno.env.get('USERPROFILE')
+      if (!home) throw new Error('Home directory not found')
+      resolvedPath = join(home, arg.slice(2)) // Remove ~/ and join with home
+    }
+
+    // Convert to absolute path, whether the path exists or not
+    const absolutePath = resolvedPath.startsWith(SEPARATOR)
+      ? resolvedPath // Already absolute
+      : join(await realPath(Deno.cwd()), resolvedPath)
+
+    // Normalize the final path to ensure consistent separators
+    return normalize(absolutePath)
+  } catch {
+    // If any path operations fail, assume it's not a path
+    return undefined
+  }
+}
+
 export {
   checkDirectoryWriteAccess,
   getMostCommonBasePath,
   readFilesRecursively,
+  resolvePotentialPath,
   validateCommonBasePath,
 }

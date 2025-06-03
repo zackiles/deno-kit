@@ -6,15 +6,20 @@
  * supporting both interactive prompts and automated testing through environment variables.
  */
 
+import { basename } from '@std/path'
+import { promptSelect } from '@std/cli/unstable-prompt-select'
 import logger from './utils/logger.ts'
-import { getGitUserEmail, getGitUserName } from './workspace/workspace.ts'
+import {
+  getGitUserEmail,
+  getGitUserName,
+  WorkspaceGit,
+} from './workspace/index.ts'
 import {
   extractProjectName,
   extractScope,
   isValidPackageName,
 } from './utils/package-info.ts'
 import type { TemplateValues } from './types.ts'
-import { promptSelect } from '@std/cli/unstable-prompt-select'
 import { getConfig } from './config.ts'
 import { toTitleCase } from './utils/formatting.ts'
 
@@ -64,11 +69,14 @@ function createPromptConfig(context: {
   PACKAGE_AUTHOR_NAME: string
   PACKAGE_AUTHOR_EMAIL: string
   PACKAGE_SCOPE: string
+  PACKAGE_NAME: string
 }): Record<string, PromptItem> {
   return {
     PACKAGE_NAME: {
       text: 'Enter package @scope/name',
-      defaultValue: '@my-org/my-project',
+      defaultValue: context.PACKAGE_SCOPE
+        ? `${context.PACKAGE_SCOPE}/${context.PACKAGE_NAME}`
+        : `@my-org/${context.PACKAGE_NAME}`,
       envKey: 'PACKAGE_NAME',
       validate: isValidPackageName,
       errorMessage:
@@ -87,7 +95,9 @@ function createPromptConfig(context: {
       text: 'Select project type',
       options: config.DENO_KIT_PROJECT_TYPES.split(',').map((type) => ({
         value: type,
-        label: toTitleCase(type.replace(/-/g, ' ')),
+        label: type === 'cli'
+          ? type.toUpperCase()
+          : toTitleCase(type.replace(/-/g, ' ')),
       })),
       defaultValue: 'library',
       envKey: 'PROJECT_TYPE',
@@ -152,17 +162,30 @@ async function promptUser(
  */
 export async function getTemplateValues(): Promise<TemplateValues> {
   const values: Record<string, string> = {}
-
+  let githubUser: string | undefined
+  try {
+    githubUser = (await WorkspaceGit.getGithubUser()).login
+  } catch (error) {
+    logger.debug(
+      'Error getting GitHub user. Using fallback for PACKAGE_GITHUB_USER',
+      error,
+    )
+  }
   const initialContext = {
+    PACKAGE_NAME: basename(config.DENO_KIT_WORKSPACE_PATH),
     PACKAGE_AUTHOR_NAME: await getGitUserName({
       cwd: config.DENO_KIT_WORKSPACE_PATH,
     }),
     PACKAGE_AUTHOR_EMAIL: await getGitUserEmail({
       cwd: config.DENO_KIT_WORKSPACE_PATH,
     }),
+    PACKAGE_GITHUB_USER: '',
     PACKAGE_SCOPE: '',
   }
-  logger.debug('initialContext', initialContext)
+  if (githubUser) {
+    initialContext.PACKAGE_GITHUB_USER = githubUser
+    initialContext.PACKAGE_SCOPE = `@${githubUser}`
+  }
   const prompts = createPromptConfig(initialContext)
 
   // Process PACKAGE_NAME first with validation
@@ -190,6 +213,7 @@ export async function getTemplateValues(): Promise<TemplateValues> {
   const scopeWithoutAt = derivedScope.replace('@', '')
   const updatedPrompts = createPromptConfig({
     ...initialContext,
+    PACKAGE_NAME: packageName,
     PACKAGE_SCOPE: scopeWithoutAt,
   })
 
@@ -247,7 +271,27 @@ export async function getTemplateValues(): Promise<TemplateValues> {
     const defaultValue = configValue ?? typedPrompt.defaultValue
     values[key] = await promptUser(typedPrompt.text, defaultValue)
   }
+  // If we were able to fetch the Github user name from the gh CLI then we'll see if they want a repo made
+  if (config.DENO_KIT_ENV !== 'test' && values.PACKAGE_GITHUB_USER) {
+    const createRepoPromptText =
+      `Would you like to create a Github repo at "https://github.com/${values.PACKAGE_GITHUB_USER}/${values.PROJECT_NAME}"?`
+    const createRepo = promptSelect(
+      createRepoPromptText,
+      ['Yes', 'No'],
+      { clear: true },
+    )
+    values.CREATE_GITHUB_REPO = createRepo === 'Yes' ? 'true' : 'false'
 
+    if (values.CREATE_GITHUB_REPO === 'true') {
+      const repoPublicPromptText = 'Should the repo be public?'
+      const repoPublic = promptSelect(
+        repoPublicPromptText,
+        ['Yes', 'No'],
+        { clear: true },
+      )
+      values.GITHUB_REPO_PUBLIC = repoPublic === 'Yes' ? 'true' : 'false'
+    }
+  }
   return values as TemplateValues
 }
 

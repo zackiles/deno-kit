@@ -173,7 +173,7 @@ Deno.test('Build and run kit binary', async () => {
 
     // Run the init command with workspace flag
     const initProcess = new Deno.Command(extractedBinaryPath, {
-      args: ['init', '--workspace', tempWorkspaceDir],
+      args: ['init', '--workspace-path', tempWorkspaceDir],
       stdout: 'piped',
       stderr: 'piped',
       env: testEnv,

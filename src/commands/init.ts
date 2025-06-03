@@ -1,7 +1,8 @@
 import {
   create as createWorkspace,
   type Workspace,
-} from '../workspace/workspace.ts'
+  type WorkspaceWithGit,
+} from '../workspace/index.ts'
 import type { CommandRouteDefinition } from '../utils/command-router.ts'
 import logger from '../utils/logger.ts'
 //import { setupOrUpdateCursorConfig } from '../utils/cursor-config.ts'
@@ -26,23 +27,50 @@ const commandRoute: CommandRouteDefinition = {
   },
 }
 
+const ensureValidWorkspacePath = async () => {
+  // TODO: Likely a better way and a different place to make this check
+  // IMPORTANT: I've blown out unstaged changes enough times with destructive
+  // actions running the deno-kit CLI by mistake in this repo that I'm going
+  // out-of-my-way to make sure that {workspace path != CLI path}.
+  config.DENO_KIT_WORKSPACE_PATH = await realPath(
+    normalize(config.DENO_KIT_WORKSPACE_PATH),
+  )
+  console.log('config.DENO_KIT_WORKSPACE_PATH', config.DENO_KIT_WORKSPACE_PATH)
+  console.log('config.DENO_KIT_PATH', config.DENO_KIT_PATH)
+  if (config.DENO_KIT_WORKSPACE_PATH === config.DENO_KIT_PATH) {
+    console.error(
+      'Workspace path cannot be the same as the Deno-Kit binary path',
+      {
+        workspacePath: config.DENO_KIT_WORKSPACE_PATH,
+        kitPath: config.DENO_KIT_PATH,
+      },
+    )
+    Deno.exit(1)
+  }
+
+  await ensureDir(config.DENO_KIT_WORKSPACE_PATH)
+
+  const potentialConfigFilePath = join(
+    config.DENO_KIT_WORKSPACE_PATH,
+    config.DENO_KIT_WORKSPACE_CONFIG_FILE_NAME,
+  )
+  if (await exists(potentialConfigFilePath)) {
+    throw new Error(
+      `A Deno-Kit project already exists at ${potentialConfigFilePath}`,
+    )
+  }
+}
+
 /**
  * Initializes a new Deno-Kit project
  */
 async function command(): Promise<void> {
-  await ensureDir(config.DENO_KIT_WORKSPACE_PATH)
+  await ensureValidWorkspacePath() // CAUTION: Things can go poorly for us if we don't call ensureValidWorkspacePath(), like destroying the current codebase.
+
   logger.print(
     `Creating a new ${config.DENO_KIT_NAME} project in workspace: ${config.DENO_KIT_WORKSPACE_PATH}\n\n`,
   )
   logger.debug('Deno-Kit Config:', config)
-
-  const configFilePath = join(
-    config.DENO_KIT_WORKSPACE_PATH,
-    config.DENO_KIT_WORKSPACE_CONFIG_FILE_NAME,
-  )
-  if (await exists(configFilePath)) {
-    throw new Error(`A Deno-Kit project already exists at ${configFilePath}`)
-  }
 
   let workspace: Workspace
   let temporaryTemplatesPath = ''
@@ -50,7 +78,7 @@ async function command(): Promise<void> {
 
   try {
     temporaryTemplatesPath = await Deno.makeTempDir({
-      prefix: 'deno-kit-templates-',
+      prefix: 'dk-templates-',
     })
     await prepareTemplates(temporaryTemplatesPath)
     logger.debug(
@@ -65,25 +93,6 @@ async function command(): Promise<void> {
       configFileName: config.DENO_KIT_WORKSPACE_CONFIG_FILE_NAME,
     })
 
-    // TODO: Likely a better way and a different place to make this check
-    // IMPORTANT: I've blown out unstaged changes enough times with destructive
-    // actions running the deno-kit CLI by mistake in this repo that I'm going
-    // out-of-my-way to make sure that {workspace path != CLI path}.
-    config.DENO_KIT_WORKSPACE_PATH = await realPath(
-      normalize(config.DENO_KIT_WORKSPACE_PATH),
-    )
-
-    if (config.DENO_KIT_WORKSPACE_PATH === config.DENO_KIT_PATH) {
-      console.error(
-        'Workspace path cannot be the same as the Deno-Kit binary path',
-        {
-          workspacePath: config.DENO_KIT_WORKSPACE_PATH,
-          kitPath: config.DENO_KIT_PATH,
-        },
-      )
-      Deno.exit(1)
-    }
-
     await workspace.compileAndWriteTemplates(templateValues)
     await workspace.save()
 
@@ -94,6 +103,32 @@ async function command(): Promise<void> {
     // Set up Cursor config (in all environments)
     // TODO: fix the installer and build in the cursor-config project so we can re-enable it here
     //await setupOrUpdateCursorConfig(workspace.path)
+
+    await (workspace as WorkspaceWithGit).createLocalRepo({
+      name: templateValues.PROJECT_NAME,
+      commitMessage: 'chore: initial commit',
+    })
+    logger.info(
+      `Initialized git repo at ${workspace.path}`,
+    )
+    if (config.DENO_KIT_ENV !== 'test') {
+      const isPublic = templateValues.GITHUB_REPO_PUBLIC === 'true'
+      const push = templateValues.CREATE_GITHUB_REPO === 'true'
+
+      if (push) {
+        const { path, repoUrl } = await (workspace as WorkspaceWithGit)
+          .createGithubRepo({
+            name: templateValues.PROJECT_NAME,
+            isPublic,
+            push,
+          })
+        logger.info(
+          `${
+            templateValues.GITHUB_REPO_PUBLIC ? 'Public' : 'Private'
+          } GitHub repo created for ${path} and pushed to ${repoUrl}`,
+        )
+      }
+    }
 
     logger.info(
       `✅ Setup ${templateValues.PROJECT_TYPE} project in ${config.DENO_KIT_WORKSPACE_PATH}`,
@@ -221,25 +256,16 @@ async function command(): Promise<void> {
       )
     }
 
-    try {
-      if (config.DENO_KIT_ENV === 'production') {
-        await prepareRemoteTemplates()
-      } else if (
-        config.DENO_KIT_ENV === 'test' || config.DENO_KIT_ENV === 'development'
-      ) {
-        await prepareLocalTemplates()
-      } else {
-        throw new Error(
-          `Template management for environment ${config.DENO_KIT_ENV} not implemented`,
-        )
-      }
-    } catch (error) {
-      logger.warn(
-        `Failed to process templates: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+    if (config.DENO_KIT_ENV === 'production') {
+      await prepareRemoteTemplates()
+    } else if (
+      config.DENO_KIT_ENV === 'test' || config.DENO_KIT_ENV === 'development'
+    ) {
+      await prepareLocalTemplates()
+    } else {
+      throw new Error(
+        `Template management for environment ${config.DENO_KIT_ENV} not implemented`,
       )
-      throw error
     }
   }
 }

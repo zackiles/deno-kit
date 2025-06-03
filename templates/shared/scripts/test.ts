@@ -113,7 +113,7 @@ const runTest = async (args: string[]) => {
     args: [
       'test',
       '-A',
-      "--v8-flags='--no-lazy'",
+      // "--v8-flags=''",
       '--check',
       '--reload',
       ...args,

@@ -16,7 +16,7 @@
     "test": "DENO_ENV=test deno run -A scripts/test.ts",
     "check": "deno lint --fix && deno check -r src/",
     "tag": "deno run -A scripts/tag.ts",
-    "build:repomix": "deno run -A jsr:@zackiles/hypermix --config .ai/hypermix.config.ts",
+    "build:hypermix": "deno run -A jsr:@zackiles/hypermix --config .ai/hypermix.config.ts",
     "build:docs": "deno doc --html --name={PROJECT_NAME} --output=./docs/{PROJECT_NAME} src/**/*.ts"
   },
   // Import maps. Prefer import "@scope/package" syntax in code.
@@ -36,7 +36,7 @@
     "@std/text": "jsr:@std/text@1",
     "@std/regexp": "jsr:@std/regexp@1",
     "@std/bytes": "jsr:@std/bytes@1",
-    "@std/data_structures": "jsr:@std/data_structures@1",
+    "@std/data-structures": "jsr:@std/data-structures@1",
     "@std/crypto": "jsr:@std/crypto@1",
     "@std/datetime": "jsr:@std/datetime@1",
     "@std/msgpack": "jsr:@std/msgpack@1",
@@ -115,7 +115,6 @@
   "compilerOptions": {
     "strict": true,
     "noErrorTruncation": true, // ai-context
-    "isolatedDeclarations": true, // ai-context
     "exactOptionalPropertyTypes": true,
     "lib": [
       "esnext",

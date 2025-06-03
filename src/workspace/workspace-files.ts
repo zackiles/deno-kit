@@ -1,5 +1,5 @@
 /**
- * @module workspace
+ * @module workspace-files
  *
  * Handles file operations for the workspace.
  */
@@ -7,12 +7,12 @@ import { join } from '@std/path'
 import { ensureDir, exists } from '@std/fs'
 import { isBannedDirectory } from '../utils/banned-directories.ts'
 import { readFilesRecursively } from '../utils/fs-extra.ts'
-import type { WorkspaceLogger } from './workspace-types.ts'
+import type { WorkspaceLogger } from './types.ts'
 
 /**
  * Manages file operations within a workspace directory
  */
-export class WorkspaceFiles {
+class WorkspaceFiles {
   #files = new Map<string, string>()
 
   /**
@@ -95,3 +95,5 @@ export class WorkspaceFiles {
     }
   }
 }
+
+export { WorkspaceFiles }

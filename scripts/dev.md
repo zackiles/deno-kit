@@ -1,9 +1,3 @@
-Let's trace how the configuration variable `DENO_KIT_WORKSPACE_PATH` (which you've referred to with aliases like `--workspace` or `-w`) is determined and used end-to-end when the `init` command is run.
-
-The primary file responsible for loading and providing this configuration is `src/config.ts`. The `init` command and other parts of the application access the configuration through the `getConfig()` function exported by `src/config.ts`.
-
-Here's the breakdown:
-
 **1. Determination of `DENO_KIT_WORKSPACE_PATH` (Primarily in `src/config.ts`)**
 
 The value of `DENO_KIT_WORKSPACE_PATH` is determined by the `initConfig` function within `src/config.ts` (which is called by `getConfig`). The determination follows this order of precedence (highest to lowest):

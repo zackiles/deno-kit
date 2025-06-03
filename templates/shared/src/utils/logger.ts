@@ -33,7 +33,9 @@ class Logger {
   constructor(config: Partial<LoggerConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config }
   }
-
+  setLevel(level: LogLevel): void {
+    this.config.level = level
+  }
   setConfig(config: Partial<LoggerConfig>): void {
     this.config = { ...this.config, ...config }
   }
@@ -59,7 +61,10 @@ class Logger {
   error(msg: string, ...args: unknown[]): void {
     if (this.config.level <= LogLevel.ERROR) {
       const formattedName = this.formatName(red)
-      console.error(`${this.formatTimestamp()}${formattedName} ${msg}`, ...args)
+      console.error(
+        `${this.formatTimestamp()}${formattedName} ${msg}`,
+        ...args,
+      )
     }
   }
 

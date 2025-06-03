@@ -64,7 +64,7 @@ describe('init command', () => {
 
   beforeEach(async () => {
     // Create a temporary directory for each test
-    tempDir = await Deno.makeTempDir({ prefix: 'deno-kit-test-init-' })
+    tempDir = await Deno.makeTempDir({ prefix: 'dk-test-init-' })
   })
 
   afterEach(async () => {
@@ -79,7 +79,7 @@ describe('init command', () => {
   it('should initialize a CLI project with correct files', async () => {
     // Run the init command with CLI project type
     const { output, success } = await runCLI(
-      ['init', '--workspace', tempDir],
+      ['init', '--workspace-path', tempDir],
       { DENO_KIT_PROJECT_TYPE: 'CLI' },
     )
 
@@ -130,7 +130,7 @@ describe('init command', () => {
   it('should initialize a Library project with correct files', async () => {
     // Run the init command with Library project type
     const { output, success } = await runCLI(
-      ['init', '--workspace', tempDir],
+      ['init', '--workspace-path', tempDir],
       { DENO_KIT_PROJECT_TYPE: 'Library' },
     )
 
@@ -171,7 +171,7 @@ describe('init command', () => {
   it('should verify template loading priority - project templates override shared templates', async () => {
     // Run the init command with CLI project type to test template overriding
     const { success } = await runCLI(
-      ['init', '--workspace', tempDir],
+      ['init', '--workspace-path', tempDir],
       { DENO_KIT_PROJECT_TYPE: 'CLI' },
     )
 
@@ -189,7 +189,7 @@ describe('init command', () => {
   it('should preserve shared templates that are not in project-specific templates', async () => {
     // Run the init command
     const { success } = await runCLI(
-      ['init', '--workspace', tempDir],
+      ['init', '--workspace-path', tempDir],
       { DENO_KIT_PROJECT_TYPE: 'CLI' },
     )
 
@@ -211,7 +211,7 @@ describe('init command', () => {
     // Find a file that's unique to a specific project type (might need to check or create one)
     // For this test, let's assume CLI has a unique file in its src folder
     const { success } = await runCLI(
-      ['init', '--workspace', tempDir],
+      ['init', '--workspace-path', tempDir],
       { DENO_KIT_PROJECT_TYPE: 'CLI' },
     )
 
@@ -229,10 +229,10 @@ describe('init command', () => {
   it('should support both positional and flag workspace arguments', async () => {
     // Test with positional argument
     const positionalDir = await Deno.makeTempDir({
-      prefix: 'deno-kit-test-init-positional-',
+      prefix: 'dk-test-init-positional-',
     })
     const flagDir = await Deno.makeTempDir({
-      prefix: 'deno-kit-test-init-flag-',
+      prefix: 'dk-test-init-flag-',
     })
 
     try {
@@ -255,14 +255,14 @@ describe('init command', () => {
         `${config.DENO_KIT_WORKSPACE_CONFIG_FILE_NAME} should exist in positional argument directory`,
       )
 
-      // Test --workspace flag
+      // Test --workspace-path flag
       const flagResult = await runCLI(
-        ['init', '--workspace', flagDir],
+        ['init', '--workspace-path', flagDir],
         { DENO_KIT_PROJECT_TYPE: 'CLI' },
       )
       assert(
         flagResult.success,
-        `Command with --workspace flag failed: ${flagResult.output}`,
+        `Command with --workspace-path flag failed: ${flagResult.output}`,
       )
 
       // Verify workspace was created in flag directory
@@ -271,7 +271,7 @@ describe('init command', () => {
       )
       assert(
         flagKitJson,
-        `${config.DENO_KIT_WORKSPACE_CONFIG_FILE_NAME} should exist in --workspace flag directory`,
+        `${config.DENO_KIT_WORKSPACE_CONFIG_FILE_NAME} should exist in --workspace-path flag directory`,
       )
 
       // Verify both workspaces have the same structure
@@ -301,7 +301,7 @@ describe('init command', () => {
   it('should set up Cursor config during initialization', async () => {
     // Run the init command
     const { output, success } = await runCLI(
-      ['init', '--workspace', tempDir],
+      ['init', '--workspace-path', tempDir],
       { DENO_KIT_PROJECT_TYPE: 'CLI' },
     )
 
@@ -309,9 +309,11 @@ describe('init command', () => {
 
     // Verify Cursor config setup was called by checking log messages
     // We only need to verify that the setup process was started
-    assertStringIncludes(output, 'Setting up Cursor AI configuration')
+    // TODO: Re-enable this when we bring back the cursor rules
+    //assertStringIncludes(output, 'Setting up Cursor AI configuration')
 
     // Verify it reached the fetching phase
-    assertStringIncludes(output, 'Fetching cursor-config installation script')
+    // TODO: Re-enable this when we bring back the cursor rules
+    //assertStringIncludes(output, 'Fetching cursor-config installation script')
   })
 })

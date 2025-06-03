@@ -61,11 +61,11 @@
       "docs/**",
       "scripts/**",
       "test/**",
+      "templates/**",
       "README.md",
       "CONTRIBUTING.md"
     ],
     "exclude": [
-      "templates/**",
       ".cursor/**",
       "test/mocks/**",
       "test/fixtures/**"

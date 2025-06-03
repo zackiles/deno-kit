@@ -1,5 +1,5 @@
 /**
- * @module workspace
+ * @module workspace-backups
  *
  * Handles backup operations for the workspace.
  */
@@ -7,14 +7,14 @@ import { basename, join } from '@std/path'
 import { copy, ensureDir, exists } from '@std/fs'
 import { isBannedDirectory } from '../utils/banned-directories.ts'
 import { getMostCommonBasePath } from '../utils/fs-extra.ts'
-import type { WorkspaceLogger } from './workspace-types.ts'
+import type { WorkspaceLogger } from './types.ts'
 
 const DEFAULT_BACKUPS_PREFIX = 'workspace-backups-'
 
 /**
  * Manages backup operations for a workspace
  */
-export class WorkspaceBackups {
+class WorkspaceBackups {
   #backups = new Map<string, string>()
   #originalPathsForBackup: string[] = []
   #backupsPath: string
@@ -226,3 +226,5 @@ export class WorkspaceBackups {
     }
   }
 }
+
+export { WorkspaceBackups }

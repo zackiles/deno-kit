@@ -1,9 +1,6 @@
 name: Release to JSR
 
 on:
-  push:
-    tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+'
   workflow_run:
     workflows: ["Test Deno"]
     types:
@@ -13,9 +10,7 @@ on:
 
 jobs:
   publish-jsr:
-    if: >
-      github.event_name == 'push' ||
-      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -26,7 +21,30 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
+
+      - name: Check if commit has a version tag
+        id: check_tag
+        run: |
+          # Get all tags pointing to this commit
+          TAGS=$(git tag --points-at HEAD)
+          VERSION_TAG=""
+
+          for tag in $TAGS; do
+            if [[ $tag =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              VERSION_TAG=$tag
+              break
+            fi
+          done
+
+          if [ -z "$VERSION_TAG" ]; then
+            echo "❌ No version tag (v[0-9]+.[0-9]+.[0-9]+) found on this commit"
+            exit 1
+          fi
+
+          echo "✓ Found version tag: $VERSION_TAG"
+          echo "version_tag=$VERSION_TAG" >> $GITHUB_OUTPUT
 
       - name: Setup Deno
         uses: denoland/setup-deno@v2
@@ -36,23 +54,10 @@ jobs:
 
       - name: Log workflow context
         run: |
-          echo "Publishing to JSR for tag: ${GITHUB_REF#refs/tags/}"
-          echo "Commit SHA: ${{ github.sha }}"
+          echo "Publishing to JSR for tag: ${{ steps.check_tag.outputs.version_tag }}"
+          echo "Commit SHA: ${{ github.event.workflow_run.head_sha }}"
           echo "Runner OS: ${{ runner.os }}"
-          echo "Triggered by: ${{ github.event_name }}"
-          if [ "${{ github.event_name }}" == "workflow_run" ]; then
-            echo "After successful Test Deno workflow"
-          fi
-
-      - name: Verify deno.jsonc exists
-        run: |
-          if [ ! -f "deno.jsonc" ]; then
-            echo "ERROR: deno.jsonc not found in repository root"
-            exit 1
-          fi
-          echo "✓ Found deno.jsonc"
-          echo "Package info:"
-          cat deno.jsonc | grep -E '"name"|"version"' || true
+          echo "Test Deno workflow completed successfully - proceeding with publication"
 
       - name: Publish to JSR
         run: |

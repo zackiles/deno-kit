@@ -11,20 +11,20 @@
  *
  * @example
  * ```ts
- * import { truncate, formatFileSize, wrapText } from "./formatting.ts";
+ * import { truncate, formatFileSize, wrapText } from "./formatting.ts"
  *
  * // Truncate long text
- * const shortened = truncate("This is a very long string", 10); // "This is..."
+ * const shortened = truncate("This is a very long string", 10) // "This is..."
  *
  * // Format file size
- * const readableSize = formatFileSize(1024 * 1024); // "1 MB"
+ * const readableSize = formatFileSize(1024 * 1024) // "1 MB"
  *
  * // Wrap text to specific width
- * const wrapped = wrapText("Long paragraph that needs to be wrapped", 20);
+ * const wrapped = wrapText("Long paragraph that needs to be wrapped", 20)
  * ```
  */
 
-import { stripAnsiCode } from '@std/fmt/colors'
+import { stripAnsiCode } from "@std/fmt/colors";
 
 /**
  * Truncate a string to a maximum length
@@ -33,12 +33,12 @@ import { stripAnsiCode } from '@std/fmt/colors'
  * @param suffix - String to append to truncated text
  * @returns Truncated string
  */
-function truncate(text: string, maxLength: number, suffix = '...'): string {
+function truncate(text: string, maxLength: number, suffix = "..."): string {
   if (!text || text.length <= maxLength) {
-    return text
+    return text;
   }
 
-  return text.substring(0, maxLength - suffix.length) + suffix
+  return text.substring(0, maxLength - suffix.length) + suffix;
 }
 
 /**
@@ -47,7 +47,7 @@ function truncate(text: string, maxLength: number, suffix = '...'): string {
  * @returns Formatted number string with commas
  */
 function formatNumber(num: number): string {
-  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
 /**
@@ -56,7 +56,7 @@ function formatNumber(num: number): string {
  * @returns ISO date string without milliseconds
  */
 function formatDate(date: Date): string {
-  return date.toISOString().replace(/\.\d{3}Z$/, 'Z')
+  return date.toISOString().replace(/\.\d{3}Z$/, "Z");
 }
 
 /**
@@ -65,12 +65,12 @@ function formatDate(date: Date): string {
  * @returns Human-readable size string (e.g., "4.2 MB")
  */
 function formatFileSize(bytes: number): string {
-  if (bytes === 0) return '0 Bytes'
+  if (bytes === 0) return "0 Bytes";
 
-  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB']
-  const i = Math.floor(Math.log(bytes) / Math.log(1024))
+  const sizes = ["Bytes", "KB", "MB", "GB", "TB", "PB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
 
-  return `${Number.parseFloat((bytes / (1024 ** i)).toFixed(2))} ${sizes[i]}`
+  return `${Number.parseFloat((bytes / (1024 ** i)).toFixed(2))} ${sizes[i]}`;
 }
 
 /**
@@ -80,33 +80,33 @@ function formatFileSize(bytes: number): string {
  */
 function formatDuration(ms: number): string {
   if (ms < 1000) {
-    return `${ms}ms`
+    return `${ms}ms`;
   }
 
-  const seconds = Math.floor(ms / 1000)
+  const seconds = Math.floor(ms / 1000);
 
   if (seconds < 60) {
-    return `${seconds}s`
+    return `${seconds}s`;
   }
 
-  const minutes = Math.floor(seconds / 60)
-  const remainingSeconds = seconds % 60
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
 
   if (minutes < 60) {
-    return `${minutes}m ${remainingSeconds}s`
+    return `${minutes}m ${remainingSeconds}s`;
   }
 
-  const hours = Math.floor(minutes / 60)
-  const remainingMinutes = minutes % 60
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
 
   if (hours < 24) {
-    return `${hours}h ${remainingMinutes}m ${remainingSeconds}s`
+    return `${hours}h ${remainingMinutes}m ${remainingSeconds}s`;
   }
 
-  const days = Math.floor(hours / 24)
-  const remainingHours = hours % 24
+  const days = Math.floor(hours / 24);
+  const remainingHours = hours % 24;
 
-  return `${days}d ${remainingHours}h ${remainingMinutes}m`
+  return `${days}d ${remainingHours}h ${remainingMinutes}m`;
 }
 
 /**
@@ -116,8 +116,8 @@ function formatDuration(ms: number): string {
  * @returns Indented string
  */
 function indent(text: string, spaces = 2): string {
-  const indentation = ' '.repeat(spaces)
-  return text.split('\n').map((line) => indentation + line).join('\n')
+  const indentation = " ".repeat(spaces);
+  return text.split("\n").map((line) => indentation + line).join("\n");
 }
 
 /**
@@ -126,7 +126,7 @@ function indent(text: string, spaces = 2): string {
  * @returns Clean text without ANSI codes
  */
 function stripAnsi(text: string): string {
-  return stripAnsiCode(text)
+  return stripAnsiCode(text);
 }
 
 /**
@@ -136,42 +136,42 @@ function stripAnsi(text: string): string {
  * @returns Text with line breaks added to respect width
  */
 function wrapText(text: string, width = 80): string {
-  const lines = text.split('\n')
+  const lines = text.split("\n");
   return lines.map((line) => {
     if (line.length <= width) {
-      return line
+      return line;
     }
 
-    const wrappedLines = []
-    let currentLine = ''
+    const wrappedLines = [];
+    let currentLine = "";
 
-    const words = line.split(' ')
+    const words = line.split(" ");
     for (const word of words) {
       if ((currentLine + word).length <= width) {
-        currentLine += (currentLine ? ' ' : '') + word
+        currentLine += (currentLine ? " " : "") + word;
       } else {
         if (currentLine) {
-          wrappedLines.push(currentLine)
+          wrappedLines.push(currentLine);
         }
 
-        currentLine = word.length > width ? word.substring(0, width) : word
+        currentLine = word.length > width ? word.substring(0, width) : word;
 
         if (word.length > width) {
-          let remaining = word.substring(width)
+          let remaining = word.substring(width);
           while (remaining.length > 0) {
-            wrappedLines.push(remaining.substring(0, width))
-            remaining = remaining.substring(width)
+            wrappedLines.push(remaining.substring(0, width));
+            remaining = remaining.substring(width);
           }
         }
       }
     }
 
     if (currentLine) {
-      wrappedLines.push(currentLine)
+      wrappedLines.push(currentLine);
     }
 
-    return wrappedLines.join('\n')
-  }).join('\n')
+    return wrappedLines.join("\n");
+  }).join("\n");
 }
 
 /**
@@ -185,15 +185,15 @@ function wrapText(text: string, width = 80): string {
 function padString(
   text: string,
   width: number,
-  padChar = ' ',
+  padChar = " ",
   padRight = true,
 ): string {
   if (text.length >= width) {
-    return text
+    return text;
   }
 
-  const padding = padChar.repeat(width - text.length)
-  return padRight ? text + padding : padding + text
+  const padding = padChar.repeat(width - text.length);
+  return padRight ? text + padding : padding + text;
 }
 
 /**
@@ -203,15 +203,15 @@ function padString(
  * @param padChar - Character to use for padding
  * @returns Centered string
  */
-function centerString(text: string, width: number, padChar = ' '): string {
+function centerString(text: string, width: number, padChar = " "): string {
   if (text.length >= width) {
-    return text
+    return text;
   }
 
-  const leftPadding = Math.floor((width - text.length) / 2)
-  const rightPadding = width - text.length - leftPadding
+  const leftPadding = Math.floor((width - text.length) / 2);
+  const rightPadding = width - text.length - leftPadding;
 
-  return padChar.repeat(leftPadding) + text + padChar.repeat(rightPadding)
+  return padChar.repeat(leftPadding) + text + padChar.repeat(rightPadding);
 }
 
 /**
@@ -222,21 +222,21 @@ function centerString(text: string, width: number, padChar = ' '): string {
  */
 function createTextTable(rows: string[][], headers?: string[]): string {
   if (rows.length === 0) {
-    return ''
+    return "";
   }
 
   // Add headers as first row if provided
-  const allRows = headers ? [headers, ...rows] : rows
+  const allRows = headers ? [headers, ...rows] : rows;
 
   // Calculate column widths
-  const columnWidths: number[] = []
+  const columnWidths: number[] = [];
 
   for (const row of allRows) {
     for (let i = 0; i < row.length; i++) {
-      const cellWidth = String(row[i]).length
+      const cellWidth = String(row[i]).length;
 
       if (!columnWidths[i] || cellWidth > columnWidths[i]) {
-        columnWidths[i] = cellWidth
+        columnWidths[i] = cellWidth;
       }
     }
   }
@@ -244,17 +244,19 @@ function createTextTable(rows: string[][], headers?: string[]): string {
   // Format rows
   const formattedRows = allRows.map((row) => {
     return row.map((cell, i) => padString(String(cell), columnWidths[i])).join(
-      ' | ',
-    )
-  })
+      " | ",
+    );
+  });
 
   // Add separator after headers if provided
   if (headers) {
-    const separator = columnWidths.map((width) => '-'.repeat(width)).join('-+-')
-    formattedRows.splice(1, 0, separator)
+    const separator = columnWidths.map((width) => "-".repeat(width)).join(
+      "-+-",
+    );
+    formattedRows.splice(1, 0, separator);
   }
 
-  return formattedRows.join('\n')
+  return formattedRows.join("\n");
 }
 
 /**
@@ -264,34 +266,34 @@ function createTextTable(rows: string[][], headers?: string[]): string {
  * @returns Formatted string
  */
 function formatKeyValue(obj: Record<string, unknown>, options: {
-  indent?: number
-  keyValueSeparator?: string
-  includeEmpty?: boolean
+  indent?: number;
+  keyValueSeparator?: string;
+  includeEmpty?: boolean;
 } = {}): string {
   const {
     indent = 0,
-    keyValueSeparator = ': ',
+    keyValueSeparator = ": ",
     includeEmpty = false,
-  } = options
+  } = options;
 
-  const indentation = ' '.repeat(indent)
-  const lines: string[] = []
+  const indentation = " ".repeat(indent);
+  const lines: string[] = [];
 
   for (const [key, value] of Object.entries(obj)) {
     if (
-      !includeEmpty && (value === undefined || value === null || value === '')
+      !includeEmpty && (value === undefined || value === null || value === "")
     ) {
-      continue
+      continue;
     }
 
-    const valueStr = typeof value === 'object' && value !== null
+    const valueStr = typeof value === "object" && value !== null
       ? JSON.stringify(value)
-      : String(value)
+      : String(value);
 
-    lines.push(`${indentation}${key}${keyValueSeparator}${valueStr}`)
+    lines.push(`${indentation}${key}${keyValueSeparator}${valueStr}`);
   }
 
-  return lines.join('\n')
+  return lines.join("\n");
 }
 
 /**
@@ -300,13 +302,13 @@ function formatKeyValue(obj: Record<string, unknown>, options: {
  * @returns Title Case text
  */
 function camelToTitleCase(text: string): string {
-  if (!text) return text
+  if (!text) return text;
 
   // Insert a space before all uppercase letters
-  const spaceSeparated = text.replace(/([A-Z])/g, ' $1')
+  const spaceSeparated = text.replace(/([A-Z])/g, " $1");
 
   // Capitalize the first letter
-  return spaceSeparated.charAt(0).toUpperCase() + spaceSeparated.slice(1)
+  return spaceSeparated.charAt(0).toUpperCase() + spaceSeparated.slice(1);
 }
 
 /**
@@ -315,27 +317,27 @@ function camelToTitleCase(text: string): string {
  * @returns Detailed error information as string
  */
 function formatErrorDetails(error: Error): string {
-  let details = `Error: ${error.message}`
+  let details = `Error: ${error.message}`;
 
   if (error.stack) {
-    details += `\nStack: ${error.stack.split('\n').slice(1).join('\n')}`
+    details += `\nStack: ${error.stack.split("\n").slice(1).join("\n")}`;
   }
 
   // Add any additional properties that might be present
   for (const key of Object.keys(error)) {
-    if (!['name', 'message', 'stack'].includes(key)) {
-      const value: unknown = (error as unknown as Record<string, unknown>)[key]
-      if (typeof value !== 'undefined' && value !== null) {
-        if (typeof value === 'object') {
-          details += `\n${key}: ${JSON.stringify(value)}`
+    if (!["name", "message", "stack"].includes(key)) {
+      const value: unknown = (error as unknown as Record<string, unknown>)[key];
+      if (typeof value !== "undefined" && value !== null) {
+        if (typeof value === "object") {
+          details += `\n${key}: ${JSON.stringify(value)}`;
         } else {
-          details += `\n${key}: ${value}`
+          details += `\n${key}: ${value}`;
         }
       }
     }
   }
 
-  return details
+  return details;
 }
 
 export {
@@ -353,4 +355,4 @@ export {
   stripAnsi,
   truncate,
   wrapText,
-}
+};

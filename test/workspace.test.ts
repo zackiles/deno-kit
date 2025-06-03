@@ -2,7 +2,7 @@ import {
   create,
   load,
   type WorkspaceConfigFile,
-} from '../src/workspace/workspace.ts'
+} from '../src/workspace/index.ts'
 import { isBannedDirectory } from '../src/utils/banned-directories.ts'
 import { basename, dirname, join } from '@std/path'
 import {

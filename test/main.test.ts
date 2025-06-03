@@ -41,14 +41,14 @@ describe('main.ts CLI', () => {
     assertStringIncludes(output, 'help')
   })
 
-  it('should display custom workspace when --workspace flag is passed', async () => {
+  it('should display custom workspace when --workspace-path flag is passed', async () => {
     const testWorkspace = '/custom/workspace/path'
-    const { output } = await runCLI(['--workspace', testWorkspace])
+    const { output } = await runCLI(['--workspace-path', testWorkspace])
 
     assertStringIncludes(output, `Workspace: ${testWorkspace}`)
   })
 
-  it('should display current working directory as workspace when no --workspace flag is passed', async () => {
+  it('should display current working directory as workspace when no --workspace-path flag is passed', async () => {
     const { output } = await runCLI()
 
     assertStringIncludes(output, `Workspace: ${Deno.cwd()}`)

@@ -41,7 +41,8 @@ import { isBannedDirectory } from '../utils/banned-directories.ts'
 import { WorkspaceFiles } from './workspace-files.ts'
 import { WorkspaceTemplates } from './workspace-templates.ts'
 import { WorkspaceBackups } from './workspace-backups.ts'
-import type { WorkspaceConfigFile, WorkspaceLogger } from './workspace-types.ts'
+import { withGitFunctionality } from './workspace-git.ts'
+import type { WorkspaceConfigFile, WorkspaceLogger } from './types.ts'
 
 const DEFAULT_TEMP_PREFIX = 'workspace-temp-'
 const DEFAULT_WORKSPACE_CONFIG_FILE_NAME = 'workspace.json'
@@ -52,7 +53,7 @@ const DEFAULT_WORKSPACE_CONFIG_FILE_NAME = 'workspace.json'
  * and automatic workspace backups. All operations are restricted to the workspace directory
  * for security.
  */
-export class Workspace {
+class Workspace {
   readonly id: string
   readonly name: string
   readonly path: string
@@ -170,6 +171,9 @@ export class Workspace {
     if (templateValues) {
       this.#templates.setTemplateValues(templateValues)
     }
+
+    // Add git functionality to this workspace instance
+    withGitFunctionality(this)
   }
 
   /**
@@ -179,7 +183,7 @@ export class Workspace {
    *
    * @param options Configuration options for creating a workspace
    * @param options.workspacePath Path to the workspace directory, if not provided a temporary directory will be created
-   * @param options.templatesPath Path to the templates directory, defaults to 'templates' directory in same folder as workspace.ts
+   * @param options.templatesPath Path to the templates directory, defaults to 'templates' directory in same folder as this file
    * @param options.templatesValues Optional values to replace placeholders with in template files
    * @param options.name Optional name for the workspace
    * @param options.configFileName Optional name for the configuration file, defaults to 'workspace.json'
@@ -605,17 +609,29 @@ export class Workspace {
     } as const
 
     try {
-      const { stdout, stderr } = await new Deno.Command(command, cmdOptions)
+      const output = await new Deno.Command(command, cmdOptions)
         .output()
       const decoder = new TextDecoder()
 
-      const error = decoder.decode(stderr).trim()
-      if (error) {
-        Workspace.logger.error(`Command '${command}'}`, error)
-        throw new Error(`Command '${command}' failed with error: ${error}`)
+      const stderr = decoder.decode(output.stderr).trim()
+      const stdout = decoder.decode(output.stdout).trim()
+
+      if (output.code !== 0) {
+        throw new Error(
+          `Command '${command}' failed with exit code ${output.code}. Stderr: ${
+            stderr || '(empty)'
+          }. Stdout: ${stdout || '(empty)'}.`,
+        )
       }
 
-      return decoder.decode(stdout).trim()
+      if (stderr) {
+        Workspace.logger.debug(
+          `Command '${command}' produced output on stderr, but exited successfully:`,
+          stderr,
+        )
+      }
+
+      return stdout
     } catch (error) {
       const errorMessage = error instanceof Error
         ? `${error.message}${
@@ -957,6 +973,17 @@ export class Workspace {
   }
 }
 
-export const { create, load, isConfigFile, getGitUserName, getGitUserEmail } =
-  Workspace
-export type { WorkspaceConfigFile }
+export { Workspace }
+export { WorkspaceGit } from './workspace-git.ts'
+export const {
+  create,
+  load,
+  isConfigFile,
+  getGitUserName,
+  getGitUserEmail,
+} = Workspace
+export type {
+  GitMethods,
+  WorkspaceConfigFile,
+  WorkspaceWithGit,
+} from './types.ts'

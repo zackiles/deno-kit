@@ -11,18 +11,25 @@
 
 [![cd](https://github.com/zackiles/deno-kit/actions/workflows/publish-github.yml/badge.svg)](https://github.com/zackiles/deno-kit/actions/workflows/publish-github.yml)
 
-<em>Opinionated scaffolding and reference architecture for AI-native and next-generation codebases.</em><br>
+<em>Opinionated scaffolding for the future of AI-native codebases</em><br>
 
 </div>
 
 ## Overview
 
-Scaffold and publish Deno projects in seconds with the Deno-Kit CLI. From quick **vibe-coding prototypes** to battle-tested patterns being adopted by hybrid human/agent projects at **enterprise scale**. Every design choice has been hyper-optimized with the best practices, defaults, and integrations for agentic-driven codebases, supercharging their development. Deno-kit promotes [Context-first Codebases For Agents](#context-first-codebases-for-agents) and you can read more about [the features](#features) it provides to accomplish that.
+Scaffold and publish modern Typescript projects in seconds with the Deno-Kit CLI. Hyper-optimized for agentic collaborators, with best practices, intelligent defaults, tools for agents, and first-class integration with Cursor, Claude Code, and Windsurf. Read more about its approach to [Context-first Codebases For Agents](#context-first-codebases-for-agents) or some of its [other features](#features).
 
 **Supported Scaffold Types**:<br> `Library`, `CLI`, `HTTP-Server`, `Websocket-Server`, and `MCP-Server`
 
+> [!IMPORTANT]
+> **BYOD (Bring Your Own Runtime)**
+>
+> Deno-Kit focuses specifically on the **foundational** aspects of project configuration, structure, and developer workflows. It is indifferent to your application runtime, along with the frameworks, libraries and patterns you choose to design it with
+
+<!-- TODO: The template is stale. Update zackiles/deno-kit-starter-template. Ideally even just automate its creation in publish-github.yml
 > [!TIP]
 > **Prefer a Github Template?** Try our opinionated [pre-made starter-template](https://github.com/zackiles/deno-kit-starter-template) configured as a Deno library that already has Deno-Kit and a fully configured and publishable package ready to go, OR read below if you'd prefer a hands-on approach using the Deno-Kit CLI.
+-->
 
 ## **Quick Start**
 
@@ -34,34 +41,33 @@ Install the Deno-Kit native binary globally, instantly, and cross-platform so yo
 curl -fsSL https://raw.githubusercontent.com/zackiles/deno-kit/main/install.sh | sh
 ```
 
+> [!NOTE]
+> To uninstall, run: `deno-kit uninstall`
+
+### Scaffold Your First Project
+
+With deno-kit installed you can scaffold a new project in the current directory:
+
+```sh
+deno-kit
+```
+
+Or a different directory:
+
+```sh
+deno-kit ../new-project
+```
+
+🚀 **That's it!**. You can continue to use the powerful features of Deno-Kit (see a list of tools `deno-kit --help`), or if you made a mistake configuring the project you can reset using `deno-kit reset`. You can completely uninstall it from your system using `deno-kit uninstall`.
+
 > [!TIP]
-> To uninstall, run: `curl -fsSL https://raw.githubusercontent.com/zackiles/deno-kit/main/install.sh | sh -s -- --uninstall`
+> You can specify a folder that doesn't exist. Deno-Kit will create it, and change the working directory to it for you automatically
 
-### Run
+### How Scaffolding Works
 
-With deno-kit installed globally you can initialize a new project in any folder. Assuming you've created a new folder you can run the init command in it:
+**Configures**: from hyper-customized to instant projects, it'll walk you through setting it up. All steps are skippable and have intelligent defaults.<br>
 
-```sh
-deno-kit init
-```
-
-Optionally, you can init a new project even while not in the project folder. It'll even create the folder if it doesn't already exist:
-
-```sh
-deno-kit init ~/my-new-project
-```
-
-Running `deno-kit init` will:
-
-**Configure**: from hyper-customized to instant projects, it'll walk you through setting it up. All steps are skippable and have intelligent defaults.<br>
-
-**Generate**: a ready-to-go project with all the bells and whistles: documentation, workflows for testing and releasing, comprehensive configuration for VSCode/Cursor/Github and more, one-step publishing on JSR, and a handful of battle-tested utilities from the `@deno-kit` standard library that compliment and enhance Deno's.<br>
-
-🚀 **That's it!**. You can continue to use the powerful features of Deno-Kit (see a list of tools `deno-kit --help`), or if you made a mistake configuring the project you can reset using `deno-kit reset`.
-
-### Next Steps
-
-Write your first bit of code, and then try using the powerful auto-generated CLI client to test your new module. Use `deno-kit cli --help` and it will show a full help menu for your module - showing all methods, their descriptions and arguments, and the commands needed to call every method completely through your terminal. You can even instantiate simple classes. We use [@deno-kit/module-to-cli](https://jsr.io/@deno-kit/module-to-cli) to accomplish this (tip: you can use this library in your own projects without having to use Deno-Kit).
+**Generates**: a ready-to-go project with all the bells and whistles: documentation, workflows for testing and releasing, comprehensive configuration for VSCode/Cursor/Github and more, one-step publishing on JSR, and a handful of battle-tested utilities from the `@deno-kit` standard library that compliment and enhance Deno's. It'll even create the repository and push the initial commit up with the Github CLI if you set it to.<br>
 
 > [!NOTE]
 > Deno-Kit receives updates. Running `deno kit update` will attempt to update both the CLI _and_ from time-to-time the project scaffolding or shell. If anything goes wrong during an update, you can use `deno-kit reset` to rollback the recent changes.
@@ -110,36 +116,57 @@ Running `deno-kit update` will update the following:
 
 ## Context-first Codebases For Agents
 
-The scaffolding follows the **self-discovery pattern** - every design choice is meant to leave breadcrumbs for an agent that leads them to the next. They act like a series of triggers that cascade context incrementally as the agent navigates your codebase through common workflows, helping them maintain coherence and the optimal context-window. Self-discovery is achieved through three primary ways: **context funnels**, **tools**, and intentional AI-friendly **information architecture**.
+**The self-discovery pattern helps an AI agent fetch just-in-time context.**
+Every design choice leaves breadcrumbs that lead the agent to the next relevant file. This cascades context incrementally as the agent navigates common workflows, maintaining coherence and optimal context-window usage.
+
+Self-discovery unfolds through three pillars:
+
+- **Context funnels** that trigger incremental context injection
+- **Embedded tools** that surface knowledge on demand
+- **Information architecture** tuned for AI navigation
 
 ### Funneling
 
-Part of the agent's top-level system prompt is automatically injected into every conversation that set up the triggers of incremental context injection.
+The agent's system prompt automatically injects triggers for incremental context discovery.
 
-**Global Prompt**: A light meta-prompt gives your agent a structured set of instructions on further context they should seek when taking certain actions such as working with certain high-level files and folders specified by glob patterns. This sets up the first layer of triggers. <br>
+**Global prompts** provide structured instructions for context-seeking based on file and folder glob patterns. This establishes the first layer of triggers.
 
-**Glob Hierarchies**: As the agent begins work on certain files, folders, or tries to access their tools, the global prompt kicks in depending on the glob pattern and triggers the agent to use their tools to fetch the context they were instructed to originally. This new context further instructs them to set up a new lower-level of triggers, and so on.<br>
+**Glob hierarchies** activate when the agent works on matching files or folders. The global prompt triggers the agent to fetch additional context, which then sets up deeper, more specific triggers.
 
-For illustration, imagine an agent tasked with editing tests in a codebase but given no other context besides our system prompt
-
-- First trigger instructs them that before they do anything they should review the README.md
-- Agent loads the README.me where instructions for how to run the tests are present
-- Agent runs the tests which print the test folder's path to the terminal. The agent then tries to navigate to the test folder to review the files there, and globs for the test folder match instructing the agent to review the documentation on testing, which includes further triggers.
-- Prepped with the new context the agent continues, and tries to read a specific test file. Previous triggers from the testing-guide mentioned this specific file requires the agent to fetch documentation specific to that test file, which further points to more documentation on specific libraries to be used, and a deeper trigger that instructs the agent new context to fetch any time it's finished modifying that file.
-- The agent finishes writing the test, and then has to fetch the new context which tells them to run the tests using a specific command.
-- The agent runs the tests, and the fail. But the test suite was designed to inject another trigger into the error message instructing the agent to fetch a unique set of context purpose-built to make the agent loop continually trying to debug the failing test.
-
-This is a hypothetical, but clearly demonstrates how a series of lazy-loaded context can act as triggers and significantly enhance agent coherence over multi-turns and deep context, continually re-focusing them bit by bit.
+> **🧪 Example workflow**
+>
+> An agent tasked with editing tests receives only the system prompt initially:
+>
+> 1. **First trigger:** "Review the `README.md` before starting."
+> 2. **Agent loads README:** Finds instructions for running tests.
+> 3. **Agent runs tests:** Output prints the test folder path to terminal.
+> 4. **Agent navigates to `test/`:** Glob match triggers documentation review for the testing framework.
+> 5. **Agent reads specific test file:** Previous triggers mentioned this file requires fetching file-specific documentation.
+> 6. **Agent finishes writing test:** New context instructs them to run tests with a specific command.
+> 7. **Tests fail:** Error message contains trigger instructing agent to fetch debugging-specific context.
+>
+> This demonstrates how lazy-loaded context acts as triggers, enhancing agent coherence across multi-turn conversations.
 
 ### Tools
 
-Deno-kit exposes actual tools to your agent and provides the instructions to use them. They can all be found in the `.ai` folder. One of the main ways, is through automatic repomixing of your codebase and a purpose-built for repomix grep-like tool for the agent to search it. Git-hooks, Deno tasks, and agent workflows automatically maintain the lifecycle of the mixes as well as a knowledge-base of the latest Deno and Typescript references hand-curated (from official documentation, source-code internals, discussions on Github issues and other undocumented sources).
+The `.ai` folder equips your agent with actual tools and usage instructions:
 
-### Information Architecture
+- **Automatic repomix snapshots** for lightning-fast semantic search of the entire codebase
+- **Purpose-built grep tool** designed specifically for agent workflows
+- **Git hooks and Deno tasks** that automatically maintain the lifecycle of code indexes
+- **Curated knowledge base** of latest Deno and TypeScript references from official docs, source internals, and GitHub discussions
 
-Patterns of self-discovery requires thoughtful approaches to naming things and structuring your project early. Strong foundations is the biggest contributor to agent coherence and consistency as the codebase grows. Every piece of information an agent could observe in your codebase and environment should be thought of implied instructions. A great example of this is how an agent working in a Javascript project who comes across "var" is likely to start writing Javascript as it looks in it's sample set from when "var" was popular.
+### Information architecture
 
-Every file and folder has been specifically named. Every configuration file includes schemas, all options, and inline comments to enable self-discovery and autonomy. Repeating patterns and terms reinforce agent behavior by funneling them through a context window that leverages their training in the best way.
+Self-discovery requires thoughtful naming and project structure from the start. Strong foundations contribute most to agent coherence as codebases grow.
+
+Every observable element acts as implicit instructions:
+
+- **File and folder names** follow descriptive, predictable patterns
+- **Configuration files** include complete schemas and inline comments for autonomy
+- **Repeating patterns and terms** reinforce agent behavior through context windows that leverage training data effectively
+
+**Example:** An agent encountering `var` in JavaScript projects will likely write code matching that era's patterns from its training data.
 
 ---
 

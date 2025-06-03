@@ -1,7 +1,4 @@
-import {
-  load as loadWorkspace,
-  type Workspace,
-} from '../workspace/workspace.ts'
+import { load as loadWorkspace, type Workspace } from '../workspace/index.ts'
 import type { CommandRouteDefinition } from '../utils/command-router.ts'
 import { findPackagePathFromPath } from '../utils/package-info.ts'
 import logger from '../utils/logger.ts'

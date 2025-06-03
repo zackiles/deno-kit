@@ -1,16 +1,16 @@
 /**
- * @module workspace
+ * @module workspace-templates
  *
  * Handles template operations for the workspace.
  */
 import { relative } from '@std/path'
 import { ensureDir } from '@std/fs'
-import type { WorkspaceLogger } from './workspace-types.ts'
+import type { WorkspaceLogger } from './types.ts'
 
 /**
  * Manages template operations within a workspace
  */
-export class WorkspaceTemplates {
+class WorkspaceTemplates {
   #templates = new Map<string, string>()
   #templateValues = new Map<string, string>()
 
@@ -168,3 +168,5 @@ export class WorkspaceTemplates {
     })
   }
 }
+
+export { WorkspaceTemplates }

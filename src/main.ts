@@ -1,3 +1,4 @@
+#!/usr/bin/env -S deno run --allow-all
 /**
  * Main entry point for the Deno-Kit CLI.
  * Provides command routing and execution for the CLI interface.
@@ -63,7 +64,7 @@ const COMMANDS: Record<string, CommandRouteDefinition> = Object.fromEntries(
 async function main(): Promise<void> {
   const router = new CommandRouter(COMMANDS)
   const route: CommandRouteDefinition = router.getRoute(Deno.args)
-
+  logger.log(`🦕 Deno-Kit v${config.DENO_KIT_VERSION}`)
   try {
     const options: CommandRouteOptions = router.getOptions(route)
     await route.command(options)
