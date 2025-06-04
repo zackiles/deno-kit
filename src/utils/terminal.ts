@@ -5,6 +5,7 @@
 
 import * as stdColors from '@std/fmt/colors'
 import { dedent } from '@std/text/unstable-dedent'
+import { printBanner as printBannerImpl } from './terminal-banner.ts'
 
 const encoder = new TextEncoder()
 const RESET = '\x1b[0m'
@@ -254,65 +255,27 @@ class Terminal {
     Deno.stdout.writeSync(encoder.encode(`${STYLE_BASE}${output}${RESET}\n`))
   }
 
-  async printBanner() {
-    const frames = [
-      dedent`
-                       __
-                      / _)
-             _.----._/ /
-            /         /
-         __/ (  | (  |
-        /__.-'|_|--|_|
-      `,
-      dedent`
-                       __
-                      / _)
-             _.----._/ /
-            /         /
-         __/ (  | (  |
-        /__.-'|_|--|_/
-      `,
-      dedent`
-                       __
-                      / _)
-             _.----._/ /
-            /         /
-         __/ (  | (  |
-        /__.-'|_|--/_|
-      `,
-      dedent`
-                       __
-                      / _)
-             _.----._/ /
-            /         /
-         __/ (  | (  |
-        /__.-'|_|--|_|
-      `,
-    ]
-
-    // Print first frame normally
-    this.print(colors.purple(frames[0]))
-
-    const frameLines = frames[0].trim().split('\n').length
-
-    // Animate through frames using direct stdout for precise cursor control
-    for (let cycle = 0; cycle < 2; cycle++) {
-      for (let i = 1; i < frames.length; i++) {
-        await new Promise((resolve) => setTimeout(resolve, 300))
-
-        // Move cursor up to overwrite previous frame
-        Deno.stdout.writeSync(encoder.encode(`\x1b[${frameLines}A`))
-
-        // Write frame directly without extra newlines
-        const coloredFrame = colors.purple(frames[i])
-        Deno.stdout.writeSync(
-          encoder.encode(`${STYLE_BASE}${coloredFrame}${RESET}\n`),
-        )
-      }
-    }
-
-    // Add some spacing after animation completes
-    this.print('')
+  /**
+   * Displays an animated banner featuring a walking dinosaur with spinning star eyes
+   *
+   * The animation consists of multiple phases:
+   * 1. Environment setup: Palm tree and clouds appear
+   * 2. Walking phase: Dinosaur walks across with dust particles from steps
+   * 3. Eye phase: Red spinning stars appear in the dinosaur's eye socket
+   *
+   * @param version - The version string to display in the banner header
+   *
+   * @example
+   * ```typescript
+   * await terminal.printBanner("1.2.3")
+   * ```
+   *
+   * Animation can be controlled by modifying these internal variables:
+   * - `WALK_DISTANCE`: Controls how far the dinosaur travels
+   * - `ANIMATION_SPEED_MS`: Controls animation speed in milliseconds
+   */
+  async printBanner(version: string) {
+    await printBannerImpl(version, colors, purple)
   }
 }
 

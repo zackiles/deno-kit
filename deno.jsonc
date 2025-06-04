@@ -11,14 +11,15 @@
     "url": "https://github.com/zackiles/deno-kit.git"
   },
   "tasks": {
-    "test": "deno run -A scripts/test.ts",
-    "dev": "deno run -A scripts/dev.ts",
+    "test": "DENO_KIT_ENV=test deno run -A scripts/test.ts",
+    "dev": "DENO_KIT_ENV=development deno run -A scripts/dev.ts",
     "check": "deno lint --fix && deno check src/main.ts",
     "pre-publish": "deno run -A scripts/pre-publish.ts",
     "test:build": "deno test -A --reload test/build.test.ts",
     "build": "deno run -A scripts/build.ts",
     "build:dev": "DENO_KIT_ENV=development deno run -A scripts/build.ts",
-    "tag": "deno run -A scripts/tag.ts $0"
+    "tag": "deno run -A scripts/tag.ts $0",
+    "banner-party": "deno run -A --watch scripts/banner-party.ts"
   },
   // Import maps. Prefer import "@scope/package" syntax in code.
   // NOTE: uses the import maps standard see https://github.com/WICG/import-maps

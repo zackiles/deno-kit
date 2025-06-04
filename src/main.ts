@@ -60,12 +60,8 @@ const COMMANDS: Record<string, CommandRouteDefinition> = Object.fromEntries(
 async function main(): Promise<void> {
   const router = new CommandRouter(COMMANDS)
   const route: CommandRouteDefinition = router.getRoute(Deno.args)
-  terminal.print(
-    `🦕 ${purple(bold('Deno-Kit'))} | v${config.DENO_KIT_VERSION}`,
-  )
-  terminal.print('='.repeat(60))
-  terminal.print('')
-  await terminal.printBanner()
+  await terminal.printBanner(config.DENO_KIT_VERSION)
+
   terminal.setConfig({
     timestamp: config.DENO_KIT_LOG_LEVEL === 'debug',
     level: config.DENO_KIT_LOG_LEVEL as unknown as LogLevelEnum,

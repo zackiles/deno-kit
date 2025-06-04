@@ -421,17 +421,50 @@ class WorkspaceGit {
       const errorMessage = error instanceof Error
         ? error.message
         : String(error)
+
       if (errorMessage.includes('not found')) {
         throw new Error(`Repository '${repoName}' not found`)
       }
-      if (errorMessage.includes('permission')) {
+
+      if (errorMessage.includes('Must have admin rights to Repository')) {
+        // Need to refresh auth with delete_repo scope
+        console.log(
+          '\n🔑 Admin rights required. Refreshing GitHub authentication with repository deletion permissions...',
+        )
+        console.log('Please follow the prompts to authenticate:\n')
+
+        try {
+          await runCommand('gh', [
+            'auth',
+            'refresh',
+            '-h',
+            'github.com',
+            '-s',
+            'delete_repo',
+          ])
+          console.log(
+            '\n✅ Authentication refreshed successfully. Retrying repository deletion...\n',
+          )
+
+          // Retry the deletion after auth refresh
+          await runCommand('gh', ghArgs)
+        } catch (authError) {
+          const authErrorMessage = authError instanceof Error
+            ? authError.message
+            : String(authError)
+          throw new Error(
+            `Failed to refresh authentication or delete repository after auth refresh: ${authErrorMessage}`,
+          )
+        }
+      } else if (errorMessage.includes('permission')) {
         throw new Error(
           `Permission denied: cannot delete repository '${repoName}'`,
         )
+      } else {
+        throw new Error(
+          `Failed to delete repository '${repoName}': ${errorMessage}`,
+        )
       }
-      throw new Error(
-        `Failed to delete repository '${repoName}': ${errorMessage}`,
-      )
     }
 
     return { repoName }
