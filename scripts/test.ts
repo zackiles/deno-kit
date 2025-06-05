@@ -56,7 +56,7 @@ import { join } from '@std/path'
 import { exists } from '@std/fs'
 import { expandGlob } from '@std/fs/expand-glob'
 import { isGlob } from '@std/path/is-glob'
-import { LogLevelEnum, terminal } from '../src/utils/terminal.ts'
+import { LogLevelEnum, terminal } from '../src/terminal/mod.ts'
 import type { DenoKitConfig } from '../src/types.ts'
 
 // Common command options for test runs

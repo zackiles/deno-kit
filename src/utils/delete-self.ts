@@ -1,4 +1,4 @@
-import { terminal } from './terminal.ts'
+import { terminal } from '../terminal/mod.ts'
 
 async function deleteSelf(): Promise<void> {
   const selfPath = new URL(Deno.mainModule).pathname

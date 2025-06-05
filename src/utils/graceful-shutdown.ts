@@ -120,7 +120,7 @@ class GracefulShutdown {
         await entrypoint()
         this.shutdown(false)
       } catch (err) {
-        this.panic(err instanceof Error ? err : String(err))
+        this.panic(err instanceof Error ? err : String(err), err)
       }
     }
   }
@@ -152,7 +152,7 @@ class GracefulShutdown {
       this.signalHandlers.delete(signal)
     }
 
-    await Promise.all(
+    await Promise.allSettled(
       this.cleanupHandlers.map((handler) =>
         executeHandler(handler, 'shutdown')
       ),

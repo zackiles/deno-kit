@@ -9,9 +9,13 @@ if (
 ) {
   while (true) {
     const { terminal } = await import(
-      `../src/utils/terminal.ts?v=${Date.now()}`
+      `../src/terminal/mod.ts?v=${Date.now()}`
     )
-    await terminal.printBanner(packageConfig.version as string)
+    await terminal.printBanner({
+      version: packageConfig.version as string,
+      rollup: true,
+    })
+
     // Dynamic import with cache busting to ensure fresh module load
     await new Promise((resolve) => setTimeout(resolve, 100))
   }

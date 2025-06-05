@@ -11,7 +11,7 @@
 import { dirname, join, resolve } from '@std/path'
 import { globToRegExp } from '@std/path'
 import { parse as parseJSONC } from '@std/jsonc'
-import { terminal } from './terminal.ts'
+import { terminal } from '../terminal/mod.ts'
 
 /**
  * Represents the structure of banned directories configuration files

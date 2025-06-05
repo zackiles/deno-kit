@@ -80,6 +80,9 @@
       // Possible tags: "fresh", "jsr", "jsx", "react", "recommended"
       "tags": [
         "recommended"
+      ],
+      "exclude": [
+       "no-control-regex"
       ]
     },
     "include": [

@@ -1,7 +1,7 @@
 import { assert } from '@std/assert'
 import { dirname, fromFileUrl, join } from '@std/path'
 import { exists } from '@std/fs'
-import terminal from '../src/utils/terminal.ts'
+import terminal from '../src/terminal/mod.ts'
 import { decompress } from '../src/utils/compression.ts'
 
 /**

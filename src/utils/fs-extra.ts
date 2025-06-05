@@ -9,7 +9,7 @@ import { stat } from '@std/fs/unstable-stat'
 import { readTextFile } from '@std/fs/unstable-read-text-file'
 import { realPath } from '@std/fs/unstable-real-path'
 import { chown } from '@std/fs/unstable-chown'
-import terminal from './terminal.ts'
+import terminal from '../terminal/mod.ts'
 
 /**
  * Checks if a directory has write access permission.

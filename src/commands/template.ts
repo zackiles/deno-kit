@@ -5,7 +5,7 @@
  * To create a new command, copy this file and rename it to the desired name.
  * Then, implement the command logic in the `command` function.
  */
-import terminal from '../utils/terminal.ts'
+import terminal from '../terminal/mod.ts'
 import { getConfig } from '../config.ts'
 import type {
   CommandRouteDefinition,

@@ -1,7 +1,7 @@
 import { load as loadWorkspace, type Workspace } from '../workspace/index.ts'
 import type { CommandRouteDefinition } from '../utils/command-router.ts'
 import { findPackagePathFromPath } from '../utils/package-info.ts'
-import terminal from '../utils/terminal.ts'
+import terminal from '../terminal/mod.ts'
 import { getConfig } from '../config.ts'
 import type { DenoKitConfig } from '../types.ts'
 

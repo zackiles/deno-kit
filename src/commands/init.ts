@@ -4,7 +4,7 @@ import {
   type WorkspaceWithGit,
 } from '../workspace/index.ts'
 import type { CommandRouteDefinition } from '../utils/command-router.ts'
-import terminal from '../utils/terminal.ts'
+import terminal from '../terminal/mod.ts'
 //import { setupOrUpdateCursorConfig } from '../utils/cursor-config.ts'
 import { normalize } from '@std/path'
 import { ensureDir, exists } from '@std/fs'
@@ -65,6 +65,9 @@ const ensureValidWorkspacePath = async () => {
  * Initializes a new Deno-Kit project
  */
 async function command(): Promise<void> {
+  if (Deno.stdin.isTerminal() === false) {
+    throw new Error('Deno-Kit init command only supports interactive terminals')
+  }
   await ensureValidWorkspacePath() // CAUTION: Things can go poorly for us if we don't call ensureValidWorkspacePath(), like destroying the current codebase.
   // Create workspace display box
   const totalWidth = 61

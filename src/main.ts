@@ -14,9 +14,8 @@
  * ```
  */
 import { getConfig } from './config.ts'
-import { bold, purple, terminal } from './utils/terminal.ts'
-//import { bold, logger, purple } from './utils/logger.ts'
-import type { LogLevelEnum, TerminalConfig } from './utils/terminal.ts'
+import { terminal } from './terminal/mod.ts'
+import type { LogLevelEnum, TerminalConfig } from './terminal/mod.ts'
 import gracefulShutdown from './utils/graceful-shutdown.ts'
 import CommandRouter from './utils/command-router.ts'
 import type {
@@ -24,7 +23,6 @@ import type {
   CommandRouteOptions,
 } from './utils/command-router.ts'
 import type { DenoKitConfig } from './types.ts'
-
 const config = await getConfig() as DenoKitConfig
 
 /**
@@ -60,7 +58,10 @@ const COMMANDS: Record<string, CommandRouteDefinition> = Object.fromEntries(
 async function main(): Promise<void> {
   const router = new CommandRouter(COMMANDS)
   const route: CommandRouteDefinition = router.getRoute(Deno.args)
-  await terminal.printBanner(config.DENO_KIT_VERSION)
+  await terminal.printBanner({
+    version: config.DENO_KIT_VERSION,
+    rollup: true,
+  })
 
   terminal.setConfig({
     timestamp: config.DENO_KIT_LOG_LEVEL === 'debug',

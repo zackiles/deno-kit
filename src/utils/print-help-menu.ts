@@ -2,7 +2,7 @@
  * @module print-help-menu
  */
 import { bold, dim, green } from '@std/fmt/colors'
-import terminal from './terminal.ts'
+import terminal from '../terminal/mod.ts'
 
 function printHelpMenu(config: {
   workspace?: { text: string }

@@ -1,7 +1,6 @@
-import { assert, assertEquals, assertStringIncludes } from '@std/assert'
+import { assert, assertEquals } from '@std/assert'
 import { afterEach, beforeEach, describe, it } from '@std/testing/bdd'
 import { dirname, fromFileUrl, join } from '@std/path'
-import { exists } from '@std/fs'
 import { stripAnsi } from '../src/utils/formatting.ts'
 import type { DenoKitConfig } from '../src/types.ts'
 import { getConfig } from '../src/config.ts'

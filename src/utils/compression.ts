@@ -17,7 +17,7 @@ import {
   ZipWriter,
 } from '@zip-js/zip-js/data-uri'
 import type { Entry } from '@zip-js/zip-js'
-import terminal from './terminal.ts'
+import terminal from '../terminal/mod.ts'
 
 // Configure zip-js to terminate workers immediately to avoid timer leaks
 configureZipJs({

@@ -17,7 +17,7 @@
  * ```
  */
 import { join, resolve } from '@std/path'
-import terminal from './terminal.ts'
+import terminal from '../terminal/mod.ts'
 
 /**
  * Executes the remote cursor config setup script from GitHub

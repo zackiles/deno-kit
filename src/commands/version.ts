@@ -1,6 +1,6 @@
 import type { CommandRouteDefinition } from '../utils/command-router.ts'
 import { findPackageFromPath } from '../utils/package-info.ts'
-import terminal from '../utils/terminal.ts'
+import terminal from '../terminal/mod.ts'
 
 const commandRoute: CommandRouteDefinition = {
   name: 'version',
