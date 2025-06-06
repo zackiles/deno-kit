@@ -24,7 +24,7 @@ async function command(): Promise<void> {
 
   if (packageInfo) {
     await Deno.remove(packageInfo)
-    terminal.info(
+    terminal.print(
       `Removed Deno-Kit from workspace: ${config.DENO_KIT_WORKSPACE_PATH}`,
     )
   } else {

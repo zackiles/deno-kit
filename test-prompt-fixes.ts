@@ -12,6 +12,7 @@
 import { gracefulShutdown } from './src/utils/graceful-shutdown.ts'
 import * as debug from './src/terminal/debugger.ts'
 import { terminal,prompt, Prompt } from './src/terminal/mod.ts'
+import { simple } from './src/terminal/simple-prompt.ts'
 
 console.log('🧪 Testing Prompt Selection Bug Fixes\n')
 
@@ -44,6 +45,15 @@ async function main() {
   } catch (error) {
     console.log(`❌ Test 1 failed or cancelled: ${error instanceof Error ? error.message : String(error)}\n`)
   }
+
+  const stepOneOnly = await simple.ask({
+    message: 'Choose your preferred framework',
+    options: [
+      { value: 'react', label: 'React', description: 'Popular component-based library', group: 'Frontend' },
+    ]
+  })
+
+  console.log(`✅ Step 1.1 result: ${stepOneOnly}\n`)
 
   // Test 2: Multiselect with Enter submission (tests Bug Fix 2)
   console.log('📋 Test 2: Multi-select with Enter submission')
@@ -173,13 +183,13 @@ async function main() {
 
 if (import.meta.main) {
   gracefulShutdown.addShutdownHandler(async () => {
-    await terminal.stop()
+    terminal.stop()
     await debug.stop(terminal)
-    terminal.info('Shutting down...')
+    terminal.debug('Shutting down...')
   })
   gracefulShutdown.startAndWrap(async () => {
     terminal.start()
-    terminal.info('Starting tests...')
+    terminal.debug('Starting tests...')
     await main()
   })
 }

@@ -1,6 +1,7 @@
 // Advanced keyboard input handling with modern terminal protocol support
 
 import { terminalCleanup } from './terminal-cleanup.ts'
+import { ANSI_CODES } from './constants.ts'
 import type { Terminal } from './mod.ts'
 
 // Lazy-loaded terminal instance to avoid circular dependency
@@ -160,7 +161,7 @@ class KeyboardInput {
       // Enable Kitty keyboard protocol with all features
       // Flags: report all keys, report repeat, report release, report alternate keys
       const terminal = await getTerminal()
-      await terminal.write('\x1b[>1u')
+      await terminal.write(ANSI_CODES.KITTY_KEYBOARD_ENABLE)
       return true
     } catch (error) {
       const terminal = await getTerminal()
@@ -177,7 +178,7 @@ class KeyboardInput {
   async disableKittyProtocol(): Promise<void> {
     try {
       const terminal = await getTerminal()
-      await terminal.write('\x1b[<1u')
+      await terminal.write(ANSI_CODES.KITTY_KEYBOARD_DISABLE)
     } catch (error) {
       const terminal = await getTerminal()
       terminal.error(
@@ -196,7 +197,7 @@ class KeyboardInput {
     try {
       // Level 2: report all modifier combinations
       const terminal = await getTerminal()
-      await terminal.write('\x1b[>4;2m')
+      await terminal.write(ANSI_CODES.MODIFY_OTHER_KEYS_ENABLE)
       return true
     } catch (error) {
       const terminal = await getTerminal()
@@ -216,7 +217,7 @@ class KeyboardInput {
 
     try {
       const terminal = await getTerminal()
-      await terminal.write('\x1b[?2004h')
+      await terminal.write(ANSI_CODES.BRACKETED_PASTE_ENABLE)
       this.bracketedPasteMode = true
       return true
     } catch (error) {
@@ -234,7 +235,7 @@ class KeyboardInput {
   async disableBracketedPaste(): Promise<void> {
     try {
       const terminal = await getTerminal()
-      await terminal.write('\x1b[?2004l')
+      await terminal.write(ANSI_CODES.BRACKETED_PASTE_DISABLE)
       this.bracketedPasteMode = false
     } catch (error) {
       const terminal = await getTerminal()
@@ -321,6 +322,29 @@ class KeyboardInput {
         if (!bytesRead) continue
 
         const data = this.decoder.decode(buffer.slice(0, bytesRead))
+
+        // 🤖 CRITICAL: Global Ctrl+C handler - intercept at the lowest level
+        if (data.includes('\x03')) {
+          terminal.debug(
+            'KeyboardInput',
+            'Ctrl+C detected, initiating graceful shutdown',
+          )
+          await terminalCleanup.cleanup()
+          const { gracefulShutdown } = await import(
+            '../utils/graceful-shutdown.ts'
+          )
+          terminal.debug(
+            'KeyboardInput',
+            'Calling gracefulShutdown.shutdown(false, 130)',
+          )
+          await gracefulShutdown.shutdown(false, 130)
+          terminal.debug(
+            'KeyboardInput',
+            'gracefulShutdown.shutdown() completed',
+          )
+          return
+        }
+
         this.buffer += data
         this.processInputBuffer()
       } catch (error) {

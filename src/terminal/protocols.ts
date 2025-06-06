@@ -6,6 +6,7 @@ import {
   type KeyEvent,
 } from './keyboard.ts'
 import { mouse, type MouseCapabilities, type MouseEvent } from './mouse.ts'
+import { ANSI_CODES } from './constants.ts'
 import { terminal } from './mod.ts'
 // import { terminalCleanup } from './terminal-cleanup.ts'  // Commented out to avoid circular dependency
 
@@ -183,7 +184,7 @@ class InputProtocolManager {
     if (!this.capabilities?.supportsFocus) return
 
     // Enable focus reporting
-    terminal.write('\x1b[?1004h')
+    terminal.write(ANSI_CODES.FOCUS_TRACKING_ENABLE)
 
     // Focus events are handled as part of keyboard input stream
     // Focus in: \x1b[I, Focus out: \x1b[O

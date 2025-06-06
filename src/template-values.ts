@@ -11,12 +11,17 @@ import {
   bold,
   dim,
   green,
-  interactivePrompt,
+  prompt,
   purple,
   purpleGradient,
   terminal,
   whiteGradient,
 } from './terminal/mod.ts'
+import type {
+  PromptConfig,
+  SelectPromptConfig,
+  TextPromptConfig,
+} from './terminal/prompts/prompt.ts'
 import {
   getGitUserEmail,
   getGitUserName,
@@ -33,34 +38,24 @@ import { toTitleCase } from './utils/formatting.ts'
 
 const config = await getConfig()
 
-/**
- * Type definitions for prompt configuration
- */
-type PromptConfig = {
-  text: string
-  defaultValue: string
-  envKey?: string
-  validate?: (value: string) => boolean
-  errorMessage?: string
-}
-
 type DerivedConfig = {
   derived: true
   getValue: (values: Record<string, string>) => string
 }
 
-type SelectConfig = {
-  select: true
-  text: string
-  options: Array<{
-    value: string
-    label: string
-  }>
-  defaultValue: string
+type ExtendedTextPromptConfig = TextPromptConfig & {
+  envKey?: string
+  errorMessage?: string
+}
+
+type ExtendedSelectPromptConfig = SelectPromptConfig & {
   envKey?: string
 }
 
-type PromptItem = PromptConfig | DerivedConfig | SelectConfig
+type PromptItem =
+  | ExtendedTextPromptConfig
+  | ExtendedSelectPromptConfig
+  | DerivedConfig
 
 /**
  * Gets a template value from config using the DENO_KIT_TEMPLATE_ prefix
@@ -80,14 +75,13 @@ const createAutoPromptConfig = async (context: Record<string, string>) => {
     terminal.print(line)
   }
 
-  const response = await interactivePrompt.ask({
+  const response = await prompt.ask({
     message: 'Would you like to use this auto-configuration?',
     type: 'select',
     options: [
       { value: 'yes', label: 'Yes' },
       { value: 'no', label: 'No! Let me edit it' },
     ],
-    clearAfter: true,
   })
 
   return response === 'yes'
@@ -186,12 +180,16 @@ function createPromptConfig(context: {
 }): Record<string, PromptItem> {
   return {
     PACKAGE_NAME: {
-      text: 'Package name (@scope/name)',
+      type: 'text',
+      message: 'Package name (@scope/name)',
       defaultValue: context.PACKAGE_SCOPE
         ? `${context.PACKAGE_SCOPE}/${context.PROJECT_NAME}`
         : `@my-org/${context.PROJECT_NAME}`,
       envKey: 'PACKAGE_NAME',
-      validate: isValidPackageName,
+      validate: (value: unknown) => {
+        if (typeof value !== 'string') return 'Value must be a string'
+        return isValidPackageName(value)
+      },
       errorMessage:
         'Invalid package name format. It must be in the format @scope/name (e.g., @deno/example)',
     },
@@ -204,8 +202,8 @@ function createPromptConfig(context: {
       getValue: (values) => extractProjectName(values.PACKAGE_NAME),
     },
     PROJECT_TYPE: {
-      select: true,
-      text: 'Select project type',
+      type: 'select',
+      message: 'Select project type',
       options: config.DENO_KIT_PROJECT_TYPES.split(',').map((type) => ({
         value: type,
         label: type === 'cli'
@@ -220,27 +218,32 @@ function createPromptConfig(context: {
       getValue: () => new Date().getFullYear().toString(),
     },
     PACKAGE_VERSION: {
-      text: 'Package version',
+      type: 'text',
+      message: 'Package version',
       defaultValue: '0.0.1',
       envKey: 'PACKAGE_VERSION',
     },
     PACKAGE_AUTHOR_NAME: {
-      text: 'Author name',
+      type: 'text',
+      message: 'Author name',
       defaultValue: context.PACKAGE_AUTHOR_NAME,
       envKey: 'PACKAGE_AUTHOR_NAME',
     },
     PACKAGE_AUTHOR_EMAIL: {
-      text: 'Author email',
+      type: 'text',
+      message: 'Author email',
       defaultValue: context.PACKAGE_AUTHOR_EMAIL,
       envKey: 'PACKAGE_AUTHOR_EMAIL',
     },
     PACKAGE_DESCRIPTION: {
-      text: 'Package description',
+      type: 'text',
+      message: 'Package description',
       defaultValue: 'A Deno project',
       envKey: 'PACKAGE_DESCRIPTION',
     },
     PACKAGE_GITHUB_USER: {
-      text: 'GitHub username or organization',
+      type: 'text',
+      message: 'GitHub username or organization',
       defaultValue: context.PACKAGE_SCOPE,
       envKey: 'PACKAGE_GITHUB_USER',
     },
@@ -253,18 +256,15 @@ function createPromptConfig(context: {
 async function promptUser(
   promptText: string,
   defaultValue: string,
-  clearAfter = true,
 ): Promise<string> {
-  // Skip stdin read in test mode
   if (config.DENO_KIT_ENV === 'test') {
     return defaultValue
   }
 
-  const value = await interactivePrompt.ask({
+  const value = await prompt.ask({
     message: promptText,
     type: 'text',
     defaultValue: defaultValue,
-    clearAfter,
   })
 
   return value as string
@@ -334,7 +334,7 @@ export async function getTemplateValues(): Promise<TemplateValues> {
 
     // Still need to prompt for PROJECT_TYPE since it can't be auto-detected
     const prompts = createPromptConfig(initialContext)
-    const projectTypePrompt = prompts.PROJECT_TYPE as SelectConfig
+    const projectTypePrompt = prompts.PROJECT_TYPE as ExtendedSelectPromptConfig
 
     // Use config value from environment variable if available
     const configValue = projectTypePrompt.envKey
@@ -344,18 +344,18 @@ export async function getTemplateValues(): Promise<TemplateValues> {
       values.PROJECT_TYPE = configValue
       printSelection('🔧', 'Project type', values.PROJECT_TYPE)
     } else if (config.DENO_KIT_ENV === 'test') {
-      values.PROJECT_TYPE = projectTypePrompt.defaultValue
+      values.PROJECT_TYPE = projectTypePrompt.defaultValue as string
       printSelection('🔧', 'Project type', values.PROJECT_TYPE)
     } else {
-      const result = await interactivePrompt.ask({
-        message: projectTypePrompt.text,
+      const result = await prompt.ask({
+        message: projectTypePrompt.message,
         type: 'select',
         options: projectTypePrompt.options,
-        defaultValue: projectTypePrompt.defaultValue,
-        clearAfter: true,
+        defaultValue: projectTypePrompt.defaultValue || 'cli',
       })
 
-      values.PROJECT_TYPE = result || projectTypePrompt.defaultValue
+      values.PROJECT_TYPE = (result as string) ||
+        (projectTypePrompt.defaultValue as string) || 'cli'
       printSelection('🔧', 'Project type', values.PROJECT_TYPE)
     }
   } else {
@@ -363,15 +363,15 @@ export async function getTemplateValues(): Promise<TemplateValues> {
     const prompts = createPromptConfig(initialContext)
 
     // Process PACKAGE_NAME first with validation
-    const namePrompt = prompts.PACKAGE_NAME as PromptConfig
+    const namePrompt = prompts.PACKAGE_NAME as ExtendedTextPromptConfig
     let packageName: string
 
     do {
       const configValue = namePrompt.envKey
         ? getTemplateValueFromConfig(namePrompt.envKey)
         : undefined
-      const defaultValue = configValue ?? namePrompt.defaultValue
-      packageName = await promptUser(namePrompt.text, defaultValue, true)
+      const defaultValue = configValue ?? namePrompt.defaultValue ?? ''
+      packageName = await promptUser(namePrompt.message, defaultValue)
 
       // Validate the package name if validation function exists
       const isValid = !namePrompt.validate || namePrompt.validate(packageName)
@@ -406,15 +406,16 @@ export async function getTemplateValues(): Promise<TemplateValues> {
       }
 
       // Handle select prompts
-      if ('select' in promptConfig && promptConfig.select) {
+      if ('type' in promptConfig && promptConfig.type === 'select') {
+        const selectPrompt = promptConfig as ExtendedSelectPromptConfig
         // Use config value from environment variable if available
-        const configValue = promptConfig.envKey
-          ? getTemplateValueFromConfig(promptConfig.envKey)
+        const configValue = selectPrompt.envKey
+          ? getTemplateValueFromConfig(selectPrompt.envKey)
           : undefined
         if (configValue) {
           values[key] = configValue
           printSelection(
-            promptConfig.text.startsWith('Select project') ? '🔧' : '❓',
+            selectPrompt.message.startsWith('Select project') ? '🔧' : '❓',
             key.split('_').slice(-2).join(' '),
             values[key],
           )
@@ -423,26 +424,27 @@ export async function getTemplateValues(): Promise<TemplateValues> {
 
         // Skip prompt in test mode
         if (config.DENO_KIT_ENV === 'test') {
-          values[key] = promptConfig.defaultValue
+          values[key] = selectPrompt.defaultValue as string
           printSelection(
-            promptConfig.text.startsWith('Select project') ? '🔧' : '❓',
+            selectPrompt.message.startsWith('Select project') ? '🔧' : '❓',
             key.split('_').slice(-2).join(' '),
             values[key],
           )
           continue
         }
 
-        const result = await interactivePrompt.ask({
-          message: promptConfig.text,
+        const result = await prompt.ask({
+          message: selectPrompt.message,
           type: 'select',
-          options: promptConfig.options,
-          defaultValue: promptConfig.defaultValue,
-          clearAfter: true,
+          options: selectPrompt.options,
+          defaultValue: selectPrompt.defaultValue || '',
         })
 
-        values[key] = result || promptConfig.defaultValue
+        values[key] = (result as string) ||
+          (selectPrompt.defaultValue as string) ||
+          ''
         printSelection(
-          promptConfig.text.startsWith('Select project') ? '🔧' : '❓',
+          selectPrompt.message.startsWith('Select project') ? '🔧' : '❓',
           key.split('_').slice(-2).join(' '),
           values[key],
         )
@@ -450,11 +452,11 @@ export async function getTemplateValues(): Promise<TemplateValues> {
       }
 
       // Handle normal prompts
-      const typedPrompt = promptConfig as PromptConfig
+      const typedPrompt = promptConfig as ExtendedTextPromptConfig
       const configValue = typedPrompt.envKey
         ? getTemplateValueFromConfig(typedPrompt.envKey)
         : undefined
-      const defaultValue = configValue ?? typedPrompt.defaultValue
+      const defaultValue = configValue ?? typedPrompt.defaultValue ?? ''
 
       // Get appropriate emoji for each prompt
       const emojiMap: Record<string, string> = {
@@ -469,11 +471,10 @@ export async function getTemplateValues(): Promise<TemplateValues> {
       const emoji = emojiMap[key] || '❓'
 
       values[key] = await promptUser(
-        typedPrompt.text,
+        typedPrompt.message,
         defaultValue,
-        true,
       )
-      printSelection(emoji, typedPrompt.text, values[key])
+      printSelection(emoji, typedPrompt.message, values[key])
     }
   }
 
@@ -481,14 +482,13 @@ export async function getTemplateValues(): Promise<TemplateValues> {
   if (config.DENO_KIT_ENV !== 'test' && values.PACKAGE_GITHUB_USER) {
     const createRepoPromptText =
       `Would you like to create a Github repo at "https://github.com/${values.PACKAGE_GITHUB_USER}/${values.PROJECT_NAME}"?`
-    const createRepo = await interactivePrompt.ask({
+    const createRepo = await prompt.ask({
       message: createRepoPromptText,
       type: 'select',
       options: [
         { value: 'yes', label: 'Yes' },
         { value: 'no', label: 'No' },
       ],
-      clearAfter: true,
     })
     values.CREATE_GITHUB_REPO = createRepo === 'yes' ? 'true' : 'false'
     printSelection(
@@ -499,14 +499,13 @@ export async function getTemplateValues(): Promise<TemplateValues> {
 
     if (values.CREATE_GITHUB_REPO === 'true') {
       const repoPublicPromptText = 'Should the repo be public?'
-      const repoPublic = await interactivePrompt.ask({
+      const repoPublic = await prompt.ask({
         message: repoPublicPromptText,
         type: 'select',
         options: [
           { value: 'no', label: 'No' },
           { value: 'yes', label: 'Yes' },
         ],
-        clearAfter: true,
       })
       values.GITHUB_REPO_PUBLIC = repoPublic === 'yes' ? 'true' : 'false'
       printSelection(

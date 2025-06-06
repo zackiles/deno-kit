@@ -70,10 +70,27 @@ const openEditor = async (cmd: string, path: string) => {
   return true
 }
 
-const cleanup = (path: string) =>
-  Deno.remove(path, { recursive: true })
-    .then(() => log.info(`Removed temporary workspace: ${path}`))
-    .catch(() => {})
+// Make cleanup idempotent to prevent double execution
+let isCleaningUp = false
+const safeCleanup = async (path: string) => {
+  if (isCleaningUp) {
+    log.info('Cleanup already in progress, skipping...')
+    return
+  }
+  isCleaningUp = true
+  log.info(`Starting cleanup of ${path}...`)
+  try {
+    await Deno.remove(path, { recursive: true })
+    log.info(`Removed temporary workspace: ${path}`)
+  } catch (error) {
+    log.info(
+      `Cleanup failed or path already removed: ${
+        error instanceof Error ? error.message : error
+      }`,
+    )
+  }
+  log.info('Cleanup completed')
+}
 
 const getAvailableEditors = async () => {
   const available = await Promise.all(
@@ -150,7 +167,20 @@ const runDenoKit = async (args: string[], workspacePath: string) => {
     stderr: 'inherit',
   }).output()
 
-  if (!success) throw new Error(`Process exited with code ${code}`)
+  // Exit code 130 is standard for SIGINT (Ctrl+C) and should not be treated as an error
+  if (!success && code !== 130) {
+    const error = new Error(`Process exited with code ${code}`)
+    error.message += `\nCommand: ${Deno.execPath()} ${args.join(' ')}`
+    error.message += `\nWorkspace path: ${workspacePath}`
+    error.message += '\nEnvironment: development'
+    throw error
+  }
+
+  // Log successful Ctrl+C exit
+  if (code === 130) {
+    log.info('Process exited gracefully via Ctrl+C (code 130)')
+  }
+
   return code
 }
 
@@ -158,15 +188,27 @@ async function main() {
   const tempPath = await Deno.makeTempDir({ prefix: 'dk-dev-' })
   const workspacePath = resolve(tempPath)
 
-  const signalCleanup = () => cleanup(tempPath).then(() => Deno.exit(0))
-  const signals: Deno.Signal[] = ['SIGINT', 'SIGTERM', 'SIGQUIT']
-  for (const signal of signals) {
-    Deno.addSignalListener(signal, signalCleanup)
-  }
+  // Remove competing signal handlers - let the main app handle graceful shutdown
 
   try {
     const args = buildArgs(Deno.args, workspacePath)
     const exitCode = await runDenoKit(args, workspacePath)
+
+    // If we get code 130 (Ctrl+C), just clean up and exit gracefully
+    if (exitCode === 130) {
+      log.info('Main process exited with Ctrl+C, cleaning up...')
+      await safeCleanup(workspacePath)
+      log.info('Development session cancelled via Ctrl+C')
+      log.info('Dev script exiting with code 130...')
+
+      // Force exit immediately - don't wait for any background operations
+      setTimeout(() => {
+        console.log('[FORCE EXIT] Dev script timed out, force killing process')
+        Deno.exit(130)
+      }, 50)
+
+      Deno.exit(130)
+    }
 
     if (!await hasFiles(workspacePath)) {
       throw new Error('No files created in workspace')
@@ -181,7 +223,7 @@ async function main() {
     if (selectedEditorCmd) {
       const opened = await openEditor(selectedEditorCmd, workspacePath)
       if (!opened) {
-        await cleanup(workspacePath)
+        await safeCleanup(workspacePath)
         Deno.exit(1)
       }
     }
@@ -189,21 +231,20 @@ async function main() {
     const shouldCleanup = promptCleanup()
 
     if (shouldCleanup) {
-      await cleanup(workspacePath)
+      await safeCleanup(workspacePath)
     } else {
       log.info(`Workspace preserved at: ${workspacePath}`)
     }
 
-    for (const signal of signals) {
-      Deno.removeSignalListener(signal, signalCleanup)
-    }
     Deno.exit(exitCode)
   } catch (error) {
     log.error(error instanceof Error ? error.message : String(error))
-    await cleanup(tempPath)
-    for (const signal of signals) {
-      Deno.removeSignalListener(signal, signalCleanup)
+    // 🤖 Print full stack trace for debugging
+    if (error instanceof Error && error.stack) {
+      console.error('\nFull stack trace:')
+      console.error(error.stack)
     }
+    await safeCleanup(tempPath)
     Deno.exit(1)
   }
 }

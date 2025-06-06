@@ -1,53 +1,52 @@
 /**
- * @module simple-prompt
- * @description Simple, reliable prompt system for terminal interactions
- *
- * Features:
- * - Filters out ANSI escape sequences (arrow keys, etc.) to prevent terminal corruption
- * - Number-based selection for options (1, 2, 3, etc.)
- * - First-letter matching for quick selection
- * - Proper error handling and validation
- * - No complex raw mode or terminal state management
- *
- * Usage:
- * - For select prompts: Type numbers (1-N) or first letters of options
- * - For text prompts: Type your response and press Enter
- * - For confirm prompts: Type y/n, yes/no, or press Enter for default
+ * @module interactive-prompt
+ * @description Interactive prompt system with arrow key navigation
  */
 
+import { ANSI_CODES } from './constants.ts'
 import { terminal } from './mod.ts'
-import type { BaseOption } from './prompt-select.ts'
+import type { BaseOption } from './prompts/prompt.ts'
 
 export interface SimplePromptConfig {
   message: string
   options?: BaseOption[]
-  default?: string
+  defaultValue?: string
   type?: 'select' | 'text' | 'confirm'
+  clearBefore?: boolean
+  clearAfter?: boolean
 }
 
 class SimplePrompt {
-  private originalSetRaw = false
+  isRawMode = false
+  private lastRenderedLines = 0
 
   async ask(config: SimplePromptConfig): Promise<string> {
     try {
-      this.originalSetRaw = Deno.stdin.isTerminal()
-
       if (config.type === 'select' && config.options) {
         return await this.selectPrompt(
           config.message,
           config.options,
-          config.default,
+          config.defaultValue,
+          config.clearBefore ?? false,
+          config.clearAfter ?? false,
         )
       } else if (config.type === 'confirm') {
         return await this.confirmPrompt(
           config.message,
-          config.default === 'true',
+          config.defaultValue === 'true',
+          config.clearBefore ?? false,
+          config.clearAfter ?? false,
         )
       } else {
-        return await this.textPrompt(config.message, config.default || '')
+        return await this.textPrompt(
+          config.message,
+          config.defaultValue || '',
+          config.clearBefore ?? false,
+          config.clearAfter ?? false,
+        )
       }
     } catch (error) {
-      this.cleanup()
+      await this.cleanup(config.clearAfter ?? false)
       throw error
     }
   }
@@ -56,99 +55,104 @@ class SimplePrompt {
     message: string,
     options: BaseOption[],
     defaultValue?: string,
+    clearBefore = false,
+    clearAfter = false,
   ): Promise<string> {
-    terminal.print(`${terminal.green('❯')} ${message}`)
-
-    // Display options with numbers
-    for (let i = 0; i < options.length; i++) {
-      const option = options[i]
-      const prefix = option.value === defaultValue ? '●' : '○'
-      terminal.print(`  ${i + 1}. ${prefix} ${option.label}`)
-    }
-
-    terminal.print(
-      terminal.dim(
-        `\nEnter the number (1-${options.length}) or press Enter for default:`,
-      ),
-    )
-
     let selectedIndex = defaultValue
       ? options.findIndex((opt) => opt.value === defaultValue)
       : 0
 
     if (selectedIndex < 0) selectedIndex = 0
 
+    terminal.setRaw(true)
+
+    if (clearBefore) {
+      await terminal.write(ANSI_CODES.CURSOR_HOME + ANSI_CODES.CLEAR_SCREEN)
+    }
+
     while (true) {
-      const input = await this.readUserInput('')
+      await this.renderSelectOptions(
+        message,
+        options,
+        selectedIndex,
+        clearBefore,
+      )
 
-      // If empty input, use default
-      if (input.trim() === '') {
+      const key = await this.readSingleKey()
+
+      if (key === 'ArrowUp' && selectedIndex > 0) {
+        selectedIndex--
+      } else if (key === 'ArrowDown' && selectedIndex < options.length - 1) {
+        selectedIndex++
+      } else if (key === 'Enter') {
+        await this.cleanup(clearAfter)
         return options[selectedIndex].value
+      } else if (key === 'Escape') {
+        await this.cleanup(clearAfter)
+        throw new Error('Prompt was cancelled')
+      } else if (key >= '1' && key <= '9') {
+        const num = Number.parseInt(key) - 1
+        if (num >= 0 && num < options.length) {
+          selectedIndex = num
+        }
+      } else if (key === 'q' || key === 'Q') {
+        await this.cleanup(clearAfter)
+        throw new Error('Prompt was cancelled')
       }
-
-      // Try to parse as number
-      const optionNum = Number.parseInt(input.trim())
-      if (optionNum >= 1 && optionNum <= options.length) {
-        return options[optionNum - 1].value
-      }
-
-      // Try to match by first letter
-      const byFirstLetter = options.find((opt) =>
-        opt.label.toLowerCase().startsWith(input.toLowerCase())
-      )
-      if (byFirstLetter) {
-        return byFirstLetter.value
-      }
-
-      // Invalid input - ask again
-      terminal.print(
-        terminal.red(
-          `Invalid option "${input}". Please enter a number between 1 and ${options.length}:`,
-        ),
-      )
     }
   }
 
   private async confirmPrompt(
     message: string,
     defaultValue = false,
+    clearBefore = false,
+    clearAfter = false,
   ): Promise<string> {
-    const defaultText = defaultValue ? 'Y/n' : 'y/N'
+    if (clearBefore) {
+      await terminal.write(ANSI_CODES.CURSOR_HOME + ANSI_CODES.CLEAR_SCREEN)
+    }
+
+    await terminal.write(
+      `${terminal.green('❯')} ${message} (${defaultValue ? 'Y/n' : 'y/N'}): `,
+    )
+
+    terminal.setRaw(true)
 
     while (true) {
-      const input = await this.readUserInput(`${message} (${defaultText}): `)
+      const key = await this.readSingleKey()
 
-      if (input.trim() === '') {
+      if (key === 'Enter') {
+        await this.cleanup(clearAfter)
+        await terminal.write('\n')
         return defaultValue ? 'true' : 'false'
-      }
-
-      const response = input.toLowerCase().trim()
-      if (response === 'y' || response === 'yes') {
+      } else if (key === 'y' || key === 'Y') {
+        await this.cleanup(clearAfter)
+        await terminal.write('y\n')
         return 'true'
-      } else if (response === 'n' || response === 'no') {
+      } else if (key === 'n' || key === 'N') {
+        await this.cleanup(clearAfter)
+        await terminal.write('n\n')
         return 'false'
+      } else if (key === 'Escape' || key === 'q' || key === 'Q') {
+        await this.cleanup(clearAfter)
+        throw new Error('Prompt was cancelled')
       }
-
-      terminal.print(terminal.red('Please enter y, n, yes, or no:'))
     }
   }
 
   private async textPrompt(
     message: string,
     defaultValue: string,
+    clearBefore = false,
+    clearAfter = false,
   ): Promise<string> {
-    const defaultText = defaultValue ? ` [${defaultValue}]` : ''
-    const input = await this.readUserInput(`${message}${defaultText}: `)
-
-    return input.trim() || defaultValue
-  }
-
-  private async readUserInput(prompt: string): Promise<string> {
-    if (prompt) {
-      terminal.print(prompt)
+    if (clearBefore) {
+      await terminal.write(ANSI_CODES.CURSOR_HOME + ANSI_CODES.CLEAR_SCREEN)
     }
 
-    // Simple stdin reading without raw mode
+    const defaultText = defaultValue ? ` [${defaultValue}]` : ''
+    await terminal.write(`${message}${defaultText}: `)
+
     const buf = new Uint8Array(1024)
     const n = await Deno.stdin.read(buf)
 
@@ -157,34 +161,118 @@ class SimplePrompt {
     }
 
     const input = new TextDecoder().decode(buf.subarray(0, n))
+    const result = input.replace(/\r?\n$/, '').trim() || defaultValue
 
-    // Filter out ANSI escape sequences (arrow keys, etc.)
-    const filteredInput = this.filterAnsiEscapeSequences(input)
-
-    return filteredInput.replace(/\r?\n$/, '') // Remove trailing newline
-  }
-
-  // Filter out ANSI escape sequences to prevent arrow key garbage
-  private filterAnsiEscapeSequences(input: string): string {
-    // Remove ANSI escape sequences like ESC[A, ESC[B, ESC[C, ESC[D (arrow keys)
-    // and other escape sequences that start with ESC[
-    const ESC = '\u001b' // Escape character
-    return input.replace(new RegExp(`${ESC}\\[[0-9;]*[A-Za-z]`, 'g'), '')
-      .replace(new RegExp(`${ESC}\\[[0-9;]*~`, 'g'), '') // Handle sequences ending with ~
-      .replace(new RegExp(`${ESC}O[A-Za-z]`, 'g'), '') // Handle O-style sequences
-      .replace(new RegExp(`${ESC}\\]`, 'g'), '') // Handle other escape sequences
-  }
-
-  private cleanup(): void {
-    // Simple cleanup - just ensure we're out of any special modes
-    try {
-      if (Deno.stdin.isTerminal()) {
-        Deno.stdin.setRaw(false)
-      }
-    } catch {
-      // Ignore cleanup errors
+    if (clearAfter) {
+      await terminal.write(ANSI_CODES.CURSOR_HOME + ANSI_CODES.CLEAR_SCREEN)
     }
+
+    return result
+  }
+
+  private async renderSelectOptions(
+    message: string,
+    options: BaseOption[],
+    selectedIndex: number,
+    clearBefore = false,
+  ): Promise<void> {
+    if (this.lastRenderedLines > 0 && !clearBefore) {
+      await terminal.write(`\x1b[${this.lastRenderedLines}A`)
+      await terminal.write(ANSI_CODES.CLEAR_FROM_CURSOR_DOWN)
+    }
+
+    const totalLines = 1 + options.length + 1 + 1
+    this.lastRenderedLines = totalLines
+
+    await terminal.write(`${terminal.green('❯')} ${message}\n`)
+
+    for (let i = 0; i < options.length; i++) {
+      const option = options[i]
+      const isSelected = i === selectedIndex
+      const pointer = isSelected ? terminal.green('●') : terminal.dim('○')
+      const optionText = isSelected
+        ? terminal.green(option.label)
+        : option.label
+
+      await terminal.write(`  ${i + 1}. ${pointer} ${optionText}\n`)
+    }
+
+    await terminal.write(
+      `\n${
+        terminal.dim(
+          `Use ↑/↓ arrows or numbers 1-${options.length}, Enter to select, Esc/q to cancel`,
+        )
+      }\n`,
+    )
+  }
+
+  private async cleanup(clearAfter = false): Promise<void> {
+    this.lastRenderedLines = 0
+
+    if (terminal.isRaw) {
+      try {
+        await terminal.write(ANSI_CODES.CURSOR_SHOW)
+
+        if (Deno.stdin.isTerminal()) {
+          terminal.setRaw(false)
+        }
+        terminal.isRaw = false
+      } catch (error) {
+        terminal.error('Cleanup error:', error)
+      }
+      if (clearAfter) {
+        await terminal.write(ANSI_CODES.CURSOR_HOME + ANSI_CODES.CLEAR_SCREEN)
+      }
+    }
+  }
+
+  private async readSingleKey(): Promise<string> {
+    const buffer = new Uint8Array(8)
+    const bytesRead = await Deno.stdin.read(buffer)
+
+    if (!bytesRead) {
+      throw new Error('Failed to read input')
+    }
+
+    const data = buffer.slice(0, bytesRead)
+
+    // Handle common key sequences
+    if (data.length === 1) {
+      const char = String.fromCharCode(data[0])
+
+      // Handle control characters
+      if (data[0] === 13) return 'Enter'
+      if (data[0] === 27) return 'Escape'
+      if (data[0] === 3) {
+        // Use graceful shutdown for Ctrl+C instead of throwing
+        await this.cleanup()
+        const { gracefulShutdown } = await import(
+          '../utils/graceful-shutdown.ts'
+        )
+        await gracefulShutdown.shutdown(false, 130)
+        return 'Escape' // This won't actually be reached due to Deno.exit()
+      }
+
+      return char
+    }
+
+    // Handle escape sequences (arrow keys)
+    if (data.length === 3 && data[0] === 27 && data[1] === 91) {
+      switch (data[2]) {
+        case 65:
+          return 'ArrowUp'
+        case 66:
+          return 'ArrowDown'
+        case 67:
+          return 'ArrowRight'
+        case 68:
+          return 'ArrowLeft'
+      }
+    }
+
+    // Handle other sequences - just ignore them
+    return ''
   }
 }
 
-export const simplePrompt = new SimplePrompt()
+export const simple = new SimplePrompt()

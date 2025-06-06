@@ -1,6 +1,7 @@
 // Comprehensive terminal cleanup utility
 // Ensures terminal is properly restored after TUI applications exit
 import { gracefulShutdown } from '../utils/graceful-shutdown.ts'
+import { ANSI_CODES, resetSequence } from './constants.ts'
 
 interface TerminalCleanupOptions {
   signalHandlerRegistry?: (handler: () => void | Promise<void>) => void
@@ -119,7 +120,7 @@ export class TerminalCleanup {
     this.#isCleaningUp = true
 
     const terminal = await getTerminal()
-    terminal.info('TerminalCleanup', 'Starting comprehensive terminal cleanup')
+    terminal.debug('TerminalCleanup', 'Calling #cleanupHandlers')
 
     try {
       // Run custom cleanup handlers first
@@ -132,12 +133,12 @@ export class TerminalCleanup {
       }
 
       // Restore terminal to normal state
-      await this.restoreTerminalState()
+      // await this.restoreTerminalState()
 
-      terminal.info(
-        'TerminalCleanup',
-        'Terminal cleanup completed successfully',
-      )
+      // terminal.debug(
+      //   'TerminalCleanup',
+      //   'Terminal cleanup completed successfully',
+      // )
     } catch (error) {
       terminal.error('TerminalCleanup', 'Error during terminal cleanup', error)
     } finally {
@@ -161,24 +162,6 @@ export class TerminalCleanup {
         }
       }
 
-      // Comprehensive terminal reset sequence
-      const resetSequence = [
-        // Reset all terminal modes and attributes
-        '\x1b[!p', // Soft terminal reset
-        '\x1b[?25h', // Show cursor
-        '\x1b[?1000l', // Disable mouse tracking
-        '\x1b[?1002l', // Disable button event mouse tracking
-        '\x1b[?1003l', // Disable any motion mouse tracking
-        '\x1b[?1006l', // Disable SGR mouse mode
-        '\x1b[?2004l', // Disable bracketed paste
-        '\x1b[?1004l', // Disable focus tracking
-        '\x1b[?47l', // Exit alternate screen (old method)
-        '\x1b[?1049l', // Exit alternate screen (new method)
-        '\x1b[0m', // Reset all text attributes
-        '\x1b[2J', // Clear entire screen
-        '\x1b[H', // Move cursor to home position
-      ].join('')
-
       // Write the reset sequence synchronously for immediate effect
       Deno.stdout.writeSync(encoder.encode(resetSequence))
 
@@ -189,7 +172,7 @@ export class TerminalCleanup {
       await this.performTerminalSpecificCleanup()
 
       // Force a final flush and ensure cursor is visible
-      await Deno.stdout.write(encoder.encode('\x1b[?25h'))
+      await Deno.stdout.write(encoder.encode(ANSI_CODES.CURSOR_SHOW))
 
       // Final delay to ensure everything is processed
       await new Promise((resolve) => setTimeout(resolve, 10))
@@ -209,8 +192,7 @@ export class TerminalCleanup {
     try {
       // Kitty terminal specific cleanup
       if (term.includes('kitty') || Deno.env.get('KITTY_WINDOW_ID')) {
-        const kittyReset = '\x1b[<u' // Disable Kitty keyboard protocol
-        Deno.stdout.writeSync(encoder.encode(kittyReset))
+        Deno.stdout.writeSync(encoder.encode(ANSI_CODES.KITTY_KEYBOARD_DISABLE))
         terminal.debug('TerminalCleanup', 'Kitty-specific cleanup performed')
       }
 
@@ -276,22 +258,8 @@ export class TerminalCleanup {
         Deno.stdin.setRaw(false)
       }
 
-      // Emergency terminal reset - synchronous only
-      const emergencyReset = [
-        '\x1b[!p', // Soft terminal reset
-        '\x1b[?25h', // Show cursor
-        '\x1b[?1000l', // Disable mouse tracking
-        '\x1b[?1006l', // Disable SGR mouse mode
-        '\x1b[?2004l', // Disable bracketed paste
-        '\x1b[?1004l', // Disable focus tracking
-        '\x1b[?1049l', // Exit alternate screen
-        '\x1b[0m', // Reset all text attributes
-        '\x1b[2J', // Clear entire screen
-        '\x1b[H', // Move cursor to home position
-        '\x1b[?25h', // Ensure cursor is visible (repeat)
-      ].join('')
-
-      Deno.stdout.writeSync(encoder.encode(emergencyReset))
+      // Emergency terminal reset - use the same reset sequence for consistency
+      Deno.stdout.writeSync(encoder.encode(resetSequence))
     } catch {
       // Ignore errors in emergency cleanup
     }

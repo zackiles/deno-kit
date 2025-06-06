@@ -106,7 +106,7 @@ class KeyboardSkipper {
       // Set up Ctrl-C signal handler
       this.signalHandler = () => {
         this.cleanup()
-        Deno.exit(0)
+        this.skipRequested = true
       }
       Deno.addSignalListener('SIGINT', this.signalHandler)
 
@@ -126,7 +126,8 @@ class KeyboardSkipper {
           // Check for Ctrl-C (0x03)
           if (buffer[0] === 0x03) {
             this.cleanup()
-            Deno.exit(0)
+            this.skipRequested = true
+            break
           }
 
           // Any other key triggers skip

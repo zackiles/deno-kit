@@ -74,9 +74,8 @@ async function writeToLog(
 
   try {
     await Deno.writeTextFile(state.currentLogFile, logLine, { append: true })
-  } catch (error) {
-    // Fallback to console if file writing fails
-    console.error('Failed to write to log file:', error)
+  } catch {
+    // IMPORTANT: if it fails, there is no alternative console or output, so we have no choice but to ignore it (or throw, but shutting down the application isn't warranted)
   }
 }
 
@@ -88,6 +87,7 @@ function createLogMethod(
     await writeToLog(level, msg, args)
     // Still call original method for any side effects, but suppress output
     // by temporarily redirecting stdout if needed
+    originalMethod(msg, ...args)
   }
 }
 
@@ -97,6 +97,14 @@ function createLogMethod(
  */
 export async function start(terminal: Terminal): Promise<void> {
   if (state.isActive) return
+  terminal.setConfig({
+    level: 0, // FORCE DEBUG ON THE SINGLETON
+    colors: false,
+    name: 'terminal',
+    inspect: {
+      colors: false,
+    },
+  })
 
   // Initialize current date and log file
   state.currentDate = getCurrentDate()
@@ -152,7 +160,6 @@ export async function stop(terminal: Terminal): Promise<void> {
   if (state.originalMethods.debug) terminal.debug = state.originalMethods.debug
   if (state.originalMethods.error) terminal.error = state.originalMethods.error
   if (state.originalMethods.warn) terminal.warn = state.originalMethods.warn
-
   // Clear state
   state.isActive = false
   state.currentLogFile = null

@@ -282,7 +282,10 @@ class Terminal {
         if (typeof arg === 'string') {
           return this.#config.colors ? colors.dim(arg) : arg
         } else {
-          const inspected = Deno.inspect(arg, this.#config.inspect)
+          const inspected = Deno.inspect(arg, {
+            ...this.#config.inspect,
+            colors: this.#config.colors,
+          })
           return this.#config.colors ? colors.dim(inspected) : inspected
         }
       })
@@ -415,10 +418,9 @@ export * from './protocols.ts'
 export * from './constants.ts'
 export * from './terminal-cleanup.ts'
 export * from './banner.ts'
-export * from './prompt-select.ts'
+export * from './prompts/prompt.ts'
 export * from './debugger.ts'
 //export * from './simple-prompt.ts'
-//export * from './interactive-prompt.ts'
 
 const text = {
   ...stdText,

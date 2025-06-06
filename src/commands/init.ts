@@ -45,7 +45,9 @@ const ensureValidWorkspacePath = async () => {
         kitPath: config.DENO_KIT_PATH,
       },
     )
-    Deno.exit(1)
+    const { gracefulShutdown } = await import('../utils/graceful-shutdown.ts')
+    await gracefulShutdown.shutdown(true, 1)
+    return
   }
 
   await ensureDir(config.DENO_KIT_WORKSPACE_PATH)

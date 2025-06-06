@@ -56,20 +56,34 @@ const COMMANDS: Record<string, CommandRouteDefinition> = Object.fromEntries(
  * @returns {Promise<void>}
  */
 async function main(): Promise<void> {
-  const router = new CommandRouter(COMMANDS)
-  const route: CommandRouteDefinition = router.getRoute(Deno.args)
-  await terminal.printBanner({
-    version: config.DENO_KIT_VERSION,
-    rollup: true,
-  })
-
   terminal.setConfig({
     timestamp: config.DENO_KIT_LOG_LEVEL === 'debug',
     level: config.DENO_KIT_LOG_LEVEL as unknown as LogLevelEnum,
     environment: config
       .DENO_KIT_ENV as unknown as TerminalConfig['environment'],
   })
+
+  if (terminal.getLevel() === 0) {
+    const { start, stop } = await import('./terminal/debugger.ts')
+    await start(terminal)
+    terminal.start()
+    gracefulShutdown.addShutdownHandler(terminal.stop.bind(terminal))
+    gracefulShutdown.addShutdownHandler(stop.bind(null, terminal))
+  } else {
+    terminal.start()
+    gracefulShutdown.addShutdownHandler(terminal.stop.bind(terminal))
+  }
+
+  await terminal.printBanner({
+    version: config.DENO_KIT_VERSION,
+    rollup: true,
+  })
+
+  const router = new CommandRouter(COMMANDS)
+  const route: CommandRouteDefinition = router.getRoute(Deno.args)
+
   terminal.debug('Loaded config:', config)
+
   try {
     const options: CommandRouteOptions = router.getOptions(route)
     await route.command(options)

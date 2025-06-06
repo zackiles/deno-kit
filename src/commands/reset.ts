@@ -32,7 +32,7 @@ async function command(): Promise<void> {
   const workspace: Workspace = await loadWorkspace(packageInfo)
   await workspace.reset()
 
-  terminal.info(`Reset workspace: ${workspace.path}`)
+  terminal.print(`Reset workspace: ${workspace.path}`)
 }
 
 export default commandRoute

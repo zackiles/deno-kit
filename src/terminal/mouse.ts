@@ -1,5 +1,6 @@
 // Advanced mouse input handling with modern terminal protocol support
 import { terminalCleanup } from './terminal-cleanup.ts'
+import { ANSI_CODES } from './constants.ts'
 
 import type { Terminal } from './mod.ts'
 
@@ -113,24 +114,24 @@ export class MouseInput {
       // Enable mouse tracking in order of preference
       if (caps.supportsSGRMouse) {
         // SGR mouse mode (1006) - supports large coordinates
-        await terminal.write('\x1b[?1006h')
+        await terminal.write(ANSI_CODES.MOUSE_SGR_MODE_ENABLE)
 
         // Enable all mouse events
-        await terminal.write('\x1b[?1000h') // Basic mouse
-        await terminal.write('\x1b[?1002h') // Button events and drag
-        await terminal.write('\x1b[?1003h') // Any mouse movement
+        await terminal.write(ANSI_CODES.MOUSE_BASIC_ENABLE)
+        await terminal.write(ANSI_CODES.MOUSE_BUTTON_EVENT_ENABLE)
+        await terminal.write(ANSI_CODES.MOUSE_ANY_EVENT_ENABLE)
       } else if (caps.supportsUrxvtMouse) {
         // Urxvt mouse mode (1015)
-        await terminal.write('\x1b[?1015h')
-        await terminal.write('\x1b[?1000h')
+        await terminal.write(ANSI_CODES.MOUSE_URXVT_MODE_ENABLE)
+        await terminal.write(ANSI_CODES.MOUSE_BASIC_ENABLE)
       } else {
         // Basic mouse mode
-        await terminal.write('\x1b[?1000h')
+        await terminal.write(ANSI_CODES.MOUSE_BASIC_ENABLE)
       }
 
       // Enable wheel mouse if supported
       if (caps.supportsWheelMouse) {
-        await terminal.write('\x1b[?1002h')
+        await terminal.write(ANSI_CODES.MOUSE_BUTTON_EVENT_ENABLE)
       }
 
       this.isEnabled = true
@@ -155,11 +156,11 @@ export class MouseInput {
 
     try {
       // Disable all mouse modes
-      await terminal.write('\x1b[?1003l') // Any movement
-      await terminal.write('\x1b[?1002l') // Button events and drag
-      await terminal.write('\x1b[?1000l') // Basic mouse
-      await terminal.write('\x1b[?1006l') // SGR mode
-      await terminal.write('\x1b[?1015l') // Urxvt mode
+      await terminal.write(ANSI_CODES.MOUSE_ANY_EVENT_DISABLE)
+      await terminal.write(ANSI_CODES.MOUSE_BUTTON_EVENT_DISABLE)
+      await terminal.write(ANSI_CODES.MOUSE_BASIC_DISABLE)
+      await terminal.write(ANSI_CODES.MOUSE_SGR_MODE_DISABLE)
+      await terminal.write(ANSI_CODES.MOUSE_URXVT_MODE_DISABLE)
 
       this.isEnabled = false
     } catch (error) {
