@@ -63,8 +63,8 @@ jobs:
             echo "✅ Installation successful: $INSTALL_PATH"
             # Verify it runs and reports the correct version (matches tag)
             chmod +x "$INSTALL_PATH"
-            # Get version by running the version command and trim any whitespace
-            INSTALLED_VERSION=$("$INSTALL_PATH" version | tr -d '[:space:]')
+            # Get version by running the version command and strip ANSI codes and whitespace
+            INSTALLED_VERSION=$("$INSTALL_PATH" version | sed 's/\x1B\[[0-9;]*[JKmsu]//g' | tr -d '[:space:]')
             EXPECTED_VERSION="${{ steps.get_tag.outputs.TAG }}"
             EXPECTED_VERSION_NO_V=$(echo $EXPECTED_VERSION | sed 's/^v//' | tr -d '[:space:]')
 

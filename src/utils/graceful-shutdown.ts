@@ -175,16 +175,15 @@ class GracefulShutdown {
    * Execute a controlled shutdown sequence
    */
   public async shutdown(isPanic = false, exitCode?: number): Promise<void> {
+    if (this.isShuttingDown) {
+      return
+    } else {
+      this.isShuttingDown = true
+    }
     const code = exitCode ?? (isPanic ? 1 : 0)
     this.logger.debug(
       `shutdown() called with isPanic=${isPanic}, exitCode=${exitCode}, finalCode=${code}`,
     )
-
-    if (this.isShuttingDown) {
-      this.logger.debug('shutdown() already in progress, returning')
-      return
-    }
-    this.isShuttingDown = true
 
     const executeHandler = async (
       handler: () => void | Promise<void>,

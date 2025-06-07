@@ -117,6 +117,7 @@ async function main(): Promise<void> {
   try {
     const options: CommandRouteOptions = router.getOptions(route)
     await route.command(options)
+    gracefulShutdown.shutdown(false, 0)
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     throw new Error(`Failed to execute command "${route.name}". ${message}`)
