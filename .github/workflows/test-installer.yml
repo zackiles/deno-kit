@@ -63,8 +63,8 @@ jobs:
             echo "✅ Installation successful: $INSTALL_PATH"
             chmod +x "$INSTALL_PATH"
 
-            # Get version and strip everything except digits and dots
-            INSTALLED_VERSION=$("$INSTALL_PATH" version 2>/dev/null | head -1 | sed 's/[^0-9.]//g')
+            # Get version using grep to extract version pattern
+            INSTALLED_VERSION=$("$INSTALL_PATH" version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
             EXPECTED_VERSION=$(echo "${{ steps.get_tag.outputs.TAG }}" | sed 's/^v//')
 
             if [ "$INSTALLED_VERSION" = "$EXPECTED_VERSION" ]; then
