@@ -12,6 +12,9 @@ async function command(): Promise<void> {
   try {
     const packageData = await findPackageFromPath()
     const version = packageData.version as string || 'unknown'
+    // 🤖 Debug: Log each byte being written
+    const bytes = new TextEncoder().encode(version)
+    console.log('Bytes being written:', [...bytes].map((b) => b.toString(16)))
     terminal.write(version)
   } catch (err) {
     throw new Error(

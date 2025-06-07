@@ -8,12 +8,13 @@ import * as stdText from '@std/text/unstable-dedent'
 import { unicodeWidth } from '@std/cli'
 import { printBanner as printBannerImpl } from './banner.ts'
 import palette from './palette.ts'
+import { ANSI_CODES, RESET_SEQUENCE } from './constants.ts'
 const colors = palette
 
 const encoder = new TextEncoder()
-const RESET = '\x1b[0m'
-const STYLE_BASE = '\x1b[0m\x1b[38;2;255;255;255m'
-const CLEAR_SCREEN = '\x1b[0m\x1b[2J\x1b[3J\x1b[H'
+const RESET = RESET_SEQUENCE
+const STYLE_BASE = ANSI_CODES.STYLE_BASE
+const CLEAR_SCREEN = ANSI_CODES.CLEAR_SCREEN_FULL
 
 enum LogLevelEnum {
   DEBUG = 0,

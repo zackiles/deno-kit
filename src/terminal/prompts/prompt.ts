@@ -434,14 +434,31 @@ abstract class BasePrompt extends PromptEventEmitter {
         await terminal.write(ANSI_CODES.CLEAR_SCREEN)
         await terminal.write(output)
       } else {
-        if (this.isFirstRender) {
-          await terminal.write(ANSI_CODES.CURSOR_SAVE)
-          await terminal.write(output)
-          this.isFirstRender = false
+        if (this.config.clearBefore === false) {
+          // For clearBefore: false, just append content without save/restore
+          if (this.isFirstRender) {
+            await terminal.write(output)
+            this.isFirstRender = false
+          } else {
+            // Move cursor to beginning of current prompt area and overwrite
+            const outputLines = output.split('\n')
+            if (outputLines.length > 0) {
+              await terminal.write(ANSI_CODES.CURSOR_UP(this.renderedLineCount))
+              await terminal.write('\r')
+            }
+            await terminal.write(output)
+          }
         } else {
-          await terminal.write(ANSI_CODES.CURSOR_RESTORE)
-          await terminal.write(ANSI_CODES.CLEAR_FROM_CURSOR_DOWN)
-          await terminal.write(output)
+          // Original save/restore logic for normal prompts
+          if (this.isFirstRender) {
+            await terminal.write(ANSI_CODES.CURSOR_SAVE)
+            await terminal.write(output)
+            this.isFirstRender = false
+          } else {
+            await terminal.write(ANSI_CODES.CURSOR_RESTORE)
+            await terminal.write(ANSI_CODES.CLEAR_FROM_CURSOR_DOWN)
+            await terminal.write(output)
+          }
         }
       }
 

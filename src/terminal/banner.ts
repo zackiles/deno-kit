@@ -24,24 +24,68 @@ const DARK_BLUE = '\x1b[38;2;0;0;139m'
 const HIDE_CURSOR = '\x1b[?25l'
 const SHOW_CURSOR = '\x1b[?25h'
 
-// Settings
+/**
+ * Configuration for the banner animation.
+ */
 const SETTINGS = {
-  WALK_DISTANCE: 25,
-  ANIMATION_SPEED_MS: 200,
-  STEPS_PER_FRAME: 2,
+  /**
+   * The maximum distance, in characters, the dinosaur will walk.
+   * The actual distance is made responsive to the terminal width to ensure
+   * the dinosaur stays within the visible scene.
+   */
+  WALK_DISTANCE: 45,
+  /** Speed of the animation in milliseconds per frame. */
+  ANIMATION_SPEED_MS: 90,
+  /** How many character spaces the dinosaur moves per animation frame. */
+  STEPS_PER_FRAME: 1.5,
+  /**
+   * The maximum width of the entire animation scene in characters.
+   * The banner will not exceed this width, even if the terminal is wider.
+   */
   DEFAULT_SCENE_WIDTH: 90,
-  MIN_SCENE_WIDTH: 50,
+  /**
+   * The maximum width for internally rendered content like the header text
+   * and rain effects. This ensures that text remains well-formatted and readable
+   * within the broader scene.
+   */
+  MAX_CONTENT_WIDTH: 60,
+  /** The minimum width of the scene in characters. */
+  MIN_SCENE_WIDTH: 40,
+  /** Initial horizontal offset for the dinosaur's starting position. */
   DINO_START_OFFSET: 0,
+  /** Patterns for the dust effect shown when the dinosaur walks. */
   DUST_PATTERNS: [
     ['💨', '°'],
     ['💨', '💨', '°'],
     ['°', '💨'],
     ['💨'],
   ],
+  /** Characters used for the twinkling eye animation. */
   EYE_STARS: ['*', '+', '×', '·', '✦', '★'],
-  EYE_CYCLES: 2,
+  /** Number of times the eye twinkling animation will cycle. */
+  EYE_CYCLES: 3,
+  /** Spacing between raindrops. */
   RAIN_SPACING: 1,
-  RAIN_FALL_SPEED: 2,
+  /** Speed at which the rain falls. */
+  RAIN_FALL_SPEED: 3,
+  /** Base speed for cloud movement. */
+  CLOUD_SPEED: 0.5,
+  /** Speed variation factor between different cloud clusters. */
+  CLOUD_SPEED_VARIATION_FACTOR: 0.1,
+  /** Vertical offset (from the top of the tree area) for the dinosaur. */
+  DINO_VERTICAL_OFFSET: 2,
+  /** The Y position where the grass line is rendered. */
+  GRASS_Y_POSITION: 8,
+  /** The maximum length of the grass line. */
+  MAX_GRASS_LENGTH: 30,
+  /** Factor to determine grass length based on scene width. */
+  GRASS_WIDTH_FACTOR: 2.3,
+  /** Speed multiplier for the eye animation. */
+  EYE_ANIMATION_SPEED_FACTOR: 1.2,
+  /** Speed multiplier for the final rollup animation. */
+  ROLLUP_SPEED_FACTOR: 0.9,
+  /** The minimum height of the area containing the palm tree. */
+  MIN_TREE_AREA_HEIGHT: 9,
 }
 
 const DINO_FRAMES = [
@@ -175,14 +219,14 @@ function renderSky(
   sceneWidth: number,
   cloudClusters: Array<{ top: string; bottom: string }>,
 ) {
-  const cloudSpeed = 0.8
+  const cloudSpeed = SETTINGS.CLOUD_SPEED
   const cloudOffset = Math.floor(step * cloudSpeed)
   const skyLine = ' '.repeat(sceneWidth)
   let topSky = skyLine
   let bottomSky = skyLine
 
   cloudClusters.forEach((cluster, i) => {
-    const speedVariation = 1 + (i * 0.1)
+    const speedVariation = 1 + (i * SETTINGS.CLOUD_SPEED_VARIATION_FACTOR)
     const startingOffset = (sceneWidth / cloudClusters.length) * i
     const individualCloudSpeed = cloudSpeed * speedVariation
     const pos = (cloudOffset * individualCloudSpeed + startingOffset) %
@@ -240,7 +284,7 @@ function renderTreeWithDino(
   sceneWidth: number,
 ) {
   const scene: string[] = []
-  const dinoStart = 2
+  const dinoStart = SETTINGS.DINO_VERTICAL_OFFSET
 
   for (let i = 0; i < treeAreaHeight; i++) {
     const treeSeg = i < treeLines.length ? treeLines[i] : ''
@@ -262,8 +306,11 @@ function renderTreeWithDino(
         line += ` ${SETTINGS.DUST_PATTERNS[dustIndex].join('')}`
       }
       scene.push(line)
-    } else if (i === 8) {
-      const grassLength = Math.min(30, Math.floor(sceneWidth / 2.3))
+    } else if (i === SETTINGS.GRASS_Y_POSITION) {
+      const grassLength = Math.min(
+        SETTINGS.MAX_GRASS_LENGTH,
+        Math.floor(sceneWidth / SETTINGS.GRASS_WIDTH_FACTOR),
+      )
       scene.push(colors.green('🌱'.repeat(grassLength)))
     } else {
       scene.push(treeSeg)
@@ -497,19 +544,26 @@ async function printBanner(options: BannerOptions) {
       const versionWidth = terminal.getCharacterWidth(versionText)
       const padding = Math.max(
         0,
-        (Math.min(60, SCENE_WIDTH - 10)) - baseWidth - versionWidth,
+        (Math.min(SETTINGS.MAX_CONTENT_WIDTH, SCENE_WIDTH - 10)) -
+          baseWidth - versionWidth,
       )
       const titleLine = `${STYLE_BASE}${baseText}${
         ' '.repeat(padding)
       }${versionText}${RESET}\n`
-      const separatorLength = Math.min(60, SCENE_WIDTH - 10)
+      const separatorLength = Math.min(
+        SETTINGS.MAX_CONTENT_WIDTH,
+        SCENE_WIDTH - 10,
+      )
       const separatorLine = `${STYLE_BASE}${
         '='.repeat(separatorLength)
       }${RESET}\n`
       return `${titleLine + separatorLine}${STYLE_BASE}${RESET}`
     }
 
-    const EFFECTIVE_SCENE_WIDTH = Math.min(60, SCENE_WIDTH - 10)
+    const EFFECTIVE_SCENE_WIDTH = Math.min(
+      SETTINGS.MAX_CONTENT_WIDTH,
+      SCENE_WIDTH - 10,
+    )
 
     const CLOUD_CLUSTERS = [
       {
@@ -535,10 +589,9 @@ async function printBanner(options: BannerOptions) {
     ]
 
     const PALM_TREE_LINES = getPalmTreeLines(colors)
-    const MIN_TREE_AREA_HEIGHT = 9
     const TREE_AREA_HEIGHT = Math.max(
       PALM_TREE_LINES.length,
-      MIN_TREE_AREA_HEIGHT,
+      SETTINGS.MIN_TREE_AREA_HEIGHT,
     )
     const SCENE_HEIGHT = 1 + TREE_AREA_HEIGHT
 
@@ -619,7 +672,10 @@ async function printBanner(options: BannerOptions) {
           if (skipper.isSkipped()) break
 
           await new Promise((r) =>
-            setTimeout(r, SETTINGS.ANIMATION_SPEED_MS * 1.2)
+            setTimeout(
+              r,
+              SETTINGS.ANIMATION_SPEED_MS * SETTINGS.EYE_ANIMATION_SPEED_FACTOR,
+            )
           )
 
           await terminal.write(`\x1b[${SCENE_HEIGHT}A`)
@@ -710,7 +766,8 @@ async function printBanner(options: BannerOptions) {
 
     // Rollup animation with proper async handling
     if (rollup) {
-      const rollupSpeed = SETTINGS.ANIMATION_SPEED_MS * 0.8
+      const rollupSpeed = SETTINGS.ANIMATION_SPEED_MS *
+        SETTINGS.ROLLUP_SPEED_FACTOR
       const totalSceneLines = SCENE_HEIGHT
 
       const finalStar = SETTINGS.EYE_STARS[SETTINGS.EYE_STARS.length - 1]

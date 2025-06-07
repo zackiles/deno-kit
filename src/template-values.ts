@@ -72,7 +72,7 @@ const createAutoPromptConfig = async (context: Record<string, string>) => {
   for (const line of displayData) {
     terminal.print(line)
   }
-
+  terminal.print('lines', displayData.length.toString())
   const response = await prompt.ask({
     message: 'Would you like to use this auto-configuration?',
     type: 'select',

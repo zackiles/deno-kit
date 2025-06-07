@@ -19,8 +19,10 @@ import {
   bold,
   dim,
   greenGradient,
+  LIST,
   purpleGradient,
   redGradient,
+  STATUS,
   terminal,
   whiteGradient,
   yellow,
@@ -38,8 +40,8 @@ import type { DenoKitConfig } from './types.ts'
 const config = await getConfig() as DenoKitConfig
 
 const THEME = {
-  prefix: '➜',
-  pointer: '→',
+  prefix: LIST.BULLET.CIRCLE,
+  pointer: LIST.ARROW.DOUBLE_RIGHT,
   checkbox: {
     checked: '◉',
     unchecked: '◯',
@@ -53,7 +55,7 @@ const THEME = {
     warning: yellow,
     disabled: dim,
     highlight: (text: string) => bold(blueGradient(text)),
-    inputText: whiteGradient,
+    inputText: dim,
     text: whiteGradient,
   },
 } as PromptTheme
