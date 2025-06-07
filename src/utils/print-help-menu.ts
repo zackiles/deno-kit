@@ -1,7 +1,7 @@
 /**
  * @module print-help-menu
  */
-import { bold, dim, green } from '@std/fmt/colors'
+import { bold, dim } from '@std/fmt/colors'
 import { greenGradient, purpleGradient, terminal } from '../terminal/mod.ts'
 
 function printHelpMenu(config: {

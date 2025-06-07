@@ -16,7 +16,7 @@
 
 import { resolve } from '@std/path'
 import { fromFileUrl } from '@std/path/from-file-url'
-import { bold, cyan, dim, green, red } from '@std/fmt/colors'
+import { bold, cyan, green, red } from '@std/fmt/colors'
 import { promptSelect } from '@std/cli/unstable-prompt-select'
 import { ide } from '../src/utils/ide.ts'
 

@@ -174,7 +174,8 @@ class Terminal {
       globalThis.console = this.#originalConsole
       this.#originalConsole = undefined
     }
-    Deno.stdout.writeSync(encoder.encode(RESET))
+    // Use simple style reset for shutdown instead of aggressive screen clear
+    Deno.stdout.writeSync(encoder.encode(ANSI_CODES.STYLE_RESET))
   }
 
   setConfig(config: Partial<TerminalConfig>): void {
@@ -344,7 +345,10 @@ class Terminal {
       ? [msg, ...args].map(String).join(' ')
       : String(msg)
     const stylePrefix = this.#config.colors ? STYLE_BASE : ''
-    Deno.stdout.writeSync(encoder.encode(`${stylePrefix}${output}${RESET}\n`))
+    const simpleReset = '\x1b[0m'
+    Deno.stdout.writeSync(
+      encoder.encode(`${stylePrefix}${output}${simpleReset}\n`),
+    )
   }
 
   async write(msg: string): Promise<void> {

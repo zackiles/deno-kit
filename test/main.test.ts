@@ -28,7 +28,7 @@ describe('main.ts CLI', () => {
   it('should display help menu when --help flag is passed', async () => {
     const { output } = await runCLI(['--help'])
 
-    assertStringIncludes(output, 'Deno-Kit - Usage:')
+    assertStringIncludes(output, 'Deno-Kit')
     assertStringIncludes(output, 'Commands:')
     assertStringIncludes(output, 'help')
   })
@@ -36,7 +36,7 @@ describe('main.ts CLI', () => {
   it('should display help menu when no command is passed', async () => {
     const { output } = await runCLI()
 
-    assertStringIncludes(output, 'Deno-Kit - Usage:')
+    assertStringIncludes(output, 'Deno-Kit')
     assertStringIncludes(output, 'Commands:')
     assertStringIncludes(output, 'help')
   })

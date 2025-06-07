@@ -33,7 +33,7 @@ const SETTINGS = {
    * The actual distance is made responsive to the terminal width to ensure
    * the dinosaur stays within the visible scene.
    */
-  WALK_DISTANCE: 45,
+  WALK_DISTANCE: 30,
   /** Speed of the animation in milliseconds per frame. */
   ANIMATION_SPEED_MS: 90,
   /** How many character spaces the dinosaur moves per animation frame. */
@@ -370,7 +370,7 @@ function applyRainOverlay(
     let visiblePos = 0
     let j = 0
 
-    while (j < sceneLine.length) {
+    while (j < sceneLine.length && visiblePos < effectiveSceneWidth) {
       const char = sceneLine[j]
 
       if (char.charCodeAt(0) === 27) {
@@ -401,9 +401,7 @@ function applyRainOverlay(
       j++
     }
 
-    while (
-      visiblePos < rainLine.length && visiblePos < effectiveSceneWidth
-    ) {
+    while (visiblePos < Math.min(rainLine.length, effectiveSceneWidth)) {
       if (
         rainLine[visiblePos] !== ' ' &&
         visiblePos % SETTINGS.RAIN_SPACING === 0
@@ -526,12 +524,6 @@ async function printBanner(options: BannerOptions) {
       1,
       Math.min(SETTINGS.DINO_START_OFFSET, Math.floor(SCENE_WIDTH * 0.1)),
     )
-    const AVAILABLE_WALK_SPACE = SCENE_WIDTH - TREE_WIDTH -
-      RESPONSIVE_DINO_START_OFFSET - DINO_WIDTH - 5
-    const RESPONSIVE_WALK_DISTANCE = Math.max(
-      3,
-      Math.min(SETTINGS.WALK_DISTANCE, AVAILABLE_WALK_SPACE),
-    )
 
     await terminal.write(RESET)
     await terminal.write(HIDE_CURSOR)
@@ -563,6 +555,14 @@ async function printBanner(options: BannerOptions) {
     const EFFECTIVE_SCENE_WIDTH = Math.min(
       SETTINGS.MAX_CONTENT_WIDTH,
       SCENE_WIDTH - 10,
+    )
+
+    const AVAILABLE_WALK_SPACE = SCENE_WIDTH - TREE_WIDTH -
+      RESPONSIVE_DINO_START_OFFSET - DINO_WIDTH -
+      Math.max(1, Math.floor(SCENE_WIDTH * 0.05))
+    const RESPONSIVE_WALK_DISTANCE = Math.max(
+      3,
+      Math.min(SETTINGS.WALK_DISTANCE, AVAILABLE_WALK_SPACE),
     )
 
     const CLOUD_CLUSTERS = [
@@ -876,6 +876,7 @@ async function printBanner(options: BannerOptions) {
 
       await terminal.write(`\x1b[${totalSceneLines + 1}A`)
       await terminal.write('\x1b[0J')
+      await terminal.write('\r')
     }
   } finally {
     skipper.cleanup()

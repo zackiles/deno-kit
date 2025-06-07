@@ -22,7 +22,6 @@ import {
   LIST,
   purpleGradient,
   redGradient,
-  STATUS,
   terminal,
   whiteGradient,
   yellow,
