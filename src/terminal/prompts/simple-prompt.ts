@@ -3,9 +3,9 @@
  * @description Interactive prompt system with arrow key navigation
  */
 
-import { ANSI_CODES } from './constants.ts'
-import { terminal } from './mod.ts'
-import type { BaseOption } from './prompts/prompt.ts'
+import { ANSI_CODES } from '../constants.ts'
+import { terminal } from '../mod.ts'
+import type { BaseOption } from './prompt.ts'
 
 export interface SimplePromptConfig {
   message: string
@@ -247,7 +247,7 @@ class SimplePrompt {
         // Use graceful shutdown for Ctrl+C instead of throwing
         await this.cleanup()
         const { gracefulShutdown } = await import(
-          '../utils/graceful-shutdown.ts'
+          '../../utils/graceful-shutdown.ts'
         )
         await gracefulShutdown.shutdown(false, 130)
         return 'Escape' // This won't actually be reached due to Deno.exit()

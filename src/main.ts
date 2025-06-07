@@ -14,7 +14,19 @@
  * ```
  */
 import { getConfig } from './config.ts'
-import { terminal } from './terminal/mod.ts'
+import {
+  blueGradient,
+  bold,
+  dim,
+  greenGradient,
+  purpleGradient,
+  redGradient,
+  terminal,
+  whiteGradient,
+  yellow,
+} from './terminal/mod.ts'
+import { prompt } from './terminal/prompts/prompt.ts'
+import type { PromptTheme } from './terminal/prompts/prompt.ts'
 import type { LogLevelEnum, TerminalConfig } from './terminal/mod.ts'
 import gracefulShutdown from './utils/graceful-shutdown.ts'
 import CommandRouter from './utils/command-router.ts'
@@ -24,6 +36,27 @@ import type {
 } from './utils/command-router.ts'
 import type { DenoKitConfig } from './types.ts'
 const config = await getConfig() as DenoKitConfig
+
+const THEME = {
+  prefix: '➜',
+  pointer: '→',
+  checkbox: {
+    checked: '◉',
+    unchecked: '◯',
+    indeterminate: '◐',
+  },
+  colors: {
+    primary: (text: string) => bold(purpleGradient(text)),
+    secondary: (text: string) => bold(whiteGradient(text)),
+    success: greenGradient,
+    error: redGradient,
+    warning: yellow,
+    disabled: dim,
+    highlight: (text: string) => bold(blueGradient(text)),
+    inputText: whiteGradient,
+    text: whiteGradient,
+  },
+} as PromptTheme
 
 /**
  * Static mapping of CLI commands to their implementations.
@@ -56,6 +89,8 @@ const COMMANDS: Record<string, CommandRouteDefinition> = Object.fromEntries(
  * @returns {Promise<void>}
  */
 async function main(): Promise<void> {
+  prompt.setTheme(THEME)
+
   terminal.setConfig({
     timestamp: config.DENO_KIT_LOG_LEVEL === 'debug',
     level: config.DENO_KIT_LOG_LEVEL as unknown as LogLevelEnum,

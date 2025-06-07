@@ -4,7 +4,7 @@ import {
   type WorkspaceWithGit,
 } from '../workspace/index.ts'
 import type { CommandRouteDefinition } from '../utils/command-router.ts'
-import terminal from '../terminal/mod.ts'
+import terminal, { purpleGradient } from '../terminal/mod.ts'
 //import { setupOrUpdateCursorConfig } from '../utils/cursor-config.ts'
 import { normalize } from '@std/path'
 import { ensureDir, exists } from '@std/fs'
@@ -134,7 +134,7 @@ async function command(): Promise<void> {
       name: templateValues.PROJECT_NAME,
       commitMessage: 'chore: initial commit',
     })
-    terminal.print(
+    terminal.debug(
       `Initialized git repo at ${workspace.path}`,
     )
     if (config.DENO_KIT_ENV !== 'test') {
@@ -149,12 +149,13 @@ async function command(): Promise<void> {
             push,
           })
         terminal.print(
-          `${
-            isPublic ? 'Public' : 'Private'
-          } GitHub repo created for ${path} and pushed to ${repoUrl}`,
+          purpleGradient('[SUCCESS]'),
+          `${isPublic ? '🌍 Public' : '🔐 Private'} GitHub repo created for ${
+            dim(templateValues.PROJECT_NAME)
+          } @ ${dim(repoUrl)}`,
         )
 
-        // 🤖 In development, immediately remove the GitHub repo for testing purposes
+        // IMPORTANT: In development, immediately remove the GitHub repo for testing purposes
         if (config.DENO_KIT_ENV === 'development') {
           try {
             const { repoName } = await (workspace as WorkspaceWithGit)
@@ -173,14 +174,16 @@ async function command(): Promise<void> {
                 repoName: templateValues.PROJECT_NAME,
               },
             )
-            // Don't re-throw the error - just log it and continue
+            // IMPORTANT:Don't re-throw the error - just log it and continue
           }
         }
       }
     }
-
+    terminal.clear()
     terminal.print(
-      `✅ Setup ${templateValues.PROJECT_TYPE} project in ${config.DENO_KIT_WORKSPACE_PATH}`,
+      `🎉 ${bold(green('Success!'))} ${bold('Setup')} ${
+        bold(templateValues.PROJECT_TYPE.toUpperCase())
+      } ${bold('project in')} ${dim(config.DENO_KIT_WORKSPACE_PATH)}`,
     )
   } finally {
     if (temporaryTemplatesPath) {

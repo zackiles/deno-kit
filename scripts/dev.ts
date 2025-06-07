@@ -16,14 +16,9 @@
 
 import { resolve } from '@std/path'
 import { fromFileUrl } from '@std/path/from-file-url'
-import { bold, cyan, green, red, yellow } from '@std/fmt/colors'
+import { bold, cyan, dim, green, red } from '@std/fmt/colors'
 import { promptSelect } from '@std/cli/unstable-prompt-select'
-
-const EDITORS = [
-  { name: 'Cursor', cmd: 'cursor' },
-  { name: 'VS Code', cmd: 'code' },
-  { name: 'Windsurf', cmd: 'windsurf' },
-]
+import { ide } from '../src/utils/ide.ts'
 
 const log = {
   info: (msg: string) => console.log(cyan(bold('[INFO]')), msg),
@@ -35,20 +30,6 @@ const run = (cmd: string, args: string[], options = {}) =>
   new Deno.Command(cmd, { args, stdout: 'null', stderr: 'null', ...options })
     .output()
 
-const hasCommand = async (cmd: string) => {
-  try {
-    const result = await new Deno.Command(cmd, {
-      args: ['--version'],
-      stdout: 'null',
-      stderr: 'null',
-    }).output()
-    return result.success
-  } catch {
-    // Command not found or permission denied
-    return false
-  }
-}
-
 const hasFiles = async (path: string) => {
   try {
     for await (const _ of Deno.readDir(path)) return true
@@ -56,18 +37,6 @@ const hasFiles = async (path: string) => {
   } catch {
     return false
   }
-}
-
-const openEditor = async (cmd: string, path: string) => {
-  const { success } = await run(cmd, [path], {
-    stdout: 'inherit',
-    stderr: 'inherit',
-  })
-  if (!success) {
-    log.error(`Failed to open ${cmd}`)
-    return false
-  }
-  return true
 }
 
 // Make cleanup idempotent to prevent double execution
@@ -90,40 +59,6 @@ const safeCleanup = async (path: string) => {
     )
   }
   log.info('Cleanup completed')
-}
-
-const getAvailableEditors = async () => {
-  const available = await Promise.all(
-    EDITORS.map(async ({ name, cmd }) => {
-      const isAvailable = await hasCommand(cmd)
-      log.info(
-        `Editor ${name} (${cmd}): ${isAvailable ? 'detected' : 'not found'}`,
-      )
-      return {
-        name,
-        cmd,
-        available: isAvailable,
-      }
-    }),
-  )
-  return available.filter(({ available }) => available)
-}
-
-const promptEditor = (editors: Array<{ name: string; cmd: string }>) => {
-  if (!editors.length) {
-    log.info('No editors detected. Skipping editor opening.')
-    return null
-  }
-
-  const options = [...editors.map(({ name }) => name), 'Skip']
-  const choice = promptSelect('Open workspace in editor?', options, {
-    clear: true,
-  })
-
-  if (choice === 'Skip') return null
-
-  const selectedEditor = editors.find(({ name }) => name === choice)
-  return selectedEditor ? selectedEditor.cmd : null
 }
 
 const promptCleanup = () => {
@@ -158,8 +93,8 @@ const runDenoKit = async (args: string[], workspacePath: string) => {
     args,
     env: {
       ...Deno.env.toObject(),
-      DENO_KIT_ENV: 'development',
-      DENO_KIT_LOG_LEVEL: 'info',
+      DENO_KIT_ENV: 'production',
+      //DENO_KIT_LOG_LEVEL: 'info',
       DENO_KIT_WORKSPACE_PATH: workspacePath,
     },
     stdin: 'inherit',
@@ -188,8 +123,6 @@ async function main() {
   const tempPath = await Deno.makeTempDir({ prefix: 'dk-dev-' })
   const workspacePath = resolve(tempPath)
 
-  // Remove competing signal handlers - let the main app handle graceful shutdown
-
   try {
     const args = buildArgs(Deno.args, workspacePath)
     const exitCode = await runDenoKit(args, workspacePath)
@@ -214,18 +147,10 @@ async function main() {
       throw new Error('No files created in workspace')
     }
 
-    log.success('Deno-kit completed successfully')
-    log.info(yellow(`\nWorkspace: ${workspacePath}\n`))
-
-    const editors = await getAvailableEditors()
-    const selectedEditorCmd = promptEditor(editors)
-
-    if (selectedEditorCmd) {
-      const opened = await openEditor(selectedEditorCmd, workspacePath)
-      if (!opened) {
-        await safeCleanup(workspacePath)
-        Deno.exit(1)
-      }
+    const opened = await ide.openFolder(workspacePath)
+    if (!opened) {
+      await safeCleanup(workspacePath)
+      Deno.exit(1)
     }
 
     const shouldCleanup = promptCleanup()

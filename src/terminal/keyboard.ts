@@ -1,7 +1,7 @@
 // Advanced keyboard input handling with modern terminal protocol support
 
 import { terminalCleanup } from './terminal-cleanup.ts'
-import { ANSI_CODES } from './constants.ts'
+import { ANSI_CODES, ANSI_KEY_MAP, CTRL_KEY_MAP } from './constants.ts'
 import type { Terminal } from './mod.ts'
 
 // Lazy-loaded terminal instance to avoid circular dependency
@@ -30,72 +30,6 @@ interface KeyboardCapabilities {
   supportsModifyOtherKeys: boolean
   supportsBracketedPaste: boolean
   supportsKeyRelease: boolean
-}
-
-// Special key mappings for different protocols
-const ANSI_KEY_MAP: Record<string, string> = {
-  '\x1b[A': 'ArrowUp',
-  '\x1b[B': 'ArrowDown',
-  '\x1b[C': 'ArrowRight',
-  '\x1b[D': 'ArrowLeft',
-  '\x1b[H': 'Home',
-  '\x1b[F': 'End',
-  '\x1b[1~': 'Home',
-  '\x1b[4~': 'End',
-  '\x1b[2~': 'Insert',
-  '\x1b[3~': 'Delete',
-  '\x1b[5~': 'PageUp',
-  '\x1b[6~': 'PageDown',
-  '\x1bOP': 'F1',
-  '\x1bOQ': 'F2',
-  '\x1bOR': 'F3',
-  '\x1bOS': 'F4',
-  '\x1b[15~': 'F5',
-  '\x1b[17~': 'F6',
-  '\x1b[18~': 'F7',
-  '\x1b[19~': 'F8',
-  '\x1b[20~': 'F9',
-  '\x1b[21~': 'F10',
-  '\x1b[23~': 'F11',
-  '\x1b[24~': 'F12',
-  '\x7f': 'Backspace',
-  '\x08': 'Backspace', // Additional backspace mapping for macOS
-  '\x1b\x7f': 'Backspace', // Alt+Backspace on some terminals
-  '\x1b': 'Escape',
-  '\t': 'Tab',
-  '\r': 'Enter',
-  '\n': 'Enter',
-  ' ': 'Space',
-}
-
-// Control key mappings
-const CTRL_KEY_MAP: Record<string, string> = {
-  '\x01': 'a',
-  '\x02': 'b',
-  '\x03': 'c',
-  '\x04': 'd',
-  '\x05': 'e',
-  '\x06': 'f',
-  '\x07': 'g',
-  '\x08': 'h',
-  '\x09': 'i',
-  '\x0a': 'j',
-  '\x0b': 'k',
-  '\x0c': 'l',
-  '\x0d': 'm',
-  '\x0e': 'n',
-  '\x0f': 'o',
-  '\x10': 'p',
-  '\x11': 'q',
-  '\x12': 'r',
-  '\x13': 's',
-  '\x14': 't',
-  '\x15': 'u',
-  '\x16': 'v',
-  '\x17': 'w',
-  '\x18': 'x',
-  '\x19': 'y',
-  '\x1a': 'z',
 }
 
 class KeyboardInput {
@@ -715,5 +649,5 @@ class KeyboardInput {
 
 // Export singleton instance
 export const keyboard = new KeyboardInput()
-export { ANSI_KEY_MAP, CTRL_KEY_MAP, KeyboardInput }
+export { KeyboardInput }
 export type { KeyboardCapabilities, KeyEvent }

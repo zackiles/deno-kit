@@ -1,0 +1,3 @@
+# Ignored in .cursorignoreindex but not in .cursorignore
+# This allows the agent to see the file but it wont index it and pollute the context window
+.ai/**/*.xml

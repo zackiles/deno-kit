@@ -1,3 +1,6 @@
+# Hypermix/Repomix generated context files
+.ai/**/*.xml
+
 bin
 coverage
 .DS_Store

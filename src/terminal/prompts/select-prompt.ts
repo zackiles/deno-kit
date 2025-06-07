@@ -36,6 +36,9 @@ class SelectPrompt extends BasePrompt {
       error: null,
       cursor: 0,
       showHelp: false,
+      isDone: false,
+      cursorPosition: 0,
+      cursorVisible: true,
     }
 
     this.state = state
@@ -71,6 +74,27 @@ class SelectPrompt extends BasePrompt {
     const config = this.config as SelectPromptConfig
     const terminal = this.engine.getTerminal()
 
+    if (this.state.isDone) {
+      if (config.type === 'multiselect') {
+        const selectedValues = this.state.selectedIndices
+          .filter((i) => i >= 0 && i < this.filteredOptions.length)
+          .map((i) => this.filteredOptions[i].label)
+        const summary = selectedValues.length > 0
+          ? selectedValues.join(', ')
+          : 'None selected'
+        lines.push(
+          `${this.formatMessage()} ${this.theme.colors.success(summary)}`,
+        )
+      } else {
+        const selectedOption = this.filteredOptions[this.state.selectedIndex]
+        const summary = selectedOption ? selectedOption.label : 'No selection'
+        lines.push(
+          `${this.formatMessage()} ${this.theme.colors.success(summary)}`,
+        )
+      }
+      return lines
+    }
+
     if (
       this.filteredOptions.length === 0 && config.options &&
       config.options.length > 0
@@ -105,9 +129,17 @@ class SelectPrompt extends BasePrompt {
       const searchIcon = this.theme.colors.disabled('🔍')
       const query = this.state.searchQuery
       const placeholder = 'Type to search...'
-      const displayText = query
-        ? this.theme.colors.primary(query)
-        : this.theme.colors.disabled(placeholder)
+
+      let displayText: string
+      if (query) {
+        displayText = this.theme.colors.inputText(
+          this.insertCursorInText(query, this.state.cursorPosition),
+        )
+      } else {
+        const placeholderText = this.theme.colors.disabled(placeholder)
+        displayText = this.insertCursorInText(placeholderText, 0)
+      }
+
       lines.push(`  ${searchIcon} ${displayText}`)
       lines.push('')
     }
@@ -184,13 +216,13 @@ class SelectPrompt extends BasePrompt {
       let prefix = '  '
 
       if (isSelected) {
-        prefix = `${this.theme.colors.primary(this.theme.pointer)} `
+        prefix = `${this.theme.colors.secondary(this.theme.pointer)} `
       }
 
       if (config.type === 'multiselect') {
         const checkbox = isMultiSelected
-          ? this.theme.colors.success(this.theme.checkbox.checked)
-          : this.theme.colors.disabled(this.theme.checkbox.unchecked)
+          ? this.theme.colors.highlight(this.theme.checkbox.checked)
+          : this.theme.colors.highlight(this.theme.checkbox.unchecked)
         prefix = `${prefix}${checkbox} `
       }
 
@@ -198,7 +230,9 @@ class SelectPrompt extends BasePrompt {
       if (option.disabled) {
         optionText = this.theme.colors.disabled(optionText)
       } else if (isSelected) {
-        optionText = this.theme.colors.highlight(optionText)
+        optionText = this.theme.colors.secondary(optionText)
+      } else {
+        optionText = this.theme.colors.text(optionText)
       }
 
       lines.push(`${prefix}${optionText}`)
@@ -249,12 +283,35 @@ class SelectPrompt extends BasePrompt {
 
     switch (event.key) {
       case 'ArrowUp':
-        this.moveCursor(-1)
-        shouldRender = true
+        if (config.searchable && this.state.searchQuery.length > 0) {
+          // Don't move selection when in search mode, handle cursor instead if needed
+        } else {
+          this.moveCursor(-1)
+          shouldRender = true
+        }
         break
       case 'ArrowDown':
-        this.moveCursor(1)
-        shouldRender = true
+        if (config.searchable && this.state.searchQuery.length > 0) {
+          // Don't move selection when in search mode, handle cursor instead if needed
+        } else {
+          this.moveCursor(1)
+          shouldRender = true
+        }
+        break
+      case 'ArrowLeft':
+        if (config.searchable && this.state.searchQuery.length > 0) {
+          this.state.cursorPosition = Math.max(0, this.state.cursorPosition - 1)
+          shouldRender = true
+        }
+        break
+      case 'ArrowRight':
+        if (config.searchable && this.state.searchQuery.length > 0) {
+          this.state.cursorPosition = Math.min(
+            this.state.searchQuery.length,
+            this.state.cursorPosition + 1,
+          )
+          shouldRender = true
+        }
         break
       case 'PageUp':
         this.movePage(-1)
@@ -265,14 +322,24 @@ class SelectPrompt extends BasePrompt {
         shouldRender = true
         break
       case 'Home':
-        this.state.selectedIndex = 0
-        this.updatePage()
-        shouldRender = true
+        if (config.searchable && this.state.searchQuery.length > 0) {
+          this.state.cursorPosition = 0
+          shouldRender = true
+        } else {
+          this.state.selectedIndex = 0
+          this.updatePage()
+          shouldRender = true
+        }
         break
       case 'End':
-        this.state.selectedIndex = this.filteredOptions.length - 1
-        this.updatePage()
-        shouldRender = true
+        if (config.searchable && this.state.searchQuery.length > 0) {
+          this.state.cursorPosition = this.state.searchQuery.length
+          shouldRender = true
+        } else {
+          this.state.selectedIndex = this.filteredOptions.length - 1
+          this.updatePage()
+          shouldRender = true
+        }
         break
       case 'Enter':
         this.handleSelect()
@@ -290,6 +357,26 @@ class SelectPrompt extends BasePrompt {
       case 'Backspace': {
         if (config.searchable && this.state.searchQuery.length > 0) {
           this.removeFromSearch()
+          shouldRender = true
+        }
+        break
+      }
+      case 'Delete': {
+        if (
+          config.searchable &&
+          this.state.cursorPosition < this.state.searchQuery.length
+        ) {
+          const beforeCursor = this.state.searchQuery.slice(
+            0,
+            this.state.cursorPosition,
+          )
+          const afterCursor = this.state.searchQuery.slice(
+            this.state.cursorPosition + 1,
+          )
+          this.state.searchQuery = beforeCursor + afterCursor
+          this.updateFilteredOptions()
+          this.state.selectedIndex = 0
+          this.state.page = 0
           shouldRender = true
         }
         break
@@ -489,10 +576,18 @@ class SelectPrompt extends BasePrompt {
 
   private enterSearchMode(): void {
     this.state.searchQuery = ''
+    this.state.cursorPosition = 0
   }
 
   private updateSearch(char: string): void {
-    this.state.searchQuery += char
+    const beforeCursor = this.state.searchQuery.slice(
+      0,
+      this.state.cursorPosition,
+    )
+    const afterCursor = this.state.searchQuery.slice(this.state.cursorPosition)
+    this.state.searchQuery = beforeCursor + char + afterCursor
+    this.state.cursorPosition++
+
     this.updateFilteredOptions()
 
     this.state.selectedIndex = 0
@@ -514,7 +609,18 @@ class SelectPrompt extends BasePrompt {
   }
 
   private removeFromSearch(): void {
-    this.state.searchQuery = this.state.searchQuery.slice(0, -1)
+    if (this.state.cursorPosition > 0) {
+      const beforeCursor = this.state.searchQuery.slice(
+        0,
+        this.state.cursorPosition - 1,
+      )
+      const afterCursor = this.state.searchQuery.slice(
+        this.state.cursorPosition,
+      )
+      this.state.searchQuery = beforeCursor + afterCursor
+      this.state.cursorPosition--
+    }
+
     this.updateFilteredOptions()
 
     this.state.selectedIndex = 0
@@ -537,6 +643,7 @@ class SelectPrompt extends BasePrompt {
 
   private clearSearch(): void {
     this.state.searchQuery = ''
+    this.state.cursorPosition = 0
     this.updateFilteredOptions()
 
     this.state.selectedIndex = 0

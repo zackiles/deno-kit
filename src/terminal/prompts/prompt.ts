@@ -45,7 +45,17 @@ interface PromptTheme {
     warning: (text: string) => string
     disabled: (text: string) => string
     highlight: (text: string) => string
+    inputText: (text: string) => string
+    text: (text: string) => string
   }
+}
+
+interface PartialPromptTheme {
+  prefix?: string
+  suffix?: string
+  pointer?: string
+  checkbox?: Partial<PromptTheme['checkbox']>
+  colors?: Partial<PromptTheme['colors']>
 }
 
 interface BasePromptConfig {
@@ -54,12 +64,15 @@ interface BasePromptConfig {
   required?: boolean
   validate?: (value: unknown) => boolean | string | Promise<boolean | string>
   when?: (answers: Record<string, unknown>) => boolean | Promise<boolean>
-  theme?: Partial<PromptTheme>
+  theme?: PartialPromptTheme
   maxWidth?: number
   pagination?: {
     pageSize: number
     showNumbers: boolean
   }
+  clearBefore?: boolean
+  resetAfter?: boolean
+  clearAfter?: boolean
 }
 
 interface SelectPromptConfig extends BasePromptConfig {
@@ -96,6 +109,9 @@ interface PromptState {
   error: string | null
   cursor: number
   showHelp: boolean
+  isDone: boolean
+  cursorPosition: number
+  cursorVisible: boolean
 }
 
 interface PromptResult<T = unknown> {
@@ -121,6 +137,8 @@ const DEFAULT_THEME: PromptTheme = {
     warning: colors.yellow,
     disabled: colors.dim,
     highlight: palette.purpleGradient,
+    inputText: colors.dim,
+    text: colors.white,
   },
 }
 
@@ -172,12 +190,15 @@ class PromptEngine {
   private keyboardCleanup: (() => void) | null = null
   private mouseCleanup: (() => void) | null = null
   private terminal: Terminal
+  private isAlternateScreenActive = false
 
   constructor(terminal: Terminal) {
     this.terminal = terminal
   }
 
-  async start(): Promise<void> {
+  async start(
+    options: { useAlternateScreen: boolean } = { useAlternateScreen: true },
+  ): Promise<void> {
     if (this.isActive) return
 
     this.terminal.debug('PromptEngine.start() called')
@@ -203,7 +224,10 @@ class PromptEngine {
     }
 
     await this.terminal.write(ANSI_CODES.CURSOR_HIDE)
-    await this.terminal.write(ANSI_CODES.ALTERNATE_SCREEN_ENTER)
+    if (options.useAlternateScreen) {
+      await this.terminal.write(ANSI_CODES.ALTERNATE_SCREEN_ENTER)
+      this.isAlternateScreenActive = true
+    }
 
     this.terminal.debug('PromptEngine.start() completed')
   }
@@ -214,7 +238,10 @@ class PromptEngine {
     this.isActive = false
 
     await this.terminal.write(ANSI_CODES.CURSOR_SHOW)
-    await this.terminal.write(ANSI_CODES.ALTERNATE_SCREEN_EXIT)
+    if (this.isAlternateScreenActive) {
+      await this.terminal.write(ANSI_CODES.ALTERNATE_SCREEN_EXIT)
+      this.isAlternateScreenActive = false
+    }
 
     if (this.keyboardCleanup) {
       this.keyboardCleanup()
@@ -229,6 +256,10 @@ class PromptEngine {
 
     await keyboard.disableRawMode()
     await mouse.disableMouse()
+  }
+
+  public getIsAlternateScreenActive(): boolean {
+    return this.isAlternateScreenActive
   }
 
   setCurrentPrompt(prompt: BasePrompt): void {
@@ -260,13 +291,44 @@ abstract class BasePrompt extends PromptEventEmitter {
   protected startTime = Date.now()
   private renderingInProgress = false
   private pendingRender = false
+  protected renderedLineCount = 0
+  private isFirstRender = true
+  private cursorBlinkInterval: number | null = null
+  private readonly CURSOR_BLINK_RATE = 500
 
   constructor(config: PromptConfig, engine: PromptEngine) {
     super(engine.getTerminal())
-    this.config = config
+    this.config = {
+      clearBefore: true,
+      resetAfter: true,
+      clearAfter: true,
+      ...config,
+    }
     this.engine = engine
-    this.theme = { ...DEFAULT_THEME, ...config.theme }
+    const globalTheme = Prompt.getTheme()
+    const localTheme = config.theme || {}
+
+    this.theme = {
+      ...DEFAULT_THEME,
+      ...globalTheme,
+      ...localTheme,
+      colors: {
+        ...DEFAULT_THEME.colors,
+        ...globalTheme.colors,
+        ...localTheme.colors,
+      },
+      checkbox: {
+        ...DEFAULT_THEME.checkbox,
+        ...globalTheme.checkbox,
+        ...localTheme.checkbox,
+      },
+    }
     this.state = this.initializeState()
+    this.startCursorBlink()
+  }
+
+  public getConfig(): PromptConfig {
+    return this.config
   }
 
   protected abstract initializeState(): PromptState
@@ -276,29 +338,25 @@ abstract class BasePrompt extends PromptEventEmitter {
   protected abstract getValue(): unknown
 
   async prompt(): Promise<PromptResult> {
-    await this.engine.start()
-    this.engine.setCurrentPrompt(this)
+    const useAlternateScreen = (this.config.clearBefore ?? true) &&
+      (this.config.resetAfter ?? true) &&
+      (this.config.clearAfter ?? true)
 
-    await this.renderScreen()
+    await this.engine.start({ useAlternateScreen })
 
-    return new Promise<PromptResult>((resolve) => {
-      this.on('submit', (...args: unknown[]) => {
-        const value = args[0]
-        resolve({
-          name: this.config.name || '',
-          value,
-          cancelled: false,
-        })
-      })
+    if (
+      (this.config.clearBefore ?? true) && !(this.config.resetAfter ?? true) &&
+      !useAlternateScreen
+    ) {
+      await this.engine.getTerminal().write(
+        ANSI_CODES.CLEAR_SCREEN + ANSI_CODES.CURSOR_HOME,
+      )
+    }
 
-      this.on('cancel', () => {
-        resolve({
-          name: this.config.name || '',
-          value: this.state.value,
-          cancelled: true,
-        })
-      })
-    })
+    const result = await this.promptInFlow()
+
+    await this.engine.stop()
+    return result
   }
 
   async promptInFlow(): Promise<PromptResult> {
@@ -321,24 +379,37 @@ abstract class BasePrompt extends PromptEventEmitter {
     await this.renderScreen()
 
     return new Promise<PromptResult>((resolve) => {
-      this.on('submit', (...args: unknown[]) => {
-        const value = args[0]
-        terminal.debug('BasePrompt.promptInFlow() submit event', { value })
-        resolve({
-          name: this.config.name || '',
-          value,
-          cancelled: false,
-        })
-      })
+      const cleanupAndResolve = async (
+        event: 'submit' | 'cancel',
+        value?: unknown,
+      ) => {
+        this.state.isDone = true
+        this.stopCursorBlink()
 
-      this.on('cancel', () => {
-        terminal.debug('BasePrompt.promptInFlow() cancel event')
+        if (!this.engine.getIsAlternateScreenActive()) {
+          if (this.config.clearAfter) {
+            await this.clearRenderedOutput()
+          } else {
+            await this.renderScreen()
+            await this.terminal.write('\n')
+          }
+        }
+
+        submitOff()
+        cancelOff()
+
         resolve({
           name: this.config.name || '',
-          value: this.state.value,
-          cancelled: true,
+          value: event === 'submit' ? value : this.state.value,
+          cancelled: event === 'cancel',
         })
-      })
+      }
+
+      const submitOff = this.on(
+        'submit',
+        (value) => cleanupAndResolve('submit', value),
+      )
+      const cancelOff = this.on('cancel', () => cleanupAndResolve('cancel'))
     })
   }
 
@@ -356,16 +427,37 @@ abstract class BasePrompt extends PromptEventEmitter {
       const output = lines.join('\n')
       const terminal = this.engine.getTerminal()
 
-      await terminal.write(ANSI_CODES.CURSOR_HOME)
-      await terminal.write(ANSI_CODES.CLEAR_SCREEN)
-      await terminal.write(ANSI_CODES.CURSOR_HOME)
-      await terminal.write(output)
+      if (this.engine.getIsAlternateScreenActive()) {
+        await terminal.write(ANSI_CODES.CURSOR_HOME)
+        await terminal.write(ANSI_CODES.CLEAR_SCREEN)
+        await terminal.write(output)
+      } else {
+        if (this.isFirstRender) {
+          await terminal.write(ANSI_CODES.CURSOR_SAVE)
+          await terminal.write(output)
+          this.isFirstRender = false
+        } else {
+          await terminal.write(ANSI_CODES.CURSOR_RESTORE)
+          await terminal.write(ANSI_CODES.CLEAR_FROM_CURSOR_DOWN)
+          await terminal.write(output)
+        }
+      }
+
+      this.renderedLineCount = lines.length
     } finally {
       this.renderingInProgress = false
 
       if (this.pendingRender) {
         queueMicrotask(() => this.renderScreen())
       }
+    }
+  }
+
+  private async clearRenderedOutput(): Promise<void> {
+    if (!this.isFirstRender) {
+      await this.terminal.write(ANSI_CODES.CURSOR_RESTORE)
+      await this.terminal.write(ANSI_CODES.CLEAR_FROM_CURSOR_DOWN)
+      this.renderedLineCount = 0
     }
   }
 
@@ -382,7 +474,7 @@ abstract class BasePrompt extends PromptEventEmitter {
 
   protected formatMessage(): string {
     const prefix = this.theme.colors.primary(this.theme.prefix)
-    const message = this.theme.colors.secondary(this.config.message)
+    const message = this.theme.colors.primary(this.config.message)
     return `${prefix} ${message}`
   }
 
@@ -408,11 +500,50 @@ abstract class BasePrompt extends PromptEventEmitter {
       `  ${helps.join(' • ')}`,
     )
   }
+
+  protected insertCursorInText(text: string, position: number): string {
+    if (this.state.isDone) return text
+
+    const cursor = this.state.cursorVisible ? '│' : ' '
+    const beforeCursor = text.slice(0, position)
+    const afterCursor = text.slice(position)
+
+    return beforeCursor + cursor + afterCursor
+  }
+
+  protected stopCursorBlinkOnDone(): void {
+    if (this.state.isDone) {
+      this.stopCursorBlink()
+    }
+  }
+
+  private startCursorBlink(): void {
+    this.cursorBlinkInterval = setInterval(() => {
+      this.state.cursorVisible = !this.state.cursorVisible
+      this.renderScreen()
+    }, this.CURSOR_BLINK_RATE)
+  }
+
+  private stopCursorBlink(): void {
+    if (this.cursorBlinkInterval) {
+      clearInterval(this.cursorBlinkInterval)
+      this.cursorBlinkInterval = null
+    }
+  }
 }
 
 class Prompt {
   private engine: PromptEngine | null = null
   private results = new Map<string, unknown>()
+  private static globalTheme: PartialPromptTheme = {}
+
+  public setTheme(theme: PartialPromptTheme): void {
+    Prompt.globalTheme = theme
+  }
+
+  public static getTheme(): PartialPromptTheme {
+    return Prompt.globalTheme
+  }
 
   private async initEngine(): Promise<PromptEngine> {
     if (!this.engine) {
@@ -448,8 +579,23 @@ class Prompt {
 
   async ask<T = unknown>(config: PromptConfig): Promise<T> {
     const engine = await this.initEngine()
+    const useAlternateScreen = (config.clearBefore ?? true) &&
+      (config.resetAfter ?? true) &&
+      (config.clearAfter ?? true)
+
+    await engine.start({ useAlternateScreen })
+
+    if (
+      (config.clearBefore ?? true) && !(config.resetAfter ?? true) &&
+      !useAlternateScreen
+    ) {
+      await engine.getTerminal().write(
+        ANSI_CODES.CLEAR_SCREEN + ANSI_CODES.CURSOR_HOME,
+      )
+    }
+
     const prompt = await this.createPrompt(config, engine)
-    const result = await prompt.prompt()
+    const result = await prompt.promptInFlow()
 
     if (result.cancelled) {
       await engine.stop()
@@ -478,7 +624,14 @@ class Prompt {
       configTypes: configs.map((c) => c.type),
     })
 
-    await engine.start()
+    const useAlternateScreenForFlow = configs.every(
+      (c) =>
+        (c.clearBefore ?? true) &&
+        (c.resetAfter ?? true) &&
+        (c.clearAfter ?? true),
+    )
+
+    await engine.start({ useAlternateScreen: useAlternateScreenForFlow })
 
     for (const config of configs) {
       terminal.debug('Prompt.flow() processing config', {
@@ -497,13 +650,22 @@ class Prompt {
         if (!shouldShow) continue
       }
 
-      const result = await this.askInternal(config, engine)
+      const prompt = await this.createPrompt(config, engine)
+      const result = await prompt.promptInFlow()
+
+      if (result.cancelled) {
+        const { gracefulShutdown } = await import(
+          '../../utils/graceful-shutdown.ts'
+        )
+        await gracefulShutdown.shutdown(false, 130)
+        break
+      }
 
       if (config.name) {
-        answers[config.name] = result
+        answers[config.name] = result.value
         terminal.debug('Prompt.flow() answer recorded', {
           name: config.name,
-          value: result,
+          value: result.value,
         })
       }
     }
@@ -511,45 +673,6 @@ class Prompt {
     await engine.stop()
     terminal.debug('Prompt.flow() completed', { answers })
     return answers
-  }
-
-  private async askInternal<T = unknown>(
-    config: PromptConfig,
-    engine: PromptEngine,
-  ): Promise<T> {
-    const terminal = engine.getTerminal()
-    terminal.debug('Prompt.askInternal() called', {
-      type: config.type,
-      name: config.name,
-      message: config.message,
-    })
-
-    const prompt = await this.createPrompt(config, engine)
-
-    terminal.debug('Prompt.askInternal() prompt created', {
-      promptType: prompt.constructor.name,
-    })
-
-    const result = await prompt.promptInFlow()
-
-    terminal.debug('Prompt.askInternal() result received', {
-      cancelled: result.cancelled,
-      hasValue: result.value !== undefined,
-    })
-
-    if (result.cancelled) {
-      const { gracefulShutdown } = await import(
-        '../../utils/graceful-shutdown.ts'
-      )
-      await gracefulShutdown.shutdown(false, 130)
-      return result.value as T
-    }
-
-    if (config.name) {
-      this.results.set(config.name, result.value)
-    }
-
-    return result.value as T
   }
 
   getAnswers(): Record<string, unknown> {
@@ -598,6 +721,7 @@ export type {
   ConfirmPromptConfig,
   KeyEvent,
   MouseEvent,
+  PartialPromptTheme,
   PromptConfig,
   PromptResult,
   PromptState,

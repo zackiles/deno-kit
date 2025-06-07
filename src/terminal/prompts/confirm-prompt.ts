@@ -24,11 +24,20 @@ class ConfirmPrompt extends BasePrompt {
       error: null,
       cursor: 0,
       showHelp: false,
+      isDone: false,
+      cursorPosition: 0,
+      cursorVisible: true,
     }
   }
 
   protected render(): string[] {
     const lines: string[] = []
+
+    if (this.state.isDone) {
+      const answer = this.state.value ? 'Yes' : 'No'
+      lines.push(`${this.formatMessage()} ${this.theme.colors.success(answer)}`)
+      return lines
+    }
 
     lines.push(this.formatMessage())
 
@@ -38,11 +47,11 @@ class ConfirmPrompt extends BasePrompt {
 
     const value = this.state.value as boolean
     const yesOption = value
-      ? this.theme.colors.success('● Yes')
-      : this.theme.colors.disabled('○ Yes')
+      ? this.theme.colors.secondary('● Yes')
+      : this.theme.colors.text('○ Yes')
     const noOption = !value
-      ? this.theme.colors.error('● No')
-      : this.theme.colors.disabled('○ No')
+      ? this.theme.colors.secondary('● No')
+      : this.theme.colors.text('○ No')
 
     lines.push(`  ${yesOption}  ${noOption}`)
     lines.push('')

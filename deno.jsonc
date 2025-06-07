@@ -12,7 +12,7 @@
   },
   "tasks": {
     "test": "DENO_KIT_ENV=test deno run -A scripts/test.ts",
-    "dev": "DENO_KIT_ENV=development DENO_KIT_LOG_LEVEL=debug deno run -A scripts/dev.ts",
+    "dev": "deno run -A scripts/dev.ts",
     "check": "deno lint --fix && deno check src/main.ts",
     "pre-publish": "deno run -A scripts/pre-publish.ts",
     "test:build": "deno test -A --reload test/build.test.ts",

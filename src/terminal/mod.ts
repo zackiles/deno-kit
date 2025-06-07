@@ -112,6 +112,7 @@ export function parseLogLevel(level: LogLevel | undefined): LogLevelEnum {
 class Terminal {
   #config: TerminalConfig
   #originalConsole: Console | undefined
+  started = false
 
   isRaw = true
 
@@ -130,6 +131,7 @@ class Terminal {
   }
 
   start(): void {
+    if (this.started) return
     const clearCode = this.#config.colors ? CLEAR_SCREEN : ''
     const styleCode = this.#config.colors ? STYLE_BASE : ''
     colors.setColorEnabled(this.#config.colors)
@@ -161,9 +163,11 @@ class Terminal {
         },
       })
     }
+    this.started = true
   }
 
   stop(): void {
+    this.started = false
     // Restore original console if we overrode it
     if (this.#config.global && this.#originalConsole) {
       globalThis.console = this.#originalConsole

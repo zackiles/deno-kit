@@ -1,7 +1,7 @@
 // Comprehensive terminal cleanup utility
 // Ensures terminal is properly restored after TUI applications exit
 import { gracefulShutdown } from '../utils/graceful-shutdown.ts'
-import { ANSI_CODES, resetSequence } from './constants.ts'
+import { ANSI_CODES, RESET_SEQUENCE } from './constants.ts'
 
 interface TerminalCleanupOptions {
   signalHandlerRegistry?: (handler: () => void | Promise<void>) => void
@@ -163,7 +163,7 @@ export class TerminalCleanup {
       }
 
       // Write the reset sequence synchronously for immediate effect
-      Deno.stdout.writeSync(encoder.encode(resetSequence))
+      Deno.stdout.writeSync(encoder.encode(RESET_SEQUENCE))
 
       // Small delay to ensure terminal processes the reset
       await new Promise((resolve) => setTimeout(resolve, 50))
@@ -259,7 +259,7 @@ export class TerminalCleanup {
       }
 
       // Emergency terminal reset - use the same reset sequence for consistency
-      Deno.stdout.writeSync(encoder.encode(resetSequence))
+      Deno.stdout.writeSync(encoder.encode(RESET_SEQUENCE))
     } catch {
       // Ignore errors in emergency cleanup
     }

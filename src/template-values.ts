@@ -7,10 +7,12 @@
  */
 
 import { basename } from '@std/path'
+import { canParse } from '@std/semver'
 import {
   bold,
   dim,
   green,
+  greenGradient,
   prompt,
   purple,
   purpleGradient,
@@ -78,10 +80,16 @@ const createAutoPromptConfig = async (context: Record<string, string>) => {
   const response = await prompt.ask({
     message: 'Would you like to use this auto-configuration?',
     type: 'select',
+    clearBefore: false,
     options: [
       { value: 'yes', label: 'Yes' },
       { value: 'no', label: 'No! Let me edit it' },
     ],
+    theme: {
+      colors: {
+        primary: (text: string) => bold(greenGradient(text)),
+      },
+    },
   })
 
   return response === 'yes'
@@ -190,8 +198,7 @@ function createPromptConfig(context: {
         if (typeof value !== 'string') return 'Value must be a string'
         return isValidPackageName(value)
       },
-      errorMessage:
-        'Invalid package name format. It must be in the format @scope/name (e.g., @deno/example)',
+      errorMessage: 'ERROR:Invalid value',
     },
     PACKAGE_SCOPE: {
       derived: true,
@@ -222,6 +229,11 @@ function createPromptConfig(context: {
       message: 'Package version',
       defaultValue: '0.0.1',
       envKey: 'PACKAGE_VERSION',
+      validate: (value: unknown) => {
+        if (typeof value !== 'string') return false
+        return canParse(value)
+      },
+      errorMessage: 'ERROR: Must be semver',
     },
     PACKAGE_AUTHOR_NAME: {
       type: 'text',
@@ -265,6 +277,7 @@ async function promptUser(
     message: promptText,
     type: 'text',
     defaultValue: defaultValue,
+    clearBefore: true,
   })
 
   return value as string
@@ -322,15 +335,13 @@ export async function getTemplateValues(): Promise<TemplateValues> {
   if (useAutoConfig) {
     // Set all values from initial context
     Object.assign(values, initialContext)
-    printSelection('📦', 'Package name', values.PACKAGE_NAME)
-    printSelection('📌', 'Package version', values.PACKAGE_VERSION)
-    printSelection('👤', 'Author name', values.PACKAGE_AUTHOR_NAME)
-    printSelection('📧', 'Author email', values.PACKAGE_AUTHOR_EMAIL)
-    printSelection('🐙', 'GitHub user', values.PACKAGE_GITHUB_USER)
-
     // Add missing values that aren't in initialContext
     values.PACKAGE_DESCRIPTION = 'A Deno project'
-    printSelection('📝', 'Package description', values.PACKAGE_DESCRIPTION)
+    printSelection(
+      '✍️',
+      bold('Package Description'),
+      values.PACKAGE_DESCRIPTION,
+    )
 
     // Still need to prompt for PROJECT_TYPE since it can't be auto-detected
     const prompts = createPromptConfig(initialContext)
@@ -342,10 +353,10 @@ export async function getTemplateValues(): Promise<TemplateValues> {
       : undefined
     if (configValue) {
       values.PROJECT_TYPE = configValue
-      printSelection('🔧', 'Project type', values.PROJECT_TYPE)
+      printSelection('🛠️', bold('Type'), values.PROJECT_TYPE.toUpperCase())
     } else if (config.DENO_KIT_ENV === 'test') {
       values.PROJECT_TYPE = projectTypePrompt.defaultValue as string
-      printSelection('🔧', 'Project type', values.PROJECT_TYPE)
+      printSelection('🛠️', bold('Type'), values.PROJECT_TYPE.toUpperCase())
     } else {
       const result = await prompt.ask({
         message: projectTypePrompt.message,
@@ -356,7 +367,7 @@ export async function getTemplateValues(): Promise<TemplateValues> {
 
       values.PROJECT_TYPE = (result as string) ||
         (projectTypePrompt.defaultValue as string) || 'cli'
-      printSelection('🔧', 'Project type', values.PROJECT_TYPE)
+      printSelection('🛠️', bold('Type'), values.PROJECT_TYPE.toUpperCase())
     }
   } else {
     // Original prompting flow
@@ -365,23 +376,28 @@ export async function getTemplateValues(): Promise<TemplateValues> {
     // Process PACKAGE_NAME first with validation
     const namePrompt = prompts.PACKAGE_NAME as ExtendedTextPromptConfig
     let packageName: string
+    let nameValidationFailed = false
 
     do {
       const configValue = namePrompt.envKey
         ? getTemplateValueFromConfig(namePrompt.envKey)
         : undefined
       const defaultValue = configValue ?? namePrompt.defaultValue ?? ''
-      packageName = await promptUser(namePrompt.message, defaultValue)
+
+      const promptMessage = nameValidationFailed
+        ? `${namePrompt.message} (${
+          namePrompt.errorMessage || 'Invalid input'
+        })`
+        : namePrompt.message
+
+      packageName = await promptUser(promptMessage, defaultValue)
 
       // Validate the package name if validation function exists
       const isValid = !namePrompt.validate || namePrompt.validate(packageName)
-      if (!isValid) {
-        terminal.error(namePrompt.errorMessage || 'Invalid input')
-      }
+      nameValidationFailed = !isValid
     } while (namePrompt.validate && !namePrompt.validate(packageName))
 
     values.PACKAGE_NAME = packageName
-    printSelection('📦', 'Package name', values.PACKAGE_NAME)
 
     // Update context with derived scope
     const derivedScope = (prompts.PACKAGE_SCOPE as DerivedConfig).getValue(
@@ -394,10 +410,45 @@ export async function getTemplateValues(): Promise<TemplateValues> {
       PACKAGE_SCOPE: scopeWithoutAt,
     })
 
+    // Process PACKAGE_VERSION with validation
+    const versionPrompt = updatedPrompts
+      .PACKAGE_VERSION as ExtendedTextPromptConfig
+    let packageVersion: string
+    let versionValidationFailed = false
+
+    do {
+      const configValue = versionPrompt.envKey
+        ? getTemplateValueFromConfig(versionPrompt.envKey)
+        : undefined
+      const defaultValue = configValue ?? versionPrompt.defaultValue ?? ''
+
+      const promptMessage = versionValidationFailed
+        ? `${versionPrompt.message} (${
+          versionPrompt.errorMessage || 'Invalid input'
+        })`
+        : versionPrompt.message
+
+      packageVersion = await promptUser(promptMessage, defaultValue)
+
+      // Validate the package version if validation function exists
+      const isValid = !versionPrompt.validate ||
+        versionPrompt.validate(packageVersion)
+      versionValidationFailed = !isValid
+    } while (versionPrompt.validate && !versionPrompt.validate(packageVersion))
+
+    values.PACKAGE_VERSION = packageVersion
+
     // Process all remaining values
     for (const [key, promptConfig] of Object.entries(updatedPrompts)) {
-      // Skip already processed package name
-      if (key === 'PACKAGE_NAME') continue
+      // Skip already processed prompts
+      if (key === 'PACKAGE_NAME' || key === 'PACKAGE_VERSION') continue
+
+      // Skip GitHub user prompt if one was auto-detected
+      if (key === 'PACKAGE_GITHUB_USER' && githubUser) {
+        values[key] = githubUser
+        //printSelection('🐙', 'GitHub name', values[key])
+        continue
+      }
 
       // Handle derived values
       if ('derived' in promptConfig && promptConfig.derived) {
@@ -478,10 +529,10 @@ export async function getTemplateValues(): Promise<TemplateValues> {
     }
   }
 
-  // If we were able to fetch the Github user name from the gh CLI then we'll see if they want a repo made
+  // Handle GitHub repo creation - always ask if they want to create a repo when GitHub user exists
   if (config.DENO_KIT_ENV !== 'test' && values.PACKAGE_GITHUB_USER) {
     const createRepoPromptText =
-      `Would you like to create a Github repo at "https://github.com/${values.PACKAGE_GITHUB_USER}/${values.PROJECT_NAME}"?`
+      `Create a Github repo at "github.com/${values.PACKAGE_GITHUB_USER}/${values.PROJECT_NAME}"?`
     const createRepo = await prompt.ask({
       message: createRepoPromptText,
       type: 'select',
@@ -491,11 +542,6 @@ export async function getTemplateValues(): Promise<TemplateValues> {
       ],
     })
     values.CREATE_GITHUB_REPO = createRepo === 'yes' ? 'true' : 'false'
-    printSelection(
-      '🐙',
-      'Create GitHub repo',
-      values.CREATE_GITHUB_REPO === 'true' ? 'Yes' : 'No',
-    )
 
     if (values.CREATE_GITHUB_REPO === 'true') {
       const repoPublicPromptText = 'Should the repo be public?'
@@ -503,16 +549,11 @@ export async function getTemplateValues(): Promise<TemplateValues> {
         message: repoPublicPromptText,
         type: 'select',
         options: [
-          { value: 'no', label: 'No' },
-          { value: 'yes', label: 'Yes' },
+          { value: 'no', label: 'No (private)' },
+          { value: 'yes', label: 'Yes (public)' },
         ],
       })
       values.GITHUB_REPO_PUBLIC = repoPublic === 'yes' ? 'true' : 'false'
-      printSelection(
-        '🔒',
-        'Public repo',
-        values.GITHUB_REPO_PUBLIC === 'true' ? 'Yes' : 'No',
-      )
     }
   }
   return values as TemplateValues

@@ -490,7 +490,7 @@ async function printBanner(options: BannerOptions) {
     await terminal.write(HIDE_CURSOR)
 
     const HEADER = (version: string) => {
-      const appName = terminal.bold(terminal.green('Deno-Kit'))
+      const appName = terminal.bold(terminal.greenGradient('Deno-Kit'))
       const versionText = `v${version}`
       const baseText = `🦕 ${appName}`
       const baseWidth = terminal.getCharacterWidth(baseText)

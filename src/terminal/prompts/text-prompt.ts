@@ -24,12 +24,26 @@ class TextPrompt extends BasePrompt {
       error: null,
       cursor: 0,
       showHelp: false,
+      isDone: false,
+      cursorPosition: (config.defaultValue || '').length,
+      cursorVisible: true,
     }
   }
 
   protected render(): string[] {
     const lines: string[] = []
     const config = this.config as TextPromptConfig
+
+    if (this.state.isDone) {
+      const value = this.state.value as string
+      const displayValue = config.type === 'password'
+        ? '*'.repeat(value.length)
+        : value || '(empty)'
+      lines.push(
+        `${this.formatMessage()} ${this.theme.colors.success(displayValue)}`,
+      )
+      return lines
+    }
 
     lines.push(this.formatMessage())
 
@@ -39,13 +53,27 @@ class TextPrompt extends BasePrompt {
 
     const value = this.state.value as string
     const placeholder = config.placeholder || 'Enter text...'
-    const displayValue = value || this.theme.colors.disabled(placeholder)
 
-    const inputLine = this.config.type === 'password'
-      ? '•'.repeat(value.length)
-      : displayValue
+    let displayValue: string
+    if (value) {
+      if (this.config.type === 'password') {
+        const maskedValue = '•'.repeat(value.length)
+        displayValue = this.theme.colors.inputText(
+          this.insertCursorInText(maskedValue, this.state.cursorPosition),
+        )
+      } else {
+        displayValue = this.theme.colors.inputText(
+          this.insertCursorInText(value, this.state.cursorPosition),
+        )
+      }
+    } else {
+      const placeholderText = this.theme.colors.disabled(placeholder)
+      displayValue = this.insertCursorInText(placeholderText, 0)
+    }
 
-    lines.push(`  ${this.theme.colors.primary('›')} ${inputLine}`)
+    lines.push(
+      `  ${this.theme.colors.secondary(this.theme.pointer)} ${displayValue}`,
+    )
 
     if (config.maxLength) {
       const count = `${value.length}/${config.maxLength}`
@@ -64,7 +92,7 @@ class TextPrompt extends BasePrompt {
     if (event.type !== 'press') return
 
     const config = this.config as TextPromptConfig
-    let value = this.state.value as string
+    const value = this.state.value as string
 
     switch (event.key) {
       case 'Enter':
@@ -74,8 +102,34 @@ class TextPrompt extends BasePrompt {
         this.emit('cancel')
         break
       case 'Backspace':
-        value = value.slice(0, -1)
-        this.state.value = value
+        if (this.state.cursorPosition > 0) {
+          const beforeCursor = value.slice(0, this.state.cursorPosition - 1)
+          const afterCursor = value.slice(this.state.cursorPosition)
+          this.state.value = beforeCursor + afterCursor
+          this.state.cursorPosition--
+        }
+        break
+      case 'Delete':
+        if (this.state.cursorPosition < value.length) {
+          const beforeCursor = value.slice(0, this.state.cursorPosition)
+          const afterCursor = value.slice(this.state.cursorPosition + 1)
+          this.state.value = beforeCursor + afterCursor
+        }
+        break
+      case 'ArrowLeft':
+        this.state.cursorPosition = Math.max(0, this.state.cursorPosition - 1)
+        break
+      case 'ArrowRight':
+        this.state.cursorPosition = Math.min(
+          value.length,
+          this.state.cursorPosition + 1,
+        )
+        break
+      case 'Home':
+        this.state.cursorPosition = 0
+        break
+      case 'End':
+        this.state.cursorPosition = value.length
         break
       case '?':
         this.state.showHelp = !this.state.showHelp
@@ -83,7 +137,10 @@ class TextPrompt extends BasePrompt {
       default:
         if (this.isValidTextInputForTextPrompt(event.key)) {
           if (!config.maxLength || value.length < config.maxLength) {
-            this.state.value = value + event.key
+            const beforeCursor = value.slice(0, this.state.cursorPosition)
+            const afterCursor = value.slice(this.state.cursorPosition)
+            this.state.value = beforeCursor + event.key + afterCursor
+            this.state.cursorPosition++
           }
         }
     }

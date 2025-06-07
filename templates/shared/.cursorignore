@@ -1,0 +1,5 @@
+# Allowed in .cursorignore but not in .cursorignoreindex
+# Allows agent to see and read the file but not index it
+!.ai/**/*.xml
+!.env.example
+LICENSE

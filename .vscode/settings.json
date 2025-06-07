@@ -63,6 +63,8 @@
     "arrowright",
     "asynciterable",
     "beforeunload",
+    "cursorignore",
+    "cursorignoreindex",
     "dbus",
     "dconf",
     "deno",

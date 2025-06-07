@@ -1,301 +1,431 @@
-# 🎨 The World's Most Advanced Terminal Prompt System
+# 🎨 @deno-kit/prompts
 
-## Overview
+> Create stunning terminal prompts with Deno and Typescript
 
-We've built the most sophisticated, beautiful, and extensible terminal prompt system for Deno 2. This system combines cutting-edge UX design with powerful functionality to create an unparalleled developer experience.
-
-## ✨ Features
-
-### 🎨 **Beautiful & Themeable**
-- Stunning gradient colors and animations
-- Customizable themes with full color palette control
-- Beautiful Unicode symbols and icons
-- Responsive layouts that adapt to terminal size
-
-### 🔧 **Fully Featured**
-- **Single Select**: Choose one option from a list
-- **Multi-Select**: Choose multiple options with checkboxes
-- **Text Input**: With placeholder text and character limits
-- **Password Input**: Secure input with masked characters
-- **Confirmation**: Yes/No prompts with visual indicators
-- **Autocomplete**: Dynamic option loading with search
-
-### 🚀 **Advanced Capabilities**
-- **Real-time Search**: Filter options as you type
-- **Pagination**: Handle large lists with automatic paging
-- **Grouping**: Organize options into collapsible groups
-- **Validation**: Real-time input validation with custom rules
-- **Conditional Logic**: Show/hide questions based on previous answers
-- **Question Flows**: Chain multiple prompts together
-
-### ⌨️ **Input Support**
-- **Full Keyboard Navigation**: Arrow keys, Page Up/Down, Home/End
-- **Mouse Support**: Click to select, scroll, drag
-- **Modern Terminal Protocols**: Kitty, XTerm, iTerm2 support
-- **Cross-Platform**: Works on macOS, Linux, Windows
-
-### 🔒 **Developer Experience**
-- **TypeScript-First**: Full type safety and IntelliSense
-- **Composable API**: Build complex workflows easily
-- **Extensible**: Plugin system for custom prompt types
-- **Error Handling**: Graceful error recovery and validation
-
-## 🚀 Quick Start
+Use modern prompt components for building interactive CLIs with full theming support, real-time validation, and comprehensive keyboard/mouse navigation across all platforms.
 
 ```typescript
-import { prompt, Prompt } from './src/terminal/mod.ts'
+import { Prompt, prompt } from '@deno-kit/prompts'
 
-// Simple select
-const framework = await prompt.ask(Prompt.select({
+const result = await prompt.ask(Prompt.select({
   message: 'Choose your framework',
   options: [
     { value: 'react', label: 'React' },
     { value: 'vue', label: 'Vue.js' },
-    { value: 'angular', label: 'Angular' }
-  ]
+    { value: 'angular', label: 'Angular' },
+  ],
 }))
+```
 
-// Multi-select with search
-const features = await prompt.ask(Prompt.multiselect({
-  message: 'Select features',
+## Why?
+
+- **All the prompts!** text, select, multi-select, password, confirm, as well as multi-step chains using any combination thereof (see [Available prompt types](#available-prompt-types))
+- **Global and local theming** - set defaults, customize per prompt (see [Theme System](#-theme-system))
+- **Modern terminal protocols** - progressive enhancement for Kitty, XTerm, iTerm2 support, with safe fallbacks. MacOS, Windows, and Linux supported
+- **Zero dependencies** - built with Deno and the standard library only
+
+## 🚀 Quick Start
+
+> [!TIP]
+> **Need multiple prompts in sequence?** Use `prompt.flow()` to chain prompts together with conditional logic. Perfect for complex setup wizards and interactive CLIs. See [Question flows with conditional logic](#question-flows-with-conditional-logic) for detailed examples.
+
+### Single select with search
+
+```typescript
+import { Prompt, prompt } from '@deno-kit/prompts'
+
+const framework = await prompt.ask(Prompt.select({
+  message: 'Choose your framework',
   searchable: true,
   options: [
-    { value: 'typescript', label: 'TypeScript' },
-    { value: 'testing', label: 'Testing Framework' },
-    { value: 'linting', label: 'ESLint & Prettier' }
-  ]
+    {
+      value: 'react',
+      label: 'React',
+      description: 'A JavaScript library for building user interfaces',
+    },
+    {
+      value: 'vue',
+      label: 'Vue.js',
+      description: 'The Progressive JavaScript Framework',
+    },
+    {
+      value: 'angular',
+      label: 'Angular',
+      description: 'Platform for building mobile and desktop apps',
+    },
+  ],
 }))
+```
 
-// Text input with validation
+### Multi-select with groups
+
+```typescript
+const features = await prompt.ask(Prompt.multiselect({
+  message: 'Select project features',
+  searchable: true,
+  groupBy: true,
+  options: [
+    { value: 'typescript', label: 'TypeScript', group: 'Language' },
+    { value: 'javascript', label: 'JavaScript', group: 'Language' },
+    { value: 'jest', label: 'Jest', group: 'Testing' },
+    { value: 'vitest', label: 'Vitest', group: 'Testing' },
+  ],
+}))
+```
+
+### Text input with validation
+
+```typescript
 const projectName = await prompt.ask(Prompt.text({
   message: 'Project name',
+  placeholder: 'my-awesome-project',
+  defaultValue: 'new-project',
   validate: (value) => {
-    if (!value.trim()) return 'Project name is required'
-    if (!/^[a-z-]+$/.test(value)) return 'Use lowercase letters and hyphens only'
+    if (!value?.trim()) return 'Project name is required'
+    if (!/^[a-z0-9-]+$/.test(value)) {
+      return 'Use lowercase letters, numbers, and hyphens only'
+    }
     return true
-  }
+  },
 }))
+```
 
-// Question flow with conditional logic
-const answers = await prompt.flow([
-  Prompt.select({
-    message: 'Project type',
-    name: 'type',
-    options: [
-      { value: 'web', label: 'Web App' },
-      { value: 'cli', label: 'CLI Tool' }
-    ]
-  }),
-  Prompt.multiselect({
-    message: 'Web frameworks',
-    name: 'frameworks',
-    options: [/* framework options */],
-    when: (answers) => answers.type === 'web' // Only show for web apps
-  })
-])
+### Password input
+
+```typescript
+const password = await prompt.ask(Prompt.password({
+  message: 'Enter password',
+  validate: (value) => {
+    if (typeof value !== 'string' || value.length < 8) {
+      return 'Password must be at least 8 characters'
+    }
+    return true
+  },
+}))
+```
+
+### Confirmation prompt
+
+```typescript
+const confirmed = await prompt.ask(Prompt.confirm({
+  message: 'Do you want to continue?',
+  defaultValue: true,
+}))
+```
+
+## 🎨 Theme System
+
+### Global theme configuration
+
+Set a default theme that applies to all prompts:
+
+```typescript
+import { bold, greenGradient, prompt } from '@deno-kit/prompts'
+
+// Set global theme - applies to all prompts
+prompt.setTheme({
+  prefix: '🚀',
+  pointer: '▶',
+  colors: {
+    primary: (text: string) => bold(greenGradient(text)),
+    highlight: greenGradient,
+  },
+})
+
+// All subsequent prompts use the global theme
+const result = await prompt.ask(Prompt.select({
+  message: 'Choose option',
+  options: [/* options */],
+}))
+```
+
+### Per-prompt theme override
+
+Override the global theme for individual prompts:
+
+```typescript
+import { blueGradient, redGradient } from '@deno-kit/prompts'
+
+const result = await prompt.ask(Prompt.select({
+  message: 'Choose option',
+  options: [/* options */],
+  theme: {
+    prefix: '⚡',
+    colors: {
+      primary: redGradient,
+      error: blueGradient,
+    },
+  },
+}))
+```
+
+### Available color functions
+
+```typescript
+import {
+  blue,
+  blueGradient,
+  gradient,
+  green,
+  greenGradient,
+  purple,
+  purpleGradient,
+  red,
+  redGradient,
+  whiteGradient,
+} from '@deno-kit/prompts'
+
+// Use built-in gradients
+const customTheme = {
+  colors: {
+    primary: purpleGradient,
+    success: greenGradient,
+    error: redGradient,
+    warning: gradient(['#FFA500', '#FF6347']),
+  },
+}
 ```
 
 ## 📖 API Reference
 
 ### Core Classes
 
-#### `Prompt`
-The main orchestrator class with static factory methods and flow control.
+#### `prompt` (instance)
+
+The main prompt instance with methods for asking questions and managing flows.
+
+```typescript
+const prompt: Prompt
+
+// Ask a single question
+await prompt.ask<T>(config: PromptConfig): Promise<T>
+
+// Ask multiple questions in sequence
+await prompt.flow(configs: PromptConfig[]): Promise<Record<string, unknown>>
+
+// Get previous answers (from named prompts)
+prompt.getAnswers(): Record<string, unknown>
+
+// Set global theme
+prompt.setTheme(theme: PartialPromptTheme): void
+```
+
+#### `Prompt` (class)
+
+Static factory methods for creating prompt configurations.
 
 ```typescript
 class Prompt {
-  static select<T>(config: SelectConfig<T>): SelectPromptConfig<T>
-  static multiselect<T>(config: MultiSelectConfig<T>): SelectPromptConfig<T>
-  static text(config: TextConfig): TextPromptConfig
-  static password(config: PasswordConfig): TextPromptConfig
-  static confirm(config: ConfirmConfig): ConfirmPromptConfig
+  static select(config: Omit<SelectPromptConfig, 'type'>): SelectPromptConfig
+  static multiselect(
+    config: Omit<SelectPromptConfig, 'type'>,
+  ): SelectPromptConfig
+  static text(config: Omit<TextPromptConfig, 'type'>): TextPromptConfig
+  static password(config: Omit<TextPromptConfig, 'type'>): TextPromptConfig
+  static confirm(config: Omit<ConfirmPromptConfig, 'type'>): ConfirmPromptConfig
 
-  async ask<T>(config: PromptConfig): Promise<T>
-  async flow(configs: PromptConfig[]): Promise<Record<string, unknown>>
-}
-```
-
-#### `BasePrompt`
-Abstract base class for all prompt types. Extend this to create custom prompts.
-
-```typescript
-abstract class BasePrompt {
-  protected abstract initializeState(): PromptState
-  protected abstract render(): string[]
-  public abstract onKeyEvent(event: KeyEvent): void
-  public abstract onMouseEvent(event: MouseEvent): void
-  protected abstract getValue(): unknown
+  // Global theme management
+  static getTheme(): PartialPromptTheme
 }
 ```
 
 ### Configuration Interfaces
 
-#### `SelectPromptConfig`
+#### `BasePromptConfig`
+
+Common configuration for all prompt types:
+
 ```typescript
-interface SelectPromptConfig {
-  type: 'select' | 'multiselect'
+interface BasePromptConfig {
   message: string
-  options: BaseOption[]
-  searchable?: boolean
-  groupBy?: boolean
-  pagination?: { pageSize: number; showNumbers: boolean }
+  name?: string
+  required?: boolean
   validate?: (value: unknown) => boolean | string | Promise<boolean | string>
   when?: (answers: Record<string, unknown>) => boolean | Promise<boolean>
+  theme?: PartialPromptTheme
+  maxWidth?: number
+  pagination?: {
+    pageSize: number
+    showNumbers: boolean
+  }
+  clearBefore?: boolean // Clear screen before prompt
+  resetAfter?: boolean // Reset terminal after prompt
+  clearAfter?: boolean // Clear prompt output after completion
+}
+```
+
+#### `SelectPromptConfig`
+
+Configuration for select and multiselect prompts:
+
+```typescript
+interface SelectPromptConfig extends BasePromptConfig {
+  type: 'select' | 'multiselect'
+  options: BaseOption[]
+  searchable?: boolean // Enable search functionality
+  groupBy?: boolean // Group options by the 'group' property
+  multiple?: boolean // Enable multiple selection (set automatically for multiselect)
+  defaultValue?: string | string[] // Default selected value(s)
 }
 ```
 
 #### `TextPromptConfig`
+
+Configuration for text and password prompts:
+
 ```typescript
-interface TextPromptConfig {
+interface TextPromptConfig extends BasePromptConfig {
   type: 'text' | 'password'
-  message: string
-  placeholder?: string
-  maxLength?: number
-  required?: boolean
-  validate?: (value: string) => boolean | string | Promise<boolean | string>
+  placeholder?: string // Placeholder text
+  maxLength?: number // Maximum input length
+  defaultValue?: string // Default input value
 }
 ```
 
 #### `ConfirmPromptConfig`
+
+Configuration for confirmation prompts:
+
 ```typescript
-interface ConfirmPromptConfig {
+interface ConfirmPromptConfig extends BasePromptConfig {
   type: 'confirm'
-  message: string
-  initial?: boolean
-  default?: boolean
+  initial?: boolean // Initial selection state
+  defaultValue?: boolean // Default value when Enter is pressed
 }
 ```
 
 #### `BaseOption`
+
+Option configuration for select prompts:
+
 ```typescript
 interface BaseOption<T = string> {
-  value: T
-  label: string
-  description?: string
-  disabled?: boolean
-  group?: string
+  value: T // The value returned when selected
+  label: string // Display text
+  description?: string // Additional description text
+  disabled?: boolean // Whether the option can be selected
+  group?: string // Group name for grouping options
 }
 ```
 
-### Theme System
+### Theme Interfaces
 
-#### `PromptTheme`
+#### `PromptTheme` (complete theme)
+
+Full theme configuration with all required properties:
+
 ```typescript
 interface PromptTheme {
-  prefix: string
-  suffix: string
-  pointer: string
+  prefix: string // Prompt prefix (default: '❯')
+  suffix: string // Prompt suffix (default: '')
+  pointer: string // Selection pointer (default: '›')
   checkbox: {
-    checked: string
-    unchecked: string
-    indeterminate: string
+    checked: string // Checked checkbox (default: '◉')
+    unchecked: string // Unchecked checkbox (default: '◯')
+    indeterminate: string // Indeterminate state (default: '◐')
   }
   colors: {
-    primary: (text: string) => string
-    secondary: (text: string) => string
-    success: (text: string) => string
-    error: (text: string) => string
-    warning: (text: string) => string
-    disabled: (text: string) => string
-    highlight: (text: string) => string
+    primary: (text: string) => string // Primary accent color
+    secondary: (text: string) => string // Secondary color
+    success: (text: string) => string // Success messages
+    error: (text: string) => string // Error messages
+    warning: (text: string) => string // Warning messages
+    disabled: (text: string) => string // Disabled text
+    highlight: (text: string) => string // Highlighted text
+    inputText: (text: string) => string // Input text color
+    text: (text: string) => string // Default text color
   }
 }
 ```
 
-## 🎨 Theming & Customization
+#### `PartialPromptTheme` (partial theme)
 
-### Custom Themes
+Partial theme for overriding specific properties:
+
 ```typescript
-const customTheme: Partial<PromptTheme> = {
-  prefix: '🚀',
-  pointer: '▶',
-  colors: {
-    primary: terminal.blueGradient,
-    highlight: terminal.greenGradient,
-    error: terminal.redGradient
-  }
+interface PartialPromptTheme {
+  prefix?: string
+  suffix?: string
+  pointer?: string
+  checkbox?: Partial<PromptTheme['checkbox']>
+  colors?: Partial<PromptTheme['colors']> // Override only specific colors
 }
-
-const result = await prompt.ask(Prompt.select({
-  message: 'Choose option',
-  theme: customTheme,
-  options: [/* options */]
-}))
-```
-
-### Color Gradients
-```typescript
-// Use built-in gradients
-terminal.purpleGradient('Beautiful purple text')
-terminal.greenGradient('Success message')
-terminal.redGradient('Error message')
-
-// Create custom gradients
-const customGradient = terminal.gradient(['#FF6B6B', '#4ECDC4', '#45B7D1'])
-customGradient('My custom gradient text')
 ```
 
 ## 🔧 Advanced Usage
 
-### Custom Validation
+### Question flows with conditional logic
+
+```typescript
+const answers = await prompt.flow([
+  Prompt.select({
+    message: 'Project type',
+    name: 'type',
+    options: [
+      { value: 'web', label: 'Web Application' },
+      { value: 'cli', label: 'CLI Tool' },
+      { value: 'api', label: 'REST API' },
+    ],
+  }),
+
+  Prompt.multiselect({
+    message: 'Frontend frameworks',
+    name: 'frameworks',
+    options: [
+      { value: 'react', label: 'React' },
+      { value: 'vue', label: 'Vue.js' },
+      { value: 'angular', label: 'Angular' },
+    ],
+    when: (answers) => answers.type === 'web', // Only show for web apps
+  }),
+
+  Prompt.text({
+    message: 'API endpoint',
+    name: 'endpoint',
+    defaultValue: '/api/v1',
+    when: (answers) => answers.type === 'api',
+  }),
+])
+
+console.log(answers) // { type: 'web', frameworks: ['react', 'vue'] }
+```
+
+### Complex validation with async checks
+
 ```typescript
 const email = await prompt.ask(Prompt.text({
   message: 'Enter your email',
   validate: async (value) => {
     const email = value as string
-    if (!email.includes('@')) return 'Invalid email format'
 
-    // Async validation
-    const exists = await checkEmailExists(email)
-    if (exists) return 'Email already registered'
+    // Basic format check
+    if (!email?.includes('@')) return 'Invalid email format'
+
+    // Async validation (e.g., check if email exists)
+    try {
+      const response = await fetch(`/api/check-email?email=${email}`)
+      const data = await response.json()
+      if (data.exists) return 'Email already registered'
+    } catch {
+      return 'Unable to verify email'
+    }
 
     return true
-  }
+  },
 }))
 ```
 
-### Conditional Question Flows
-```typescript
-const answers = await prompt.flow([
-  Prompt.select({
-    message: 'Deployment target',
-    name: 'target',
-    options: [
-      { value: 'cloud', label: 'Cloud' },
-      { value: 'on-premise', label: 'On-Premise' }
-    ]
-  }),
+### Large option lists with search and pagination
 
-  Prompt.select({
-    message: 'Cloud provider',
-    name: 'provider',
-    options: [
-      { value: 'aws', label: 'AWS' },
-      { value: 'gcp', label: 'Google Cloud' },
-      { value: 'azure', label: 'Microsoft Azure' }
-    ],
-    when: (answers) => answers.target === 'cloud'
-  }),
-
-  Prompt.multiselect({
-    message: 'AWS services',
-    name: 'services',
-    options: [
-      { value: 'ec2', label: 'EC2' },
-      { value: 'lambda', label: 'Lambda' },
-      { value: 'rds', label: 'RDS' }
-    ],
-    when: (answers) => answers.provider === 'aws'
-  })
-])
-```
-
-### Large Lists with Search & Pagination
 ```typescript
 const country = await prompt.ask(Prompt.select({
   message: 'Select your country',
   searchable: true,
-  pagination: { pageSize: 10, showNumbers: true },
+  groupBy: true,
+  pagination: {
+    pageSize: 10,
+    showNumbers: true,
+  },
   options: [
     { value: 'us', label: 'United States', group: 'North America' },
     { value: 'ca', label: 'Canada', group: 'North America' },
@@ -304,26 +434,82 @@ const country = await prompt.ask(Prompt.select({
     { value: 'fr', label: 'France', group: 'Europe' },
     { value: 'de', label: 'Germany', group: 'Europe' },
     // ... hundreds more countries
-  ]
+  ],
 }))
 ```
 
+### Screen management options
+
+```typescript
+// Control screen clearing behavior
+await prompt.ask(Prompt.select({
+  message: 'Choose option',
+  options: [/* options */],
+  clearBefore: true, // Clear screen before showing prompt
+  resetAfter: true, // Reset terminal state after
+  clearAfter: false, // Keep prompt output visible
+}))
+```
+
+## 🎯 Keyboard Navigation
+
+### Universal shortcuts
+
+- **↑/↓ Arrow keys**: Navigate options
+- **Enter**: Submit selection
+- **Escape**: Cancel prompt
+- **Ctrl+C**: Exit application
+
+### Select prompts
+
+- **Type to search**: Filter options (when `searchable: true`)
+- **Page Up/Down**: Navigate pages (when pagination enabled)
+- **Home/End**: Jump to first/last option
+- **Numbers 1-9**: Quick select by number
+
+### Text prompts
+
+- **←/→ Arrow keys**: Move cursor
+- **Ctrl+A**: Move to beginning
+- **Ctrl+E**: Move to end
+- **Backspace/Delete**: Remove characters
+- **Ctrl+U**: Clear entire input
+
+### Multiselect prompts
+
+- **Space**: Toggle selection
+- **A**: Select all options
+- **I**: Invert selection
+
 ## 🛠️ Architecture
 
-### Component Hierarchy
+### Component hierarchy
+
 ```
 PromptEngine
-├── KeyboardInput (Raw mode, key parsing, modern protocols)
-├── MouseInput (Click, drag, scroll, position tracking)
-└── BasePrompt (Abstract base class)
-    ├── SelectPrompt (Single & multi-select)
-    ├── TextPrompt (Text & password input)
-    └── ConfirmPrompt (Yes/No confirmation)
+├── Keyboard Input (raw mode, escape sequences)
+├── Mouse Input (click, scroll, position tracking)
+└── BasePrompt (abstract base class)
+    ├── SelectPrompt (single & multi-select)
+    ├── TextPrompt (text & password input)
+    └── ConfirmPrompt (yes/no confirmation)
 ```
 
-### Event System
+### Available prompt types
+
+| Type          | Class           | Factory Method         | Description                         |
+| ------------- | --------------- | ---------------------- | ----------------------------------- |
+| `select`      | `SelectPrompt`  | `Prompt.select()`      | Single selection from options       |
+| `multiselect` | `SelectPrompt`  | `Prompt.multiselect()` | Multiple selections with checkboxes |
+| `text`        | `TextPrompt`    | `Prompt.text()`        | Text input with validation          |
+| `password`    | `TextPrompt`    | `Prompt.password()`    | Masked password input               |
+| `confirm`     | `ConfirmPrompt` | `Prompt.confirm()`     | Yes/no confirmation                 |
+
+### Event system
+
+All prompts extend `PromptEventEmitter` for handling user interactions:
+
 ```typescript
-// Built-in event emitter with type safety
 class PromptEventEmitter {
   on(event: string, listener: (...args: unknown[]) => void): () => void
   off(event: string, listener: (...args: unknown[]) => void): void
@@ -331,95 +517,72 @@ class PromptEventEmitter {
 }
 ```
 
-### Input Processing Pipeline
-1. **Raw Input Capture**: Terminal raw mode for precise control
-2. **Protocol Detection**: Auto-detect Kitty, XTerm, iTerm2 capabilities
-3. **Key/Mouse Parsing**: Parse escape sequences into structured events
-4. **Event Dispatch**: Route events to active prompt
-5. **State Management**: Update prompt state and trigger re-render
-6. **Screen Rendering**: Efficient diff-based terminal updates
+## 🚀 Performance Features
 
-## 🎯 Demo
-
-Run the comprehensive demo to see all features in action:
-
-```bash
-deno run --allow-read --allow-write --allow-env demo-prompt.ts
-```
-
-The demo showcases:
-- Single select with search and pagination
-- Multi-select with grouped options
-- Text input with real-time validation
-- Password input with security requirements
-- Confirmation prompts
-- Complex question flows with conditional logic
-- Beautiful gradients and theming
-
-## 🚀 Performance
-
-- **Zero Dependencies**: Built entirely with Deno standard library
-- **Efficient Rendering**: Only re-render changed parts of the screen
-- **Memory Optimized**: Minimal memory footprint for large option lists
-- **Fast Search**: Optimized text filtering algorithms
-- **Smooth Animations**: 60fps gradient animations where supported
+- **Zero dependencies**: Built entirely with Deno standard library
+- **Efficient rendering**: Only re-render changed screen regions
+- **Memory optimized**: Minimal footprint for large option lists
+- **Fast search**: Optimized text filtering algorithms
+- **Smooth animations**: 60fps gradient effects where supported
 
 ## 🧪 Testing
 
 ```bash
-# Run all terminal tests
-deno test src/terminal/
+# Run prompt system tests
+deno test src/terminal/prompts/
 
-# Test specific prompt functionality
-deno test src/terminal/prompt-select.test.ts
+# Test specific prompt types
+deno test src/terminal/prompts/select-prompt.test.ts
+deno test src/terminal/prompts/text-prompt.test.ts
 ```
 
 ## 🤝 Contributing
 
-1. **Add New Prompt Types**: Extend `BasePrompt` class
-2. **Create Custom Themes**: Use the `PromptTheme` interface
-3. **Add Input Protocols**: Extend keyboard/mouse input parsers
-4. **Improve Accessibility**: Add screen reader support
-5. **Add Animation Effects**: Enhance visual feedback
+### Add new prompt types
 
-## 📝 License
+Extend `BasePrompt` to create custom prompt types:
 
-MIT License - feel free to use this in your own projects!
+```typescript
+import { BasePrompt, PromptEngine } from './prompt.ts'
 
----
+class CustomPrompt extends BasePrompt {
+  protected initializeState(): PromptState {
+    // Initialize prompt state
+  }
 
-## 🏆 Why This is the Best Prompt System
+  protected render(): string[] {
+    // Return array of lines to render
+  }
 
-### 🎨 **Unmatched Visual Design**
-- Beautiful gradient colors that make terminals come alive
-- Smooth animations and transitions
-- Responsive layouts that adapt to any terminal size
-- Pixel-perfect alignment and spacing
+  public onKeyEvent(event: KeyEvent): void {
+    // Handle keyboard input
+  }
 
-### 🚀 **Developer Experience**
-- TypeScript-first with complete type safety
-- Intuitive, chainable API design
-- Comprehensive error handling and validation
-- Extensive documentation and examples
+  public onMouseEvent(event: MouseEvent): void {
+    // Handle mouse input
+  }
 
-### 🔧 **Technical Excellence**
-- Zero external dependencies
-- Cross-platform terminal compatibility
-- Modern protocol support (Kitty, XTerm, iTerm2)
-- Optimized performance for large datasets
+  protected getValue(): unknown {
+    // Return the prompt value
+  }
+}
+```
 
-### 🌟 **Feature Completeness**
-- Every prompt type you could ever need
-- Advanced features like search, pagination, grouping
-- Conditional logic and question flows
-- Comprehensive validation system
+### Create custom themes
 
-### 🎯 **Real-World Ready**
-- Production-tested architecture
-- Graceful degradation for limited terminals
-- Accessibility considerations
-- Comprehensive error recovery
+```typescript
+import { PartialPromptTheme } from '@deno-kit/prompts'
 
-This prompt system sets a new standard for terminal user interfaces. It's not just functional—it's beautiful, fast, and delightful to use. Whether you're building a simple CLI tool or a complex interactive application, this system provides everything you need and more.
+const customTheme: PartialPromptTheme = {
+  prefix: '🔥',
+  pointer: '→',
+  colors: {
+    primary: (text) => `\x1b[35m${text}\x1b[0m`, // Purple
+    success: (text) => `\x1b[32m${text}\x1b[0m`, // Green
+  },
+}
+```
 
-**Try it today and experience the future of terminal interfaces!** 🚀
+## 📄 License
+
+MIT License - feel free to use this in your projects!

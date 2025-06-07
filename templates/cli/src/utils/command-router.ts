@@ -1,5 +1,5 @@
 /**
- * @module command_router
+ * @module command-router
  * @description CLI Command Router for handling command routing and execution.
  *
  * This module provides a flexible command routing system for CLI applications.
