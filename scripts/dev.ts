@@ -78,7 +78,6 @@ const buildArgs = (originalArgs: string[], workspacePath: string) => {
     '-A',
     '--no-check',
     'src/main.ts',
-    'init',
     ...args,
     `--workspace-path=${workspacePath}`,
   ]
@@ -115,13 +114,30 @@ const runDenoKit = async (args: string[], workspacePath: string) => {
   return code
 }
 
+const SPECIAL_COMMANDS = ['help', 'version'] as const
+
 async function main() {
   const tempPath = await Deno.makeTempDir({ prefix: 'dk-dev-' })
   const workspacePath = resolve(tempPath)
 
   try {
     const args = buildArgs(Deno.args, workspacePath)
+
+    // Check if first non-script argument is a special command
+    const firstArg = Deno.args[0] === resolve(fromFileUrl(Deno.mainModule))
+      ? Deno.args[1]
+      : Deno.args[0]
+    const isSpecialCommand = SPECIAL_COMMANDS.includes(
+      firstArg as typeof SPECIAL_COMMANDS[number],
+    )
+
     const exitCode = await runDenoKit(args, workspacePath)
+
+    // For special commands, just cleanup and exit
+    if (isSpecialCommand) {
+      await safeCleanup(workspacePath)
+      Deno.exit(exitCode)
+    }
 
     // If we get code 130 (Ctrl+C), just clean up and exit gracefully
     if (exitCode === 130) {

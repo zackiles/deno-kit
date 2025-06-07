@@ -173,7 +173,7 @@ class Terminal {
       globalThis.console = this.#originalConsole
       this.#originalConsole = undefined
     }
-    Deno.stdout.writeSync(encoder.encode(`${RESET}\n`))
+    Deno.stdout.writeSync(encoder.encode(RESET))
   }
 
   setConfig(config: Partial<TerminalConfig>): void {
