@@ -61,23 +61,16 @@ jobs:
           INSTALL_PATH="/tmp/deno-kit-test-local/deno-kit"
           if [ -f "$INSTALL_PATH" ]; then
             echo "✅ Installation successful: $INSTALL_PATH"
-            # Verify it runs and reports the correct version (matches tag)
             chmod +x "$INSTALL_PATH"
-            # Get version by running the version command and strip ANSI codes and whitespace
-            INSTALLED_VERSION=$("$INSTALL_PATH" version | sed 's/\x1B\[[0-9;]*[JKmsu]//g' | tr -d '[:space:]')
-            EXPECTED_VERSION="${{ steps.get_tag.outputs.TAG }}"
-            EXPECTED_VERSION_NO_V=$(echo $EXPECTED_VERSION | sed 's/^v//' | tr -d '[:space:]')
 
-            # Debug output
-            echo "Debug: Installed version length: ${#INSTALLED_VERSION}"
-            echo "Debug: Expected version length: ${#EXPECTED_VERSION_NO_V}"
-            echo "Debug: Installed version hex: $(echo -n "$INSTALLED_VERSION" | xxd -p)"
-            echo "Debug: Expected version hex: $(echo -n "$EXPECTED_VERSION_NO_V" | xxd -p)"
+            # Get version and strip everything except digits and dots
+            INSTALLED_VERSION=$("$INSTALL_PATH" version 2>/dev/null | head -1 | sed 's/[^0-9.]//g')
+            EXPECTED_VERSION=$(echo "${{ steps.get_tag.outputs.TAG }}" | sed 's/^v//')
 
-            if [ "$INSTALLED_VERSION" = "$EXPECTED_VERSION_NO_V" ]; then
-                echo "✅ Binary version matches tag: v$INSTALLED_VERSION"
+            if [ "$INSTALLED_VERSION" = "$EXPECTED_VERSION" ]; then
+                echo "✅ Binary version matches tag: $INSTALLED_VERSION"
             else
-                echo "❌ Binary version mismatch! Expected: $EXPECTED_VERSION_NO_V, Got: $INSTALLED_VERSION"
+                echo "❌ Binary version mismatch! Expected: $EXPECTED_VERSION, Got: $INSTALLED_VERSION"
                 exit 1
             fi
           else
