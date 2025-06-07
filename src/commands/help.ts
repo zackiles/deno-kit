@@ -20,7 +20,7 @@ function command({ routes = [] }: CommandRouteOptions): void {
   )
 
   printHelpMenu({
-    title: { text: `${config.DENO_KIT_NAME} - Usage:` },
+    title: { text: config.DENO_KIT_NAME },
     usage: {
       text: `  ${config.DENO_KIT_NAME.toLowerCase()} <command> [options]`,
     },
@@ -38,9 +38,6 @@ function command({ routes = [] }: CommandRouteOptions): void {
   }
 
   printHelpMenu({
-    note: {
-      text: `If no command is provided, the "help" command will be executed.`,
-    },
     workspace: { text: config.DENO_KIT_WORKSPACE_PATH },
   })
 }

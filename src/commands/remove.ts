@@ -9,7 +9,7 @@ const config = await getConfig() as DenoKitConfig
 const commandRoute: CommandRouteDefinition = {
   name: 'remove',
   command: command,
-  description: 'Remove deno-kit from the current workspace',
+  description: 'Remove Deno-Kit from this workspace',
 }
 
 async function command(): Promise<void> {

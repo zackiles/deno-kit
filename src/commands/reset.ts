@@ -10,7 +10,7 @@ const config = await getConfig() as DenoKitConfig
 const commandRoute: CommandRouteDefinition = {
   name: 'reset',
   command: command,
-  description: 'Reset the current workspace and restore original files',
+  description: 'Restore the backups to this workspace',
 }
 
 async function command(): Promise<void> {

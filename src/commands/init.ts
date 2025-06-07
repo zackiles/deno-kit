@@ -23,7 +23,7 @@ const config = await getConfig() as DenoKitConfig
 const commandRoute: CommandRouteDefinition = {
   name: 'init',
   command: command,
-  description: 'Create a new Deno-Kit project in the current or specified path',
+  description: 'Create a new project in this workspace',
   options: {
     unknown: () => true,
   },
@@ -71,6 +71,13 @@ async function command(): Promise<void> {
     throw new Error('Deno-Kit init command only supports interactive terminals')
   }
   await ensureValidWorkspacePath() // CAUTION: Things can go poorly for us if we don't call ensureValidWorkspacePath(), like destroying the current codebase.
+  if (config.DENO_KIT_ENV !== 'test') {
+    await terminal.printBanner({
+      version: config.DENO_KIT_VERSION,
+      rollup: true,
+    })
+  }
+
   // Create workspace display box
   const totalWidth = 61
   const titleTextPlain = ' Workspace '

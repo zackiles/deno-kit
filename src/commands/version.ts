@@ -12,7 +12,7 @@ async function command(): Promise<void> {
   try {
     const packageData = await findPackageFromPath()
     const version = packageData.version as string || 'unknown'
-    terminal.print(version)
+    terminal.write(version)
   } catch (err) {
     throw new Error(
       `Failed to retrieve version information: ${

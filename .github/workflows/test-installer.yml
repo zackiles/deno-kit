@@ -63,6 +63,7 @@ jobs:
             echo "✅ Installation successful: $INSTALL_PATH"
             # Verify it runs and reports the correct version (matches tag)
             chmod +x "$INSTALL_PATH"
+            # Get version by running the version command
             INSTALLED_VERSION=$("$INSTALL_PATH" version)
             EXPECTED_VERSION="${{ steps.get_tag.outputs.TAG }}"
             # Compare versions, removing potential 'v' prefix from tag for comparison

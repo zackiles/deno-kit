@@ -65,13 +65,13 @@ const THEME = {
  * @see {@link ./commands/template.ts} Example command implementation
  */
 const AVAILABLE_COMMANDS = {
-  help: (await import('./commands/help.ts')).default,
   init: (await import('./commands/init.ts')).default,
   cli: (await import('./commands/cli.ts')).default,
-  version: (await import('./commands/version.ts')).default,
   remove: (await import('./commands/remove.ts')).default,
   reset: (await import('./commands/reset.ts')).default,
   uninstall: (await import('./commands/uninstall.ts')).default,
+  help: (await import('./commands/help.ts')).default,
+  version: (await import('./commands/version.ts')).default,
   //template: (await import('./commands/template.ts')).default,
 }
 
@@ -107,13 +107,6 @@ async function main(): Promise<void> {
   } else {
     terminal.start()
     gracefulShutdown.addShutdownHandler(terminal.stop.bind(terminal))
-  }
-
-  if (config.DENO_KIT_ENV !== 'test') {
-    await terminal.printBanner({
-      version: config.DENO_KIT_VERSION,
-      rollup: true,
-    })
   }
 
   const router = new CommandRouter(COMMANDS)
