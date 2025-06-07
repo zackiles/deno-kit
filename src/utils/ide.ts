@@ -1,11 +1,4 @@
-import {
-  dim,
-  green,
-  greenGradient,
-  prompt,
-  purpleGradient,
-  whiteGradient,
-} from '../terminal/mod.ts'
+import { prompt } from '../terminal/mod.ts'
 import { terminal } from '../terminal/mod.ts'
 import { getConfig } from '../config.ts'
 

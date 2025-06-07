@@ -1,6 +1,6 @@
 /**
  * @module cli
- * @description Main entry point for the CLI
+ * @description CLI routing and configuration
  * @see {@link https://jsr.io/@std/cli/doc/~/parseArgs}
  * @see {@link https://jsr.io/@std/cli/doc/parse-args/~/Args}
  * @see {@link https://jsr.io/@std/cli/doc/~/ParseOptions}

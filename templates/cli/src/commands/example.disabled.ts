@@ -1,5 +1,5 @@
 /**
- * @module example_command
+ * @module example-command
  * @description Template for creating new CLI commands.
  *
  * This module serves as a starting point for implementing new commands.

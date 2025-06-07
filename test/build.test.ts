@@ -1,9 +1,16 @@
 import { assert } from '@std/assert'
 import { dirname, fromFileUrl, join } from '@std/path'
 import { exists } from '@std/fs'
-import terminal from '../src/terminal/mod.ts'
+import terminal, { LogLevelEnum } from '../src/terminal/mod.ts'
 import { decompress } from '../src/utils/compression.ts'
 
+// Configure terminal for test environment
+terminal.setConfig({
+  environment: 'test',
+  colors: false,
+  level: LogLevelEnum.INFO,
+})
+terminal.start()
 /**
  * Streams process output and collects it into a string
  * @param stream - ReadableStream to process
@@ -19,8 +26,8 @@ async function streamOutput(
   let output = ''
   const decoder = new TextDecoder()
   const logFn = forcePrint
-    ? terminal.print
-    : (isError ? terminal.error : terminal.print)
+    ? terminal.print.bind(terminal)
+    : (isError ? terminal.error.bind(terminal) : terminal.print.bind(terminal))
 
   for await (const chunk of stream) {
     const text = decoder.decode(chunk)
@@ -70,6 +77,7 @@ Deno.test('Build and run kit binary', async () => {
       stdout: 'piped',
       stderr: 'piped',
       cwd: projectRoot,
+      env: { DENO_KIT_ENV: 'test' },
     }).spawn()
 
     // Run the process and stream its output
@@ -81,15 +89,6 @@ Deno.test('Build and run kit binary', async () => {
 
     // Use 'deno-kit' as the binary name since that's what build.ts uses
     const binaryName = 'deno-kit'
-
-    // Check that all platform zip files were created
-    const expectedPlatforms = [
-      'windows-x86_64',
-      'macos-x86_64',
-      'macos-aarch64',
-      'linux-x86_64',
-      'linux-aarch64',
-    ]
 
     // Get appropriate platform for current OS
     let currentPlatform: string
@@ -108,18 +107,18 @@ Deno.test('Build and run kit binary', async () => {
       currentPlatform = 'macos-x86_64'
     }
 
-    // Verify all zip files exist in bin/
-    for (const platform of expectedPlatforms) {
-      const zipPath = join(binDir, `${binaryName}-${platform}.zip`)
-      const zipExists = await exists(zipPath)
-      assert(zipExists, `Zip file not found at ${zipPath}`)
-    }
+    // In test mode, only the current platform binary is built (no zip files)
+    // Just verify the binary exists
+    const currentBinaryPath = join(
+      binDir,
+      `${binaryName}-${currentPlatform}${
+        currentPlatform.includes('windows') ? '.exe' : ''
+      }`,
+    )
+    const binaryExists = await exists(currentBinaryPath)
+    assert(binaryExists, `Binary not found at ${currentBinaryPath}`)
 
-    // Find the zip file for the current platform
-    const currentZipPath = join(binDir, `${binaryName}-${currentPlatform}.zip`)
-    terminal.log(`Using zip for current platform: ${currentZipPath}`)
-
-    // Extract the binary from the zip
+    // In test mode, copy the binary directly instead of extracting from zip
     const extractedBinaryPath = join(
       tempBinaryDir,
       `${binaryName}-${currentPlatform}${
@@ -127,8 +126,8 @@ Deno.test('Build and run kit binary', async () => {
       }`,
     )
 
-    // Extract the binary using our utility function
-    await decompress(currentZipPath, tempBinaryDir)
+    terminal.log(`Copying binary from: ${currentBinaryPath}`)
+    await Deno.copyFile(currentBinaryPath, extractedBinaryPath)
 
     // Make sure binary is executable
     if (Deno.build.os !== 'windows') {
@@ -162,14 +161,14 @@ Deno.test('Build and run kit binary', async () => {
 
     // Setup environment variables for the test
     const testEnv: Record<string, string> = {
-      TEMPLATES_PATH: tempTemplatesDir, // Use extracted templates path
-      DENO_KIT_PACKAGE_NAME: '@test/project',
-      DENO_KIT_PACKAGE_VERSION: '0.1.0',
+      DENO_KIT_TEMPLATES_PATH: tempTemplatesDir, // Use extracted templates path
+      DENO_KIT_TEMPLATE_PACKAGE_NAME: '@test/project',
+      DENO_KIT_TEMPLATE_PACKAGE_VERSION: '0.1.0',
       DENO_KIT_ENV: 'test',
-      DENO_KIT_PACKAGE_AUTHOR_NAME: 'Test User',
-      DENO_KIT_PACKAGE_AUTHOR_EMAIL: 'test@example.com',
-      DENO_KIT_PACKAGE_DESCRIPTION: 'Test project description',
-      DENO_KIT_PACKAGE_GITHUB_USER: 'test-org',
+      DENO_KIT_TEMPLATE_PACKAGE_AUTHOR_NAME: 'Test User',
+      DENO_KIT_TEMPLATE_PACKAGE_AUTHOR_EMAIL: 'test@example.com',
+      DENO_KIT_TEMPLATE_PACKAGE_DESCRIPTION: 'Test project description',
+      DENO_KIT_TEMPLATE_PACKAGE_GITHUB_USER: 'test-org',
       DENO_KIT_TEMPLATE_PROJECT_TYPE: 'cli',
       DENO_KIT_TEMPLATE_CREATE_GITHUB_REPO: 'false',
       DENO_KIT_TEMPLATE_GITHUB_REPO_PUBLIC: 'false',

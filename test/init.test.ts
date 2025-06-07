@@ -62,7 +62,9 @@ async function runCLI(
   })
 
   const { success, stdout, stderr } = await command.output()
-  const output = new TextDecoder().decode(success ? stdout : stderr)
+  const stdoutText = new TextDecoder().decode(stdout)
+  const stderrText = new TextDecoder().decode(stderr)
+  const output = success ? stdoutText : (stderrText || stdoutText)
   return { output: stripAnsi(output), success }
 }
 
@@ -311,7 +313,7 @@ describe('init command', () => {
       const result = await runCLI(
         envTestDir,
         ['init'],
-        { DENO_KIT_TEMPLATE_PROJECT_TYPE: 'CLI' },
+        { DENO_KIT_TEMPLATE_PROJECT_TYPE: 'cli' },
       )
       assert(
         result.success,

@@ -109,10 +109,12 @@ async function main(): Promise<void> {
     gracefulShutdown.addShutdownHandler(terminal.stop.bind(terminal))
   }
 
-  await terminal.printBanner({
-    version: config.DENO_KIT_VERSION,
-    rollup: true,
-  })
+  if (config.DENO_KIT_ENV !== 'test') {
+    await terminal.printBanner({
+      version: config.DENO_KIT_VERSION,
+      rollup: true,
+    })
+  }
 
   const router = new CommandRouter(COMMANDS)
   const route: CommandRouteDefinition = router.getRoute(Deno.args)

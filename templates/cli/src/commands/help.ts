@@ -1,5 +1,5 @@
 /**
- * @module help_command
+ * @module help-command
  * @description Command implementation for displaying the help menu.
  *
  * This module provides a command that lists all available commands

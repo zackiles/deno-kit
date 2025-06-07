@@ -1,5 +1,5 @@
 /**
- * @module version_command
+ * @module version-command
  * @description Command implementation for displaying the application version.
  *
  * This module provides a command that displays the current version of the

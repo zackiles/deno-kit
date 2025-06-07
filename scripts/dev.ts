@@ -26,10 +26,6 @@ const log = {
   error: (msg: string) => console.error(red(bold('[ERROR]')), msg),
 }
 
-const run = (cmd: string, args: string[], options = {}) =>
-  new Deno.Command(cmd, { args, stdout: 'null', stderr: 'null', ...options })
-    .output()
-
 const hasFiles = async (path: string) => {
   try {
     for await (const _ of Deno.readDir(path)) return true

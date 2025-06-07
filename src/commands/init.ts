@@ -67,7 +67,7 @@ const ensureValidWorkspacePath = async () => {
  * Initializes a new Deno-Kit project
  */
 async function command(): Promise<void> {
-  if (Deno.stdin.isTerminal() === false) {
+  if (config.DENO_KIT_ENV !== 'test' && Deno.stdin.isTerminal() === false) {
     throw new Error('Deno-Kit init command only supports interactive terminals')
   }
   await ensureValidWorkspacePath() // CAUTION: Things can go poorly for us if we don't call ensureValidWorkspacePath(), like destroying the current codebase.
@@ -142,7 +142,7 @@ async function command(): Promise<void> {
       const push = templateValues.CREATE_GITHUB_REPO === 'true'
 
       if (push) {
-        const { path, repoUrl } = await (workspace as WorkspaceWithGit)
+        const { repoUrl } = await (workspace as WorkspaceWithGit)
           .createGithubRepo({
             name: templateValues.PROJECT_NAME,
             isPublic,

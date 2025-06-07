@@ -14,13 +14,9 @@ import {
   green,
   greenGradient,
   prompt,
-  purple,
-  purpleGradient,
   terminal,
-  whiteGradient,
 } from './terminal/mod.ts'
 import type {
-  PromptConfig,
   SelectPromptConfig,
   TextPromptConfig,
 } from './terminal/prompts/prompt.ts'

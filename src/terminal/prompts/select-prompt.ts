@@ -714,6 +714,10 @@ class SelectPrompt extends BasePrompt {
     const selectedOption = this.filteredOptions[this.state.selectedIndex]
     return selectedOption?.value
   }
+
+  protected override getFilteredOptionsLength(): number {
+    return this.filteredOptions.length
+  }
 }
 
 export { SelectPrompt }

@@ -8,8 +8,9 @@
 
 {PACKAGE_DESCRIPTION}
 
-> [!NOTE]\
-> This is a **new** project and the documentation is unlikely to be comprehensive or accurate.
+> [!NOTE]
+> This is a **new** project and the documentation is unlikely to be
+> comprehensive or accurate.
 
 ## Usage
 
@@ -25,7 +26,8 @@ deno run -A {PACKAGE_NAME} [command] [options]
 {PACKAGE_NAME} --version
 ```
 
-An example template of a command you can use can be found in `src/commands/example.disabled.ts`
+An example template of a command you can use can be found in
+`src/commands/example.disabled.ts`
 
 ## Features
 
@@ -57,4 +59,6 @@ See the [`CONTRIBUTING`](CONTRIBUTING.md) for details.
 
 ## **License**
 
-This project is licensed under the [MIT License](https://opensource.org/licenses/MIT) — see the [`LICENSE`](LICENSE) for details.
+This project is licensed under the
+[MIT License](https://opensource.org/licenses/MIT) — see the
+[`LICENSE`](LICENSE) for details.

@@ -296,6 +296,10 @@ abstract class BasePrompt extends PromptEventEmitter {
   private cursorBlinkInterval: number | null = null
   private readonly CURSOR_BLINK_RATE = 500
 
+  protected getFilteredOptionsLength(): number {
+    return 0
+  }
+
   constructor(config: PromptConfig, engine: PromptEngine) {
     super(engine.getTerminal())
     this.config = {
@@ -365,15 +369,13 @@ abstract class BasePrompt extends PromptEventEmitter {
       promptType: this.constructor.name,
       configType: this.config.type,
       message: this.config.message,
-      // biome-ignore lint/suspicious/noExplicitAny: <explanation>
-      filteredOptionsLength: (this as any).filteredOptions?.length || 0,
+      filteredOptionsLength: this.getFilteredOptionsLength(),
     })
 
     terminal.debug('BasePrompt.promptInFlow() about to setCurrentPrompt')
     this.engine.setCurrentPrompt(this)
     terminal.debug('BasePrompt.promptInFlow() setCurrentPrompt completed', {
-      // biome-ignore lint/suspicious/noExplicitAny: <explanation>
-      filteredOptionsLength: (this as any).filteredOptions?.length || 0,
+      filteredOptionsLength: this.getFilteredOptionsLength(),
     })
 
     await this.renderScreen()

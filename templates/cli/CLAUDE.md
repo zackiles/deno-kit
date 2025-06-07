@@ -2,13 +2,12 @@
 
 ## Build & Development Commands
 
-- `deno task run:dev` - Run the development script
-- `deno task test` - Run all tests
-- `deno task test --filter "test name"` - Run tests matching a specific
-  description
-- `deno task check` - Format, lint, and type-check the codebase
-- `deno task tag` - Run the tagging script for versioning and releasing
-- `deno task build:repomix` - Build repomix files to `.ai/state/` using hypermix
+- `deno task run:dev`:Run the development script
+- `deno task test`: Run all tests
+- `deno task test --filter "test name"`: Run a specific test
+- `deno task check`:Format, lint, and type-check the codebase
+- `deno task tag`: Run `scripts/tag.ts` to version and release
+- `deno task build:hypermix`: Build repomix files to `.ai/state/` using hypermix
 - `deno task build:docs` - Generate HTML documentation
 - `deno task run:docs` - Serve documentation
 

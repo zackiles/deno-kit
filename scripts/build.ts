@@ -328,11 +328,11 @@ async function build() {
           console.log(`- ${binaryPath} (${platform})`)
         }
 
-        // For development/test environment, prompt to run the binary
+        // For development environment only, prompt to run the binary (skip in test)
         const buildOutput = outputs.find((output) =>
           output.platform === currentPlatform.name
         )
-        if (buildOutput) {
+        if (buildOutput && environment === 'development') {
           const shouldRun = await promptSelect(
             'Would you like to run the build?',
             ['Yes', 'No'],
