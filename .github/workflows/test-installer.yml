@@ -63,10 +63,17 @@ jobs:
             echo "✅ Installation successful: $INSTALL_PATH"
             # Verify it runs and reports the correct version (matches tag)
             chmod +x "$INSTALL_PATH"
-            # Get version by running the version command
-            INSTALLED_VERSION=$("$INSTALL_PATH" version)
+            # Get version by running the version command and trim any whitespace
+            INSTALLED_VERSION=$("$INSTALL_PATH" version | tr -d '[:space:]')
             EXPECTED_VERSION="${{ steps.get_tag.outputs.TAG }}"
-            EXPECTED_VERSION_NO_V=$(echo $EXPECTED_VERSION | sed 's/^v//')
+            EXPECTED_VERSION_NO_V=$(echo $EXPECTED_VERSION | sed 's/^v//' | tr -d '[:space:]')
+
+            # Debug output
+            echo "Debug: Installed version length: ${#INSTALLED_VERSION}"
+            echo "Debug: Expected version length: ${#EXPECTED_VERSION_NO_V}"
+            echo "Debug: Installed version hex: $(echo -n "$INSTALLED_VERSION" | xxd -p)"
+            echo "Debug: Expected version hex: $(echo -n "$EXPECTED_VERSION_NO_V" | xxd -p)"
+
             if [ "$INSTALLED_VERSION" = "$EXPECTED_VERSION_NO_V" ]; then
                 echo "✅ Binary version matches tag: v$INSTALLED_VERSION"
             else
