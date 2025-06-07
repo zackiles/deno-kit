@@ -66,11 +66,11 @@ jobs:
             # Get version by running the version command
             INSTALLED_VERSION=$("$INSTALL_PATH" version)
             EXPECTED_VERSION="${{ steps.get_tag.outputs.TAG }}"
-            # Compare versions, removing potential 'v' prefix from tag for comparison
-            if [ "$(echo $INSTALLED_VERSION | sed 's/^v//')" = "$(echo $EXPECTED_VERSION | sed 's/^v//')" ]; then
-                echo "✅ Binary version matches tag: $INSTALLED_VERSION"
+            EXPECTED_VERSION_NO_V=$(echo $EXPECTED_VERSION | sed 's/^v//')
+            if [ "$INSTALLED_VERSION" = "$EXPECTED_VERSION_NO_V" ]; then
+                echo "✅ Binary version matches tag: v$INSTALLED_VERSION"
             else
-                echo "❌ Binary version mismatch! Expected: $EXPECTED_VERSION, Got: $INSTALLED_VERSION"
+                echo "❌ Binary version mismatch! Expected: $EXPECTED_VERSION_NO_V, Got: $INSTALLED_VERSION"
                 exit 1
             fi
           else
