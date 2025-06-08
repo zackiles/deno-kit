@@ -12,8 +12,7 @@
     "temporal",
     "webgpu",
     "unsafe-proto",
-    "webgpu",
-    "decorators"
+    "webgpu"
   ],
   "deno.codeLens.implementations": true,
   "deno.codeLens.references": true,
@@ -23,6 +22,9 @@
   "deno.internalInspect": false,
   "deno.maxTsServerMemory": 6000,
   "deno.testing.args": ["--allow-all"],
+  "dev.containers.promptToReopen": "never",
+  "dev.containers.autoReopen": "never",
+  "dev.containers.showReopenPrompt": "never",
   "files.eol": "\n",
   "files.insertFinalNewline": true,
   "files.trimFinalNewlines": true,
@@ -81,6 +83,7 @@
     "somevalue",
     "repomix",
     "cursorignoreindex",
-    ".cursorignore"
+    ".cursorignore",
+    "devcontainers"
   ]
 }

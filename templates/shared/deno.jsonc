@@ -12,6 +12,7 @@
   },
   "tasks": {
     "run:dev": "DENO_ENV=development deno run -A scripts/dev.ts",
+    "run:dev:container": "deno run -A scripts/run-cursor-dev-container.ts",
     "run:docs": "deno run -A scripts/serve-docs.ts",
     "test": "DENO_ENV=test deno run -A scripts/test.ts",
     "check": "deno lint --fix && deno check -r src/",
@@ -56,8 +57,7 @@
     "cron",
     "temporal",
     "unsafe-proto",
-    "webgpu",
-    "decorators"
+    "webgpu"
   ],
   "lock": true,
   "nodeModulesDir": "none",

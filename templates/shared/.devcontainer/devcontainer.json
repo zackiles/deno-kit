@@ -1,32 +1,53 @@
-// For format details, see https://aka.ms/devcontainer.json. For config options, see the README at:
-// https://github.com/microsoft/vscode-dev-containers/tree/v0.183.0/containers/deno
 {
-  "$schema": "https://aka.ms/devcontainer-schema.json",
+  // Dev Container configuration optimized for Cursor programmatic launching
+  //
+  // CURSOR-SPECIFIC REQUIREMENTS:
+  // 1. workspaceFolder: "/workspace" must match the URI construction in test.ts
+  // 2. Docker socket mounting is critical for Cursor's container management
+  // 3. Proper user configuration ensures compatibility with Cursor's remote features
+  // 4. These settings work seamlessly with the programmatic URI launch approach
+
+  "$schema": "https://raw.githubusercontent.com/devcontainers/spec/main/schemas/devContainer.schema.json",
   "name": "DenoContainer",
   "dockerFile": "Dockerfile",
+
+  // Docker run arguments for Cursor compatibility
+  // --init: Ensures proper signal handling in container
+  // --privileged: Required for Docker-in-Docker functionality (mounting docker.sock)
   "runArgs": [
-      "--init",
-      "--privileged",
-      "--name",
-      "DenoContainer"
+    "--init",
+    "--privileged"
   ],
+
+  // Mount configurations essential for Cursor dev container functionality
   "mounts": [
-      "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind",
-      "source=${localEnv:HOME}/.ssh,target=/home/vscode/.ssh,type=bind,consistency=cached"
+    // Docker socket mount - CRITICAL for Cursor's container management
+    // Enables building containers from within the dev container
+    "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind",
+
+    // SSH keys mount for seamless Git operations
+    // Allows using existing SSH keys for Git operations within the container
+    "source=${localEnv:HOME}/.ssh,target=/home/vscode/.ssh,type=bind,consistency=cached"
   ],
+
+  // Extension configuration - works identically in Cursor and VS Code
   "customizations": {
-      "vscode": {
-          // Set *default* container specific settings.json values on container create.
-          // Add the IDs of extensions you want installed when the container is created.
-          "extensions": [
-              "denoland.vscode-deno"
-          ]
-      }
+    "vscode": {
+      "extensions": [
+        "denoland.vscode-deno"  // Essential Deno extension for development
+      ]
+    }
   },
-  // Use 'forwardPorts' to make a list of ports inside the container available locally.
+
+  // Port forwarding - configure as needed for your application
   "forwardPorts": [],
-  // Uncomment to use the Docker CLI from inside the container. See https://aka.ms/vscode-remote/samples/docker-from-docker.
-  // "mounts": [  ],
-  // Comment out connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
-  "remoteUser": "vscode"
+
+  // User configuration for Cursor compatibility
+  "remoteUser": "vscode",          // Matches the user created in Dockerfile
+  "updateRemoteUserUID": false,    // Maintains consistent permissions
+
+  // Workspace mounting - CRITICAL for Cursor programmatic launch
+  // These exact paths are referenced in the URI construction in test.ts
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
+  "workspaceFolder": "/workspace"  // Must match workspacePath in test.ts URI construction
 }

@@ -1,6 +1,8 @@
 .cursor
+.ai
 .vscode
 assets/
+docs/
 bin/
 node_modules
 LICENSE

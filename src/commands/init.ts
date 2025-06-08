@@ -16,6 +16,7 @@ import { compress, decompress } from '../utils/compression.ts'
 import type { DenoKitConfig } from '../types.ts'
 import { dedent } from '@std/text/unstable-dedent'
 import { bold, dim, green } from '@std/fmt/colors'
+import { ide } from '../utils/ide.ts'
 
 // Load config and check for existing project
 const config = await getConfig() as DenoKitConfig

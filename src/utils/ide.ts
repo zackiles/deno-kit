@@ -23,9 +23,12 @@ const log = {
 }
 
 const hasCommand = async (cmd: string) => {
+  const isWindows = Deno.build.os === 'windows'
+  const whichCmd = isWindows ? 'where' : 'which'
+
   try {
-    const result = await new Deno.Command(cmd, {
-      args: ['--version'],
+    const result = await new Deno.Command(whichCmd, {
+      args: [cmd],
       stdout: 'null',
       stderr: 'null',
     }).output()
@@ -63,6 +66,7 @@ const promptEditor = async (editors: Array<{ name: string; cmd: string }>) => {
     type: 'select',
     options,
     clearBefore: false,
+    resetAfter: true,
     clearAfter: true,
   })
 
@@ -75,12 +79,28 @@ const promptEditor = async (editors: Array<{ name: string; cmd: string }>) => {
 const openEditor = async (cmd: string, path: string) => {
   // IMPORTANT: In test mode, don't open the editor
   if (config.DENO_KIT_ENV === 'test') return true
-  const { success } = await new Deno.Command(cmd, {
+
+  const process = new Deno.Command(cmd, {
     args: [path],
     stdout: 'inherit',
     stderr: 'inherit',
-  }).output()
-  return success
+  }).spawn()
+
+  // We only wait briefly to check if the process started successfully
+  try {
+    const status = await Promise.race([
+      process.status,
+      new Promise<Deno.CommandStatus>((resolve) =>
+        setTimeout(
+          () => resolve({ success: true, code: 0, signal: null }),
+          2000,
+        )
+      ),
+    ])
+    return status.success
+  } catch {
+    return false
+  }
 }
 
 export const ide = {

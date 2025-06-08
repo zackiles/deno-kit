@@ -69,6 +69,7 @@
     "dbus",
     "dconf",
     "deno",
+    "denocontainer",
     "denoland",
     "deployctl",
     "dockerenv",
