@@ -85,7 +85,7 @@ deno-kit ../new-project
 
 🦖 **Modern Deno 2**: best practices such as safe defaults for lint/fmt/compile/publish and more, as well as out-of-the-box setup for the latest APIs such as OpenTelemetry.
 
-🤖 **AI-Native:** User Cursor? Deno-kit includes a complete set of Deno-optimized AI triggers, meta prompts, a full suite of Cursor rules in `.cursor/rules`, MCP servers for your codebase in `ai/mcp` and a local index of documentation for AI in `ai/docs` to jump-start your project
+🤖 **AI-Native:** Use Cursor? Deno-kit includes a complete set of Deno-optimized AI triggers, meta prompts, a full suite of Cursor rules in `.cursor/rules`, MCP servers for your codebase in `ai/mcp` and a local index of documentation for AI in `ai/docs` to jump-start your project
 
 🔒 **Safe Defaults:** Achieve a 100% [JSR score](https://jsr.io/docs/scoring) with safe defaults and comprehensive TypeScript coverage.
 
