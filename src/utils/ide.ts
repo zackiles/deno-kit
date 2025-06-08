@@ -66,8 +66,7 @@ const promptEditor = async (editors: Array<{ name: string; cmd: string }>) => {
     type: 'select',
     options,
     clearBefore: false,
-    resetAfter: true,
-    clearAfter: true,
+    clearAfter: false,
   })
 
   if (choice === 'Skip') return null

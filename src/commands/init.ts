@@ -193,6 +193,11 @@ async function command(): Promise<void> {
         bold(templateValues.PROJECT_TYPE.toUpperCase())
       } ${bold('project in')} ${dim(config.DENO_KIT_WORKSPACE_PATH)}`,
     )
+    if (
+      config.DENO_KIT_ENV !== 'production'
+    ) {
+      await ide.openFolder(workspacePath)
+    }
   } finally {
     if (temporaryTemplatesPath) {
       await Deno.remove(temporaryTemplatesPath, { recursive: true })
