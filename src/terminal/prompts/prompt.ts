@@ -299,6 +299,7 @@ abstract class BasePrompt extends PromptEventEmitter {
   private readonly RENDER_DEBOUNCE_MS = 16
   private userInputActive = false
   private inputActivityTimeout: number | null = null
+  private isReadyForInput = false
 
   protected getFilteredOptionsLength(): number {
     return 0
@@ -341,9 +342,19 @@ abstract class BasePrompt extends PromptEventEmitter {
 
   protected abstract initializeState(): PromptState
   protected abstract render(): string[]
-  public abstract onKeyEvent(event: KeyEvent): void
-  public abstract onMouseEvent(event: MouseEvent): void
+  protected abstract handleKeyEvent(event: KeyEvent): void
+  protected abstract handleMouseEvent(event: MouseEvent): void
   protected abstract getValue(): unknown
+
+  public onKeyEvent(event: KeyEvent): void {
+    if (!this.isReadyForInput) return
+    this.handleKeyEvent(event)
+  }
+
+  public onMouseEvent(event: MouseEvent): void {
+    if (!this.isReadyForInput) return
+    this.handleMouseEvent(event)
+  }
 
   async prompt(): Promise<PromptResult> {
     const useAlternateScreen = (this.config.clearBefore ?? true) &&
@@ -376,13 +387,14 @@ abstract class BasePrompt extends PromptEventEmitter {
       filteredOptionsLength: this.getFilteredOptionsLength(),
     })
 
+    await this.renderScreen()
+
     terminal.debug('BasePrompt.promptInFlow() about to setCurrentPrompt')
     this.engine.setCurrentPrompt(this)
+    this.isReadyForInput = true
     terminal.debug('BasePrompt.promptInFlow() setCurrentPrompt completed', {
       filteredOptionsLength: this.getFilteredOptionsLength(),
     })
-
-    await this.renderScreen()
 
     return new Promise<PromptResult>((resolve) => {
       const cleanupAndResolve = async (

@@ -88,7 +88,7 @@ class TextPrompt extends BasePrompt {
     return lines
   }
 
-  public onKeyEvent(event: KeyEvent): void {
+  protected override handleKeyEvent(event: KeyEvent): void {
     if (event.type !== 'press') return
 
     const config = this.config as TextPromptConfig
@@ -160,7 +160,7 @@ class TextPrompt extends BasePrompt {
     this.renderScreen()
   }
 
-  public onMouseEvent(_event: MouseEvent): void {
+  protected override handleMouseEvent(_event: MouseEvent): void {
     // Text input doesn't typically need mouse handling
   }
 

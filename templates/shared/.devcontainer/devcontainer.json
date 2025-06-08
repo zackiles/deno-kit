@@ -7,9 +7,10 @@
   // 3. Proper user configuration ensures compatibility with Cursor's remote features
   // 4. These settings work seamlessly with the programmatic URI launch approach
 
-  "$schema": "https://raw.githubusercontent.com/devcontainers/spec/main/schemas/devContainer.schema.json",
+  "$schema": "https://raw.githubusercontent.com/devcontainers/spec/refs/heads/main/schemas/devContainer.base.schema.json",
   "name": "DenoContainer",
   "dockerFile": "Dockerfile",
+  "shutdownAction": "stopContainer",
 
   // Docker run arguments for Cursor compatibility
   // --init: Ensures proper signal handling in container

@@ -38,24 +38,24 @@
  *      JSON config structure requirements for container settings and Docker context handling
  */
 
-const CONTAINER_NAME = "DenoContainer";
-const DEFAULT_DENO_VERSION = "2.3.5";
+const CONTAINER_NAME = 'DenoContainer'
+const DEFAULT_DENO_VERSION = '2.3.5'
 
 async function run(cmd: string, args: string[] = []) {
   const command = new Deno.Command(cmd, {
     args,
-    stdout: "piped",
-    stderr: "piped",
-  });
+    stdout: 'piped',
+    stderr: 'piped',
+  })
 
-  const { success, stdout, stderr } = await command.output();
-  const decoder = new TextDecoder();
+  const { success, stdout, stderr } = await command.output()
+  const decoder = new TextDecoder()
 
   return {
     success,
     stdout: decoder.decode(stdout).trim(),
     stderr: decoder.decode(stderr).trim(),
-  };
+  }
 }
 
 async function getContainerStatus() {
@@ -63,46 +63,46 @@ async function getContainerStatus() {
   // CURSOR NUANCE: We need to ensure the container is running before launching Cursor
   // because Cursor's dev container extension expects an existing container unlike VS Code
   // which can build containers on-demand more reliably
-  const { stdout } = await run("docker", [
-    "ps",
-    "-a",
-    "--filter",
+  const { stdout } = await run('docker', [
+    'ps',
+    '-a',
+    '--filter',
     `name=${CONTAINER_NAME}`,
-    "--format",
-    "{{.Status}}",
-  ]);
-  return stdout;
+    '--format',
+    '{{.Status}}',
+  ])
+  return stdout
 }
 
 async function startContainer() {
-  const status = await getContainerStatus();
+  const status = await getContainerStatus()
 
   if (!status) {
     // Read .deno-version directly because devcontainer.json build args don't work reliably in Cursor
-    const version = await Deno.readTextFile(".deno-version").catch(() =>
+    const version = await Deno.readTextFile('.deno-version').catch(() =>
       DEFAULT_DENO_VERSION
-    );
-    const result = await run("docker", [
-      "build",
-      "--build-arg",
+    )
+    const result = await run('docker', [
+      'build',
+      '--build-arg',
       `DENO_VERSION=${version.trim()}`,
-      "-t",
+      '-t',
       CONTAINER_NAME.toLowerCase(),
-      ".devcontainer/",
-    ]);
+      '.devcontainer/',
+    ])
 
-    if (!result.success) throw new Error(`Build failed: ${result.stderr}`);
-    return;
+    if (!result.success) throw new Error(`Build failed: ${result.stderr}`)
+    return
   }
 
-  if (status.startsWith("Up")) {
-    console.log("Container running");
-    return;
+  if (status.startsWith('Up')) {
+    console.log('Container running')
+    return
   }
 
-  console.log("Starting container...");
-  const result = await run("docker", ["start", CONTAINER_NAME]);
-  if (!result.success) throw new Error(`Start failed: ${result.stderr}`);
+  console.log('Starting container...')
+  const result = await run('docker', ['start', CONTAINER_NAME])
+  if (!result.success) throw new Error(`Start failed: ${result.stderr}`)
 }
 
 function createDevContainerUri() {
@@ -115,48 +115,48 @@ function createDevContainerUri() {
     hostPath: Deno.cwd(),
     localDocker: true,
     settings: {
-      context: "desktop-linux", // Required for macOS Docker Desktop
+      context: 'desktop-linux', // Required for macOS Docker Desktop
     },
-  };
+  }
 
   // Convert JSON to hex encoding as expected by Cursor's dev container extension
   // This matches the Buffer.from(s,"utf8").toString("hex") pattern from the extension source
   const hex = Array.from(new TextEncoder().encode(JSON.stringify(config)))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
 
-  return `vscode-remote://dev-container+${hex}/workspace`;
+  return `vscode-remote://dev-container+${hex}/workspace`
 }
 
 async function openCursor() {
-  const uri = createDevContainerUri();
+  const uri = createDevContainerUri()
 
   // Launch Cursor with the properly constructed dev container URI
   // Format: vscode-remote://dev-container+<hex-encoded-config><workspace-path>
   // This bypasses the need for manual "Reopen in Container" command palette action
-  const result = await run("cursor", ["--folder-uri", uri]);
+  const result = await run('cursor', ['--folder-uri', uri])
 
   if (!result.success) {
-    throw new Error(`Cursor launch failed: ${result.stderr}`);
+    throw new Error(`Cursor launch failed: ${result.stderr}`)
   }
 }
 
 async function main() {
   try {
-    await startContainer();
-    console.debug("Opening Cursor...");
-    await openCursor();
-    console.debug("Success! Cursor is running in dev container");
+    await startContainer()
+    console.debug('Opening Cursor...')
+    await openCursor()
+    console.debug('Success! Cursor is running in dev container')
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error("Error:", message);
+    const message = error instanceof Error ? error.message : String(error)
+    console.error('Error:', message)
     console.log(
       "Fallback: Use 'Dev Containers: Reopen in Container' in Cursor",
-    );
-    Deno.exit(1);
+    )
+    Deno.exit(1)
   }
 }
 
 if (import.meta.main) {
-  await main();
+  await main()
 }

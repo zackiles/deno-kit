@@ -60,7 +60,7 @@ class ConfirmPrompt extends BasePrompt {
     return lines
   }
 
-  public onKeyEvent(event: KeyEvent): void {
+  protected override handleKeyEvent(event: KeyEvent): void {
     if (event.type !== 'press') return
 
     switch (event.key.toLowerCase()) {
@@ -88,7 +88,7 @@ class ConfirmPrompt extends BasePrompt {
     }
   }
 
-  public onMouseEvent(_event: MouseEvent): void {
+  protected override handleMouseEvent(_event: MouseEvent): void {
     //TODO: Could implement click-to-select for Yes/No options
   }
 

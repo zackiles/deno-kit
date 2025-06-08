@@ -273,7 +273,7 @@ class SelectPrompt extends BasePrompt {
     return lines
   }
 
-  public onKeyEvent(event: KeyEvent): void {
+  protected override handleKeyEvent(event: KeyEvent): void {
     if (event.type !== 'press') return
 
     if (!event.key || event.key.length === 0) return
@@ -414,7 +414,7 @@ class SelectPrompt extends BasePrompt {
     }
   }
 
-  public onMouseEvent(event: MouseEvent): void {
+  protected override handleMouseEvent(event: MouseEvent): void {
     if (event.type === 'press' && event.button === 'left') {
       const clickedIndex = this.getOptionFromPosition(event.y)
 
