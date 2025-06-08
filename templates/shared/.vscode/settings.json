@@ -22,6 +22,7 @@
   "deno.internalDebug": true,
   "deno.internalInspect": false,
   "deno.maxTsServerMemory": 6000,
+  "deno.testing.args": ["--allow-all"],
   "files.eol": "\n",
   "files.insertFinalNewline": true,
   "files.trimFinalNewlines": true,

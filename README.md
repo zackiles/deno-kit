@@ -170,4 +170,18 @@ Every observable element acts as implicit instructions:
 
 ---
 
+## Why Deno for AI?
+
+Node and Bun seem like obvious choices given the training data most models have is based on Node-ish design. So why Deno? It's this authors belief, from real world testing, that Deno offers unique and significant advantage:
+
+- **A secure-by-default, sand-boxed runtime**. Perfect for providing the guardrails of agentic development.
+
+- **URL-based module imports with no reliance on central registries**. Managing dependencies can amount to many small paper-cuts and time/tokens wasted with AI. URL-based dependencies are simple, hard to make mistakes with, and reduce the amount of steps (see tokens) needed to install and configure dependencies. Agents can even create their own dependencies quickly are share them with simple URL paths.
+
+- **Zero-config, Native TypeScript support out of the box**. A familiar experience for an developer working with AI is endless loops and edge-cases where the agent fails to understand the intricate web of tsconfig and bundler options. Deno's approach to zero-config removes this. This is by far one of the most significant advantages to AI development and Typescript and compiler settings pose a massive hurdle to agentic development - which doesn't exist in Deno. A project can be started without a single configuration file.
+
+- **Built-in tools for formatting, linting, and testing**. With agents, you want to optimize for simple tools. Although Nodejs and Bun have a massive ecosystem of tools, that becomes a detriment to AI's consistency as it means there are numerous ways to accomplish the same thing. Deno-Kit has curated the perfect set of context and rules for agents to instantly master Deno's native tooling, and with less noise in its training data to counter-act or confuse the agents instructions, it ensures more consistent agent outcomes. Ironically, it comes as an advantage today's models don't have a training set polluted with decades of Javascript tooling and design patterns for Deno - it acts as a clean slate.
+
+- **WASI, FFI, K/V storage, native compiled binaries, and edge environments**. Deno's native support for all of these, including all of them in compiled binaries is not something supported in Bun and Node yet. Deno's native K/V storage with SQLite and atomic operations is a critical need for every distributed agentic application. All of these provide familiar bridges and integration points to the agent, giving endless possibilities of what could be built. The familiarity Typescript with the flexibility for native integrations is the perfect balance for an agent that is difficult to strike in any other language or runtime.
+
 <br><p align="center"><b>Made with ❤️ by humans (mostly)<b></p>
