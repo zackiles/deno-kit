@@ -558,7 +558,6 @@ const ANSI_KEY_MAP: Record<string, string> = {
   '\t': 'Tab',
   '\r': 'Enter',
   '\n': 'Enter',
-  ' ': 'Space',
 } as const
 
 const CTRL_KEY_MAP: Record<string, string> = {

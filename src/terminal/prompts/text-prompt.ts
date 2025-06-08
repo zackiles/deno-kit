@@ -97,23 +97,25 @@ class TextPrompt extends BasePrompt {
     switch (event.key) {
       case 'Enter':
         this.handleSubmit()
-        break
+        return
       case 'Escape':
         this.emit('cancel')
-        break
+        return
       case 'Backspace':
         if (this.state.cursorPosition > 0) {
           const beforeCursor = value.slice(0, this.state.cursorPosition - 1)
           const afterCursor = value.slice(this.state.cursorPosition)
-          this.state.value = beforeCursor + afterCursor
+          this.state.value = `${beforeCursor}${afterCursor}`
           this.state.cursorPosition--
+          this.signalUserInput()
         }
         break
       case 'Delete':
         if (this.state.cursorPosition < value.length) {
           const beforeCursor = value.slice(0, this.state.cursorPosition)
           const afterCursor = value.slice(this.state.cursorPosition + 1)
-          this.state.value = beforeCursor + afterCursor
+          this.state.value = `${beforeCursor}${afterCursor}`
+          this.signalUserInput()
         }
         break
       case 'ArrowLeft':
@@ -134,13 +136,23 @@ class TextPrompt extends BasePrompt {
       case '?':
         this.state.showHelp = !this.state.showHelp
         break
+      case 'Space':
+        if (!config.maxLength || value.length < config.maxLength) {
+          const beforeCursor = value.slice(0, this.state.cursorPosition)
+          const afterCursor = value.slice(this.state.cursorPosition)
+          this.state.value = `${beforeCursor} ${afterCursor}`
+          this.state.cursorPosition++
+          this.signalUserInput()
+        }
+        break
       default:
         if (this.isValidTextInputForTextPrompt(event.key)) {
           if (!config.maxLength || value.length < config.maxLength) {
             const beforeCursor = value.slice(0, this.state.cursorPosition)
             const afterCursor = value.slice(this.state.cursorPosition)
-            this.state.value = beforeCursor + event.key + afterCursor
+            this.state.value = `${beforeCursor}${event.key}${afterCursor}`
             this.state.cursorPosition++
+            this.signalUserInput()
           }
         }
     }

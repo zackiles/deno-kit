@@ -295,6 +295,10 @@ abstract class BasePrompt extends PromptEventEmitter {
   private isFirstRender = true
   private cursorBlinkInterval: number | null = null
   private readonly CURSOR_BLINK_RATE = 500
+  private lastRenderTime = 0
+  private readonly RENDER_DEBOUNCE_MS = 16
+  private userInputActive = false
+  private inputActivityTimeout: number | null = null
 
   protected getFilteredOptionsLength(): number {
     return 0
@@ -416,6 +420,15 @@ abstract class BasePrompt extends PromptEventEmitter {
   }
 
   protected async renderScreen(): Promise<void> {
+    const now = performance.now()
+    if (now - this.lastRenderTime < this.RENDER_DEBOUNCE_MS) {
+      if (!this.pendingRender) {
+        this.pendingRender = true
+        setTimeout(() => this.renderScreen(), this.RENDER_DEBOUNCE_MS)
+      }
+      return
+    }
+
     if (this.renderingInProgress) {
       this.pendingRender = true
       return
@@ -423,6 +436,7 @@ abstract class BasePrompt extends PromptEventEmitter {
 
     this.renderingInProgress = true
     this.pendingRender = false
+    this.lastRenderTime = now
 
     try {
       const lines = this.render()
@@ -450,6 +464,7 @@ abstract class BasePrompt extends PromptEventEmitter {
       this.renderingInProgress = false
 
       if (this.pendingRender) {
+        this.pendingRender = false
         queueMicrotask(() => this.renderScreen())
       }
     }
@@ -519,17 +534,43 @@ abstract class BasePrompt extends PromptEventEmitter {
     }
   }
 
+  protected signalUserInput(): void {
+    this.userInputActive = true
+    this.state.cursorVisible = true
+
+    if (this.inputActivityTimeout) {
+      clearTimeout(this.inputActivityTimeout)
+    }
+
+    this.inputActivityTimeout = setTimeout(() => {
+      this.userInputActive = false
+      this.restartCursorBlink()
+    }, 1000)
+  }
+
   private startCursorBlink(): void {
     this.cursorBlinkInterval = setInterval(() => {
-      this.state.cursorVisible = !this.state.cursorVisible
-      this.renderScreen()
+      if (!this.userInputActive && !this.state.isDone) {
+        this.state.cursorVisible = !this.state.cursorVisible
+        this.renderScreen()
+      }
     }, this.CURSOR_BLINK_RATE)
+  }
+
+  private restartCursorBlink(): void {
+    if (!this.userInputActive && !this.state.isDone) {
+      this.startCursorBlink()
+    }
   }
 
   private stopCursorBlink(): void {
     if (this.cursorBlinkInterval) {
       clearInterval(this.cursorBlinkInterval)
       this.cursorBlinkInterval = null
+    }
+    if (this.inputActivityTimeout) {
+      clearTimeout(this.inputActivityTimeout)
+      this.inputActivityTimeout = null
     }
   }
 }
