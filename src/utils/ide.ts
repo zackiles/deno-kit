@@ -104,6 +104,8 @@ const openEditor = async (cmd: string, path: string) => {
 
 export const ide = {
   async openFolder(path: string) {
+    if (config.DENO_KIT_ENV === 'test') return true
+
     const editors = await getAvailableEditors()
     const selectedEditorCmd = await promptEditor(editors)
 
