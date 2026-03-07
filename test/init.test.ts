@@ -8,16 +8,15 @@ import { getConfig } from '../src/config.ts'
 const config = await getConfig()
 // Extended config type for testing that includes additional test-specific environment variables
 interface TestConfig extends DenoKitConfig {
-  // Template-specific environment variables used in tests
   DENO_KIT_TEMPLATE_PROJECT_TYPE?: string
   DENO_KIT_TEMPLATE_PACKAGE_NAME?: string
   DENO_KIT_TEMPLATE_PACKAGE_VERSION?: string
-  DENO_KIT_TEMPLATE_AUTHOR_NAME?: string
-  DENO_KIT_TEMPLATE_AUTHOR_EMAIL?: string
-  DENO_KIT_TEMPLATE_DESCRIPTION?: string
-  DENO_KIT_TEMPLATE_GITHUB_USER?: string
-  DENO_KIT_TEMPLATE_GITHUB_REPO_NAME?: string
-  // Any other test-specific env vars can be added here
+  DENO_KIT_TEMPLATE_PACKAGE_AUTHOR_NAME?: string
+  DENO_KIT_TEMPLATE_PACKAGE_AUTHOR_EMAIL?: string
+  DENO_KIT_TEMPLATE_PACKAGE_DESCRIPTION?: string
+  DENO_KIT_TEMPLATE_PACKAGE_GITHUB_USER?: string
+  DENO_KIT_TEMPLATE_GITHUB_REPO_PUBLIC?: string
+  DENO_KIT_TEMPLATE_CREATE_GITHUB_REPO?: string
   [key: string]: string | undefined
 }
 
@@ -44,10 +43,10 @@ async function runCLI(
     // Default values that would normally be prompted (using DENO_KIT_TEMPLATE_ prefix)
     DENO_KIT_TEMPLATE_PACKAGE_NAME: '@test/project',
     DENO_KIT_TEMPLATE_PACKAGE_VERSION: '0.1.0',
-    DENO_KIT_TEMPLATE_AUTHOR_NAME: 'Test User',
-    DENO_KIT_TEMPLATE_AUTHOR_EMAIL: 'test@example.com',
-    DENO_KIT_TEMPLATE_DESCRIPTION: 'Test project description',
-    DENO_KIT_TEMPLATE_GITHUB_USER: 'test-org',
+    DENO_KIT_TEMPLATE_PACKAGE_AUTHOR_NAME: 'Test User',
+    DENO_KIT_TEMPLATE_PACKAGE_AUTHOR_EMAIL: 'test@example.com',
+    DENO_KIT_TEMPLATE_PACKAGE_DESCRIPTION: 'Test project description',
+    DENO_KIT_TEMPLATE_PACKAGE_GITHUB_USER: 'test-org',
     DENO_KIT_TEMPLATE_GITHUB_REPO_PUBLIC: 'false',
     DENO_KIT_TEMPLATE_CREATE_GITHUB_REPO: 'false',
     ...env,

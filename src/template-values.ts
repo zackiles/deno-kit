@@ -60,7 +60,7 @@ type PromptItem =
  */
 const getTemplateValueFromConfig = (key: string): string | undefined => {
   const configKey = `DENO_KIT_TEMPLATE_${key}` as keyof typeof config
-  return config[configKey]
+  return config[configKey] || Deno.env.get(configKey)
 }
 
 const createAutoPromptConfig = async (context: Record<string, string>) => {

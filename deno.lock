@@ -1,5 +1,5 @@
 {
-  "version": "4",
+  "version": "5",
   "specifiers": {
     "jsr:@deno-kit/module-to-cli@0": "0.1.0",
     "jsr:@std/assert@1": "1.0.13",
@@ -8,7 +8,7 @@
     "jsr:@std/cli@*": "1.0.19",
     "jsr:@std/cli@1": "1.0.19",
     "jsr:@std/data-structures@^1.0.8": "1.0.8",
-    "jsr:@std/datetime@~0.225.4": "0.225.4",
+    "jsr:@std/datetime@~0.225.7": "0.225.7",
     "jsr:@std/dotenv@0": "0.225.5",
     "jsr:@std/fmt@1": "1.0.8",
     "jsr:@std/fs@1": "1.0.18",
@@ -20,10 +20,10 @@
     "jsr:@std/net@1": "1.0.4",
     "jsr:@std/path@1": "1.1.0",
     "jsr:@std/path@^1.1.0": "1.1.0",
-    "jsr:@std/semver@*": "1.0.5",
-    "jsr:@std/semver@^1.0.5": "1.0.5",
+    "jsr:@std/regexp@^1.0.1": "1.0.1",
+    "jsr:@std/semver@^1.0.8": "1.0.8",
     "jsr:@std/testing@1": "1.0.13",
-    "jsr:@std/text@^1.0.14": "1.0.14",
+    "jsr:@std/text@^1.0.17": "1.0.17",
     "jsr:@zip-js/zip-js@2": "2.7.62",
     "npm:@types/node@*": "22.5.4",
     "npm:comment-parser@0": "0.7.6",
@@ -56,8 +56,8 @@
     "@std/data-structures@1.0.8": {
       "integrity": "2fb7219247e044c8fcd51341788547575653c82ae2c759ff209e0263ba7d9b66"
     },
-    "@std/datetime@0.225.4": {
-      "integrity": "682bc21738b941a4ed1465be6da01704e8010a3a6d9b615de9458202b84e00ec"
+    "@std/datetime@0.225.7": {
+      "integrity": "e62c6c454a0ecfc2918fe41e7a621e0f334a6f82605e98fd32eb1e6371999328"
     },
     "@std/dotenv@0.225.5": {
       "integrity": "9ce6f9d0ec3311f74a32535aa1b8c62ed88b1ab91b7f0815797d77a6f60c922f"
@@ -89,8 +89,11 @@
     "@std/path@1.1.0": {
       "integrity": "ddc94f8e3c275627281cbc23341df6b8bcc874d70374f75fec2533521e3d6886"
     },
-    "@std/semver@1.0.5": {
-      "integrity": "529f79e83705714c105ad0ba55bec0f9da0f24d2f726b6cc1c15e505cc2c0624"
+    "@std/regexp@1.0.1": {
+      "integrity": "5179d823465085c5480dafb44438466e83c424fadc61ba31f744050ecc0f596d"
+    },
+    "@std/semver@1.0.8": {
+      "integrity": "dc830e8b8b6a380c895d53fbfd1258dc253704ca57bbe1629ac65fd7830179b7"
     },
     "@std/testing@1.0.13": {
       "integrity": "74418be16f627dfe996937ab0ffbdbda9c1f35534b78724658d981492f121e71",
@@ -103,8 +106,11 @@
         "jsr:@std/path@^1.1.0"
       ]
     },
-    "@std/text@1.0.14": {
-      "integrity": "1a810108482414d19112b8b506ad0b7cba826000cd13f74274ffda6dd83d273f"
+    "@std/text@1.0.17": {
+      "integrity": "4b2c4ef67ae5b6c1dfd447c81c83a43718f52e3c7e748d8b33f694aba9895f95",
+      "dependencies": [
+        "jsr:@std/regexp"
+      ]
     },
     "@zip-js/zip-js@2.7.62": {
       "integrity": "11cbe0746fa1e52e6e0a601c89ba97365f16e38a07f139b9d9914f988aec9081"
@@ -165,7 +171,8 @@
       "integrity": "sha512-Q+JC7Whu8HhmTdBph/Tq59IoRtoy6KAm5zzPv00WdujX82lbAL8K7WVjne7vdCsAmbF4AYaDOPyO3k0kl8qIrw=="
     },
     "atob@2.1.2": {
-      "integrity": "sha512-Wm6ukoaOGJi/73p/cl2GvLjTI5JM1k/O14isD73YML8StrH/7/lRFgmg8nICZgD3bZZvjwCGxtMOD3wWNAu8cg=="
+      "integrity": "sha512-Wm6ukoaOGJi/73p/cl2GvLjTI5JM1k/O14isD73YML8StrH/7/lRFgmg8nICZgD3bZZvjwCGxtMOD3wWNAu8cg==",
+      "bin": true
     },
     "balanced-match@1.0.2": {
       "integrity": "sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw=="
@@ -390,7 +397,8 @@
         "minimatch",
         "once",
         "path-is-absolute"
-      ]
+      ],
+      "deprecated": true
     },
     "globby@8.0.2": {
       "integrity": "sha512-yTzMmKygLp8RUpG1Ymu2VXPSJQZjNAZPD4ywgYEaG7e4tBJeUQBO8OpXrf1RCNcEs5alsoJYPAMiIHP0cmeC7w==",
@@ -447,7 +455,8 @@
       "dependencies": [
         "once",
         "wrappy"
-      ]
+      ],
+      "deprecated": true
     },
     "inherits@2.0.4": {
       "integrity": "sha512-k/vGaX4/Yla3WzyMCvTQOXYeIHvqOKtnqBduzTHpzpQZzAskKMhZ2K+EnBiSM9zGSoIFeMpXKxa4dYeZIQqewQ=="
@@ -556,7 +565,7 @@
     },
     "jsonfile@4.0.0": {
       "integrity": "sha512-m6F1R3z8jjlf2imQHS2Qez5sjKWQzbuuhuJ/FKYFRZvPE3PuHcSMVZzfsLhGVOkfd20obL5SWEBew5ShlquNxg==",
-      "dependencies": [
+      "optionalDependencies": [
         "graceful-fs"
       ]
     },
@@ -707,7 +716,8 @@
       "integrity": "sha512-PV0dzCYDNfRi1jCDbJzpW7jNNDRuCOG/jI5ctQcGKt/clZD+YcPS3yIlWuTJMmESC8aevCFmWJy5wjAFgNqN6w=="
     },
     "resolve-url@0.2.1": {
-      "integrity": "sha512-ZuF55hVUQaaczgOIwqWzkEcEidmlD/xl44x1UZnhOXcYuFN2S6+rcxpG+C1N3So0wvNI3DmJICUFfu2SxhBmvg=="
+      "integrity": "sha512-ZuF55hVUQaaczgOIwqWzkEcEidmlD/xl44x1UZnhOXcYuFN2S6+rcxpG+C1N3So0wvNI3DmJICUFfu2SxhBmvg==",
+      "deprecated": true
     },
     "ret@0.1.15": {
       "integrity": "sha512-TTlYpa+OL+vMMNG24xSlQGEJ3B/RzEfUlLct7b5G/ytav+wPrplCpVMFuwzXbkecJrb6IYo1iFb0S9v37754mg=="
@@ -765,10 +775,12 @@
         "resolve-url",
         "source-map-url",
         "urix"
-      ]
+      ],
+      "deprecated": true
     },
     "source-map-url@0.4.1": {
-      "integrity": "sha512-cPiFOTLUKvJFIg4SKVScy4ilPPW6rFgMgfuZJPNoDuMs3nC1HbMUycBoJw77xFIp6z1UJQJOfx6C9GMH80DiTw=="
+      "integrity": "sha512-cPiFOTLUKvJFIg4SKVScy4ilPPW6rFgMgfuZJPNoDuMs3nC1HbMUycBoJw77xFIp6z1UJQJOfx6C9GMH80DiTw==",
+      "deprecated": true
     },
     "source-map@0.5.7": {
       "integrity": "sha512-LbrmJOMUSdEVxIKvdcJzQC+nQhe8FUZQTXQy6+I75skNgn3OoQ0DZA8YnFa7gp8tqtL3KPf1kmo0R5DoApeSGQ=="
@@ -826,7 +838,8 @@
       "integrity": "sha512-Xni35NKzjgMrwevysHTCArtLDpPvye8zV/0E4EyYn43P7/7qvQwPh9BGkHewbMulVntbigmcT7rdX3BNo9wRJg=="
     },
     "typescript@3.5.3": {
-      "integrity": "sha512-ACzBtm/PhXBDId6a6sDJfroT2pOWt/oOnk4/dElG5G33ZL776N3Y6/6bKZJBFpd+b05F3Ct9qDjMeJmRWtE2/g=="
+      "integrity": "sha512-ACzBtm/PhXBDId6a6sDJfroT2pOWt/oOnk4/dElG5G33ZL776N3Y6/6bKZJBFpd+b05F3Ct9qDjMeJmRWtE2/g==",
+      "bin": true
     },
     "unc-path-regex@0.1.2": {
       "integrity": "sha512-eXL4nmJT7oCpkZsHZUOJo8hcX3GbsiDOa0Qu9F646fi8dT3XuSVopVqAcEiVzSKKH7UoDti23wNX3qGFxcW5Qg=="
@@ -854,7 +867,8 @@
       ]
     },
     "urix@0.1.0": {
-      "integrity": "sha512-Am1ousAhSLBeB9cG/7k7r2R0zj50uDRlZHPGbazid5s9rlF1F/QKYObEKSIunSjIOkJZqwRRLpvewjEkM7pSqg=="
+      "integrity": "sha512-Am1ousAhSLBeB9cG/7k7r2R0zj50uDRlZHPGbazid5s9rlF1F/QKYObEKSIunSjIOkJZqwRRLpvewjEkM7pSqg==",
+      "deprecated": true
     },
     "use@3.1.1": {
       "integrity": "sha512-cwESVXlO3url9YWlFW/TA9cshCEhtu7IKJ/p5soJ/gGpj7vbvFrAY/eIioQ6Dw23KjZhYgiIo8HOs1nQ2vr/oQ=="
@@ -868,16 +882,16 @@
       "jsr:@deno-kit/module-to-cli@0",
       "jsr:@std/assert@1",
       "jsr:@std/cli@1",
-      "jsr:@std/datetime@~0.225.4",
+      "jsr:@std/datetime@~0.225.7",
       "jsr:@std/dotenv@0",
       "jsr:@std/fmt@1",
       "jsr:@std/fs@1",
       "jsr:@std/jsonc@1",
       "jsr:@std/net@1",
       "jsr:@std/path@1",
-      "jsr:@std/semver@^1.0.5",
+      "jsr:@std/semver@^1.0.8",
       "jsr:@std/testing@1",
-      "jsr:@std/text@^1.0.14",
+      "jsr:@std/text@^1.0.17",
       "jsr:@zip-js/zip-js@2"
     ]
   }

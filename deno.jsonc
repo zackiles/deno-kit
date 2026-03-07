@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/denoland/deno/refs/heads/main/cli/schemas/config-file.v1.json",
   "name": "@deno-kit/kit",
-  "version": "0.0.38",
+  "version": "0.0.39",
   "description": "The modern, unopinionated, and AI-native way to quickly scaffold and maintain Deno projects.",
   "license": "MIT",
   "author": "Zachary Iles <zack.iles@gmail.com>",
@@ -26,7 +26,7 @@
   "imports": {
     // Most of these are needed for deno-kit, be careful removing them.
     // <@deno-kit IMPORTS START>
-    "@std/datetime": "jsr:@std/datetime@^0.225.4",
+    "@std/datetime": "jsr:@std/datetime@^0.225.7",
     "@std/fmt": "jsr:@std/fmt@1",
     "@std/fs": "jsr:@std/fs@1",
     "@std/dotenv": "jsr:@std/dotenv@0",
@@ -36,9 +36,9 @@
     "@std/jsonc": "jsr:@std/jsonc@1",
     "@std/net": "jsr:@std/net@1",
     "@std/testing": "jsr:@std/testing@1",
-    "@std/semver": "jsr:@std/semver@^1.0.5",
+    "@std/semver": "jsr:@std/semver@^1.0.8",
     "@deno-kit/module-to-cli": "jsr:@deno-kit/module-to-cli@0",
-    "@std/text": "jsr:@std/text@^1.0.14",
+    "@std/text": "jsr:@std/text@^1.0.17",
     "@zip-js/zip-js": "jsr:@zip-js/zip-js@2"
     // </@deno-kit IMPORTS END>
   },
