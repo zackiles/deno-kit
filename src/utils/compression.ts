@@ -8,14 +8,13 @@
 
 import { dirname, join } from '@std/path'
 import { ensureDir } from '@std/fs'
-// Using data-uri is a workaround to avoid an issue with the zip-js library. See https://github.com/gildas-lormeau/zip.js/issues/519
 import {
   configure as configureZipJs,
   Uint8ArrayReader,
   Uint8ArrayWriter,
   ZipReader,
   ZipWriter,
-} from '@zip-js/zip-js/data-uri'
+} from '@zip-js/zip-js'
 import type { Entry } from '@zip-js/zip-js'
 import terminal from '../terminal/mod.ts'
 
